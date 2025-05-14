@@ -1,4 +1,4 @@
-# Kids School Website
+# LS System
 
 A modern, responsive website for a children's educational institution built with Vue 3, TypeScript, and Bootstrap 5.2. The website features smooth transitions, animations, and a user-friendly interface.
 
