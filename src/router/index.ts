@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import type { RouteRecordRaw } from 'vue-router'
 import { useAuthStore } from '@/store/auth'
 import { useToast } from 'vue-toastification'
+import { validateSchoolSession } from './middleware'
 // @ts-ignore - Bootstrap types are not available
 import 'bootstrap'
 
@@ -240,5 +241,8 @@ router.afterEach(() => {
     }
   }
 })
+
+// Add the validation middleware
+router.beforeEach(validateSchoolSession)
 
 export default router 

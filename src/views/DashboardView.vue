@@ -18,7 +18,7 @@
                     <button 
                       v-if="['student', 'parent'].includes(userRole?.toLowerCase())"
                       class="change-password-btn ms-3 mt-3 pulse"
-                      @click="showChangePasswordModal = true"
+                      @click="handleChangePassword"
                       title="Change Password"
                     >
                       <i class="fas fa-key me-2"></i>
@@ -306,7 +306,7 @@
 
                   <button 
                     class="action-button"
-                    @click="showChangePasswordModal = true"
+                    @click="handleChangePassword"
                   >
                     <i class="fas fa-key"></i>
                     <span>Change Password</span>
@@ -373,9 +373,11 @@ import { supabase } from '@/lib/supabase'
 import { Chart } from 'chart.js/auto'
 import type { ChartConfiguration, TooltipItem } from 'chart.js'
 import { useToast } from 'vue-toastification'
+import { useSchoolValidation } from '@/composables/useSchoolValidation'
 
-// Initialize toast
+// Initialize toast and validation
 const toast = useToast()
+const { withSchoolValidation } = useSchoolValidation()
 
 const authStore = useAuthStore()
 const loading = ref(true)
@@ -764,6 +766,13 @@ const canViewTeaching = computed(() => {
   const roleValue = userRole.value?.toLowerCase()
   return ['teacher', 'superadmin', 'admin'].includes(roleValue)
 })
+
+// Modify the showChangePasswordModal ref to be a function
+const handleChangePassword = () => {
+  withSchoolValidation(async () => {
+    showChangePasswordModal.value = true
+  })
+}
 </script>
 
 <style lang="scss" scoped>
