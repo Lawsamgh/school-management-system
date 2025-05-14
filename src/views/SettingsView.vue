@@ -9,7 +9,7 @@
 
         <!-- Add SchoolSelector for superadmin -->
         <div v-if="userRole === 'superadmin'" class="mb-4">
-          <SchoolSelector />
+          <SchoolSelector @school-selected="handleSchoolSelected" />
         </div>
 
         <!-- Show message when no school is selected for superadmin -->
@@ -38,15 +38,7 @@
                   :class="{ active: activeTab === 'academic' }"
                   @click="activeTab = 'academic'"
                 >
-                  <i class="fas fa-graduation-cap"></i>
-                  <span>Educational Programs</span>
-                </div>
-                <div 
-                  class="settings-tab-item" 
-                  :class="{ active: activeTab === 'activities' }"
-                  @click="activeTab = 'activities'"
-                >
-                  <i class="fas fa-running"></i>
+                  <i class="fas fa-futbol"></i>
                   <span>Manage Activities</span>
                 </div>
                 <div 
@@ -89,14 +81,6 @@
                   :class="{ active: activeTab === 'academic' }"
                   @click="activeTab = 'academic'"
                 >
-                  <i class="fas fa-graduation-cap"></i>
-                  <span>Educational Programs</span>
-                </div>
-                <div 
-                  class="settings-tab-item" 
-                  :class="{ active: activeTab === 'activities' }"
-                  @click="activeTab = 'activities'"
-                >
                   <i class="fas fa-running"></i>
                   <span>Manage Activities</span>
                 </div>
@@ -124,6 +108,40 @@
               </div>
               <div class="settings-card-body">
                 <div class="row g-3">
+                  <!-- Add School Logo Upload Section -->
+                  <div class="col-12 mb-4">
+                    <div class="school-logo-section">
+                      <label class="modern-label">School Logo</label>
+                      <div class="logo-upload-container" :class="{ 'has-image': schoolLogoPreview }">
+                        <input
+                          type="file"
+                          id="schoolLogo"
+                          ref="schoolLogoInput"
+                          class="logo-upload-input"
+                          accept="image/*"
+                          @change="handleLogoUpload"
+                        >
+                        <div class="logo-upload-content">
+                          <template v-if="schoolLogoPreview">
+                            <img :src="schoolLogoPreview" alt="School logo preview" class="logo-preview">
+                            <button type="button" class="btn-remove-logo" @click="removeLogo">
+                              <i class="fas fa-times"></i>
+                            </button>
+                          </template>
+                          <template v-else>
+                            <div class="upload-placeholder">
+                              <i class="fas fa-cloud-upload-alt upload-icon"></i>
+                              <p class="upload-text">
+                                Drag and drop your logo here or
+                                <span class="upload-browse">browse</span>
+                              </p>
+                              <p class="upload-hint">Supports: JPG, PNG (Max 2MB)</p>
+                            </div>
+                          </template>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                   <div class="col-md-6">
                     <div class="form-group">
                       <label for="schoolName">School Name</label>
@@ -189,8 +207,8 @@
             <div v-show="activeTab === 'academic'" class="settings-card">
               <div class="settings-card-header">
                 <h2>
-                  <i class="fas fa-graduation-cap"></i>
-                  Educational Programs
+                  <i class="fas fa-running"></i>
+                  Manage Activities
                 </h2>
                 <button 
                   class="btn btn-primary save-btn" 
@@ -198,7 +216,7 @@
                   :disabled="savingAcademic || !isEducationalProgramFormValid"
                 >
                   <i class="fas fa-save me-2"></i>
-                  {{ savingAcademic ? 'Saving...' : 'Save Program' }}
+                  {{ savingAcademic ? 'Saving...' : 'Save Activity' }}
                 </button>
               </div>
               <div class="settings-card-body">
@@ -206,12 +224,12 @@
                 <div class="row g-4 align-items-stretch mb-5">
                   <div class="col-md-7">
                     <div class="program-info-container">
-                      <h6 class="section-subtitle mb-4">Add New Program</h6>
+                      <h6 class="section-subtitle mb-4">Add New Activity</h6>
                       <div class="row g-4">
                         <div class="col-12">
                           <div class="modern-form-group">
                             <label for="programName" class="modern-label">
-                              Program Name <span class="required-field">*</span>
+                              Activity Name <span class="required-field">*</span>
                             </label>
                             <input
                               type="text"
@@ -223,14 +241,14 @@
                               required
                             >
                             <div class="invalid-feedback" v-if="educationalPrograms.name.trim() === ''">
-                              Program name is required
+                              Activity name is required
                             </div>
                           </div>
                         </div>
                         <div class="col-12">
                           <div class="modern-form-group">
                             <label for="programDescription" class="modern-label">
-                              Program Description <span class="required-field">*</span>
+                              Activity Description <span class="required-field">*</span>
                             </label>
                             <textarea
                               id="programDescription"
@@ -242,7 +260,7 @@
                               required
                             ></textarea>
                             <div class="invalid-feedback" v-if="educationalPrograms.description.trim() === ''">
-                              Program description is required
+                              Activity description is required
                             </div>
                           </div>
                         </div>
@@ -252,7 +270,7 @@
                   
                   <div class="col-md-5">
                     <div class="program-image-container">
-                      <h6 class="section-subtitle mb-4">Program Image <span class="required-field">*</span></h6>
+                      <h6 class="section-subtitle mb-4">Activity Image <span class="required-field">*</span></h6>
                       <div class="image-upload-wrapper">
                         <div class="image-upload-container" :class="{ 'has-image': programImagePreview, 'is-invalid': isImageRequired }">
                           <input
@@ -284,7 +302,7 @@
                           </div>
                         </div>
                         <div class="invalid-feedback" v-if="isImageRequired">
-                          Program image is required
+                          Activity image is required
                         </div>
                       </div>
                     </div>
@@ -293,7 +311,7 @@
 
                 <!-- Programs List -->
                 <div class="programs-list mt-5">
-                  <h6 class="section-subtitle mb-4">Existing Programs</h6>
+                  <h6 class="section-subtitle mb-4">Existing Activities</h6>
                   
                   <!-- Programs Grid with Animation -->
                   <transition-group 
@@ -356,58 +374,6 @@
                       Next
                       <i class="fas fa-chevron-right"></i>
                     </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Manage Activities - Visible to both admin and headmaster -->
-            <div v-show="activeTab === 'activities'" class="settings-card">
-              <div class="settings-card-header">
-                <h2>
-                  <i class="fas fa-running"></i>
-                  School Activities
-                </h2>
-                <button 
-                  class="btn btn-primary save-btn" 
-                  @click="saveActivity"
-                  :disabled="savingActivity"
-                >
-                  <i class="fas fa-save me-2"></i>
-                  {{ savingActivity ? 'Saving...' : 'Save Activity' }}
-                </button>
-              </div>
-              <div class="settings-card-body">
-                <div class="alert alert-info mb-4">
-                  <i class="fas fa-info-circle me-2"></i>
-                  <span>Manage your school's extracurricular activities, clubs, and events here.</span>
-                </div>
-                
-                <!-- Activity Form Placeholder -->
-                <div class="row g-4">
-                  <div class="col-md-12">
-                    <div class="form-group">
-                      <label for="activityName">Activity Name</label>
-                      <input
-                        type="text"
-                        id="activityName"
-                        v-model="activityForm.name"
-                        class="form-control"
-                        placeholder="Enter activity name"
-                      >
-                    </div>
-                  </div>
-                  <div class="col-md-12">
-                    <div class="form-group">
-                      <label for="activityDescription">Description</label>
-                      <textarea
-                        id="activityDescription"
-                        v-model="activityForm.description"
-                        class="form-control"
-                        rows="4"
-                        placeholder="Enter activity description"
-                      ></textarea>
-                    </div>
                   </div>
                 </div>
               </div>
@@ -706,6 +672,50 @@ const retryOperation = async (operation: () => Promise<any>, maxAttempts = 3, de
   }
 };
 
+// Add logo related refs
+const schoolLogoInput = ref<HTMLInputElement | null>(null)
+const schoolLogoPreview = ref<string | null>(null)
+const currentLogoUrl = ref<string | null>(null)
+
+// Handle logo upload
+const handleLogoUpload = async (event: Event) => {
+  const target = event.target as HTMLInputElement
+  const file = target.files?.[0]
+  
+  if (file) {
+    // Validate file size (2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('Logo size should not exceed 2MB')
+      return
+    }
+    
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please upload an image file')
+      return
+    }
+
+    // Create preview
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const result = e.target?.result
+      if (typeof result === 'string') {
+        schoolLogoPreview.value = result
+      }
+    }
+    reader.readAsDataURL(file)
+  }
+}
+
+// Remove logo
+const removeLogo = () => {
+  schoolLogoPreview.value = null
+  if (schoolLogoInput.value) {
+    schoolLogoInput.value.value = ''
+  }
+}
+
+// Modify fetchSchoolInfo to include logo
 const fetchSchoolInfo = async () => {
   try {
     const schoolId = userRole.value === 'admin' 
@@ -719,7 +729,7 @@ const fetchSchoolInfo = async () => {
 
     let query = supabase
       .from('setup')
-      .select('school_name, school_email, school_contact1, school_address')
+      .select('school_name, school_email, school_contact1, school_address, school_logo')
       .eq('school_id', schoolId)
 
     const { data, error } = await query.single()
@@ -739,6 +749,8 @@ const fetchSchoolInfo = async () => {
         phone: data.school_contact1 || '',
         address: data.school_address || ''
       }
+      currentLogoUrl.value = data.school_logo || null
+      schoolLogoPreview.value = data.school_logo || null
     }
   } catch (error: any) {
     console.error('Error fetching school info:', error)
@@ -746,24 +758,7 @@ const fetchSchoolInfo = async () => {
   }
 }
 
-// Add watch for selectedSchoolId changes
-watch(
-  () => authStore.getSelectedSchoolId,
-  (newSchoolId) => {
-    if (newSchoolId && userRole.value === 'superadmin') {
-      // Fetch all settings when school is selected
-      Promise.all([
-        fetchSchoolInfo(),
-        fetchEducationalPrograms(),
-        fetchNotificationSettings()
-      ]).catch(error => {
-        console.error('Error fetching settings:', error)
-        toast.error('Failed to load some settings')
-      })
-    }
-  }
-)
-
+// Modify saveSchoolInfo to include logo upload
 const saveSchoolInfo = async () => {
   savingSchoolInfo.value = true
   showRefreshMessage.value = false
@@ -774,6 +769,51 @@ const saveSchoolInfo = async () => {
 
     if (!schoolId) {
       throw new Error('No school ID found. Please select a school first.')
+    }
+
+    let logoUrl = currentLogoUrl.value
+
+    // Upload new logo if exists
+    if (schoolLogoPreview.value && schoolLogoPreview.value !== currentLogoUrl.value) {
+      const target = schoolLogoInput.value
+      const file = target?.files?.[0]
+      if (file) {
+        try {
+          const fileExt = file.name.split('.').pop()
+          const fileName = `school-logo-${schoolId}-${Date.now()}.${fileExt}`
+          
+          // Upload new logo
+          const { error: uploadError } = await supabase.storage
+            .from('school-logos')
+            .upload(fileName, file, {
+              cacheControl: '3600',
+              upsert: true
+            })
+
+          if (uploadError) throw uploadError
+          
+          // Get public URL
+          const { data: { publicUrl } } = supabase.storage
+            .from('school-logos')
+            .getPublicUrl(fileName)
+            
+          logoUrl = publicUrl
+
+          // Delete old logo if exists
+          if (currentLogoUrl.value) {
+            const oldLogoPath = currentLogoUrl.value.split('/').pop()
+            if (oldLogoPath) {
+              await supabase.storage
+                .from('school-logos')
+                .remove([oldLogoPath])
+            }
+          }
+        } catch (uploadError: any) {
+          console.error('Logo upload error:', uploadError)
+          toast.error(uploadError.message || 'Failed to upload logo. Please make sure the file is an image and under 2MB.')
+          throw new Error('Failed to upload logo')
+        }
+      }
     }
 
     // First update the schools table if superadmin
@@ -803,6 +843,7 @@ const saveSchoolInfo = async () => {
       school_email: schoolInfo.value.email,
       school_contact1: schoolInfo.value.phone,
       school_address: schoolInfo.value.address,
+      school_logo: logoUrl,
       school_id: schoolId
     }
 
@@ -821,6 +862,10 @@ const saveSchoolInfo = async () => {
     }
 
     if (result.error) throw result.error
+    
+    // Update current logo URL after successful save
+    currentLogoUrl.value = logoUrl
+    
     toast.success('School information saved successfully')
     showRefreshMessage.value = true
 
@@ -831,7 +876,7 @@ const saveSchoolInfo = async () => {
     }
   } catch (error: any) {
     console.error('Error saving school info:', error)
-    toast.error(error.message || 'Failed to save school information. Please check your permissions.')
+    toast.error(error.message || 'Failed to save school information')
   } finally {
     savingSchoolInfo.value = false
   }
@@ -862,6 +907,15 @@ const saveEducationalPrograms = async () => {
 
   savingAcademic.value = true;
   try {
+    // Get the school_id based on user role
+    const schoolId = userRole.value === 'admin' 
+      ? authStore.userRole?.school_id 
+      : authStore.getSelectedSchoolId;
+
+    if (!schoolId) {
+      throw new Error('No school ID found. Please select a school first.');
+    }
+
     // Upload image if exists
     let programImageUrl = null
     if (programImagePreview.value) {
@@ -908,14 +962,15 @@ const saveEducationalPrograms = async () => {
       }
     }
 
-    // Insert into programs table with retry
+    // Insert into programs table with retry and include school_id
     const { data: programData, error: programError } = await retryOperation(async () => {
       return supabase
         .from('programs')
         .insert([{
           program_name: educationalPrograms.value.name,
           program_description: educationalPrograms.value.description,
-          program_image: programImageUrl
+          program_image: programImageUrl,
+          school_id: schoolId // Add school_id to the insert
         }])
         .select()
         .single()
@@ -923,7 +978,7 @@ const saveEducationalPrograms = async () => {
 
     if (programError) throw programError
 
-    toast.success('Educational program saved successfully')
+    toast.success('Activity saved successfully')
     
     // Reset form after successful save
     educationalPrograms.value = {
@@ -944,31 +999,44 @@ const saveEducationalPrograms = async () => {
     await fetchEducationalPrograms()
     
   } catch (error: any) {
-    console.error('Error saving educational program:', error)
+    console.error('Error saving activity:', error)
     toast.error(
       error.message === 'Failed to fetch' 
         ? 'Unable to reach the server. Please check your network connection.'
-        : error.message || 'Failed to save educational program'
+        : error.message || 'Failed to save activity'
     )
   } finally {
     savingAcademic.value = false
   }
 }
 
-// Update fetch function to get all programs
+// Update fetch function to get school-specific programs
 const fetchEducationalPrograms = async () => {
   try {
+    // Get the school_id based on user role
+    const schoolId = userRole.value === 'admin' 
+      ? authStore.userRole?.school_id 
+      : authStore.getSelectedSchoolId;
+
+    if (!schoolId) {
+      console.log('No school_id found. For superadmin, please select a school first.');
+      programsList.value = [];
+      return;
+    }
+
     const { data, error } = await supabase
       .from('programs')
       .select('*')
-      .order('created_at', { ascending: false })
+      .eq('school_id', schoolId) // Filter by school_id
+      .order('created_at', { ascending: false });
 
-    if (error) throw error
+    if (error) throw error;
 
-    programsList.value = data || []
+    programsList.value = data || [];
   } catch (error: any) {
-    console.error('Error fetching educational programs:', error)
-    toast.error('Failed to load educational programs')
+    console.error('Error fetching activities:', error);
+    toast.error('Failed to load activities');
+    programsList.value = [];
   }
 }
 
@@ -1271,21 +1339,30 @@ const removeEditImage = () => {
 }
 
 const handleEditProgram = async () => {
-  isEditing.value = true
+  isEditing.value = true;
   try {
     // Validate form
     if (!editingProgram.value.name.trim() || !editingProgram.value.description.trim()) {
-      toast.error('Please fill in all required fields')
-      return
+      toast.error('Please fill in all required fields');
+      return;
     }
 
     // Validate image
     if (!editImagePreview.value && !editingProgram.value.currentImage) {
-      toast.error('Please upload a new image or select an existing one')
-      return
+      toast.error('Please upload a new image or select an existing one');
+      return;
     }
 
-    let programImageUrl = editingProgram.value.currentImage
+    // Get the school_id based on user role
+    const schoolId = userRole.value === 'admin' 
+      ? authStore.userRole?.school_id 
+      : authStore.getSelectedSchoolId;
+
+    if (!schoolId) {
+      throw new Error('No school ID found. Please select a school first.');
+    }
+
+    let programImageUrl = editingProgram.value.currentImage;
 
     // Upload new image if exists
     if (editImagePreview.value) {
@@ -1340,21 +1417,22 @@ const handleEditProgram = async () => {
       }
     }
 
-    // Update program
+    // Update program with school_id
     const { data: programData, error: programError } = await retryOperation(async () => {
       return supabase
         .from('programs')
         .update({
           program_name: editingProgram.value.name,
           program_description: editingProgram.value.description,
-          program_image: programImageUrl
+          program_image: programImageUrl,
+          school_id: schoolId // Add school_id to the update
         })
         .eq('id', editingProgram.value.id)
         .select()
-        .single()
+        .single();
     });
 
-    if (programError) throw programError
+    if (programError) throw programError;
 
     // Update local list
     programsList.value = programsList.value.map(p =>
@@ -1362,17 +1440,18 @@ const handleEditProgram = async () => {
         ...p,
         program_name: editingProgram.value.name,
         program_description: editingProgram.value.description,
-        program_image: programImageUrl
+        program_image: programImageUrl,
+        school_id: schoolId
       } : p
-    )
+    );
 
-    toast.success('Program updated successfully')
-    closeEditModal()
+    toast.success('Program updated successfully');
+    closeEditModal();
   } catch (error: any) {
-    console.error('Error updating program:', error)
-    toast.error(error.message || 'Failed to update program')
+    console.error('Error updating program:', error);
+    toast.error(error.message || 'Failed to update program');
   } finally {
-    isEditing.value = false
+    isEditing.value = false;
   }
 }
 
@@ -1394,31 +1473,71 @@ watch(programsList, () => {
   currentPage.value = 1
 })
 
-// Add these new refs for activities
-const savingActivity = ref(false)
-const activityForm = ref({
-  name: '',
-  description: ''
-})
-
-// Add this new method for saving activities
-const saveActivity = async () => {
-  savingActivity.value = true
-  try {
-    // TODO: Implement activity saving logic
-    await wait(1000) // Simulated delay
-    toast.success('Activity saved successfully')
-    
-    // Reset form
-    activityForm.value = {
-      name: '',
-      description: ''
+// Add watch for selectedSchoolId changes
+watch(
+  () => authStore.getSelectedSchoolId,
+  async (newSchoolId) => {
+    if (newSchoolId && userRole.value === 'superadmin') {
+      // Reset loading states
+      savingSchoolInfo.value = false
+      savingAcademic.value = false
+      savingNotifications.value = false
+      
+      // Reset form data
+      schoolInfo.value = {
+        name: '',
+        email: '',
+        phone: '',
+        address: ''
+      }
+      schoolLogoPreview.value = null
+      currentLogoUrl.value = null
+      
+      try {
+        // Fetch all settings when school is selected
+        await Promise.all([
+          fetchSchoolInfo(),
+          fetchEducationalPrograms(),
+          fetchNotificationSettings()
+        ])
+      } catch (error) {
+        console.error('Error fetching settings:', error)
+        toast.error('Failed to load some settings')
+      }
     }
-  } catch (error: any) {
-    console.error('Error saving activity:', error)
-    toast.error(error.message || 'Failed to save activity')
-  } finally {
-    savingActivity.value = false
+  },
+  { immediate: true } // This will make it run immediately on component mount
+)
+
+// Add the handler function in the script section
+const handleSchoolSelected = async (schoolId: string) => {
+  if (schoolId) {
+    // Reset loading states
+    savingSchoolInfo.value = false
+    savingAcademic.value = false
+    savingNotifications.value = false
+    
+    // Reset form data
+    schoolInfo.value = {
+      name: '',
+      email: '',
+      phone: '',
+      address: ''
+    }
+    schoolLogoPreview.value = null
+    currentLogoUrl.value = null
+    
+    try {
+      // Fetch all settings when school is selected
+      await Promise.all([
+        fetchSchoolInfo(),
+        fetchEducationalPrograms(),
+        fetchNotificationSettings()
+      ])
+    } catch (error) {
+      console.error('Error fetching settings:', error)
+      toast.error('Failed to load some settings')
+    }
   }
 }
 </script>
@@ -1430,6 +1549,129 @@ const saveActivity = async () => {
       color: #2c3e50;
       font-weight: 600;
       margin-bottom: 0.5rem;
+    }
+  }
+
+  // Add logo upload styles
+  .school-logo-section {
+    .logo-upload-container {
+      height: 200px;
+      border: 2px dashed #e2e8f0;
+      border-radius: 1rem;
+      padding: 0;
+      text-align: center;
+      transition: all 0.3s ease;
+      background: white;
+      position: relative;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+
+      &:hover {
+        border-color: #42b883;
+        background: #f8fafc;
+      }
+
+      &.has-image {
+        padding: 0;
+        border-style: solid;
+        border-color: #e2e8f0;
+
+        .logo-preview {
+          width: auto;
+          height: 100%;
+          max-width: 100%;
+          object-fit: contain;
+          border-radius: 0.75rem;
+        }
+
+        &:hover {
+          border-color: #42b883;
+        }
+      }
+
+      .logo-upload-input {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        opacity: 0;
+        cursor: pointer;
+        z-index: 2;
+      }
+
+      .logo-upload-content {
+        width: 100%;
+        height: 100%;
+        position: relative;
+      }
+
+      .upload-placeholder {
+        padding: 2rem;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 100%;
+      }
+
+      .upload-icon {
+        font-size: 2.5rem;
+        color: #42b883;
+        margin-bottom: 1.5rem;
+      }
+
+      .upload-text {
+        color: #334155;
+        margin-bottom: 0.75rem;
+        font-size: 1rem;
+        line-height: 1.5;
+      }
+
+      .upload-browse {
+        color: #42b883;
+        text-decoration: underline;
+        font-weight: 500;
+        cursor: pointer;
+      }
+
+      .upload-hint {
+        color: #64748b;
+        font-size: 0.85rem;
+        margin: 0;
+      }
+
+      .btn-remove-logo {
+        position: absolute;
+        top: 0.5rem;
+        right: 0.5rem;
+        background: rgba(255, 255, 255, 0.9);
+        border: none;
+        width: 2rem;
+        height: 2rem;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        color: #ef4444;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        z-index: 3;
+
+        &:hover {
+          background: white;
+          transform: scale(1.1);
+          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
+        }
+
+        i {
+          font-size: 1rem;
+        }
+      }
     }
   }
 

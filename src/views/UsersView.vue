@@ -6,9 +6,25 @@
         <h1 class="h3 mb-0 text-gray-800">User Management</h1>
         <p class="mb-0">Manage all system users and their roles</p>
       </div>
-      <button class="btn btn-primary" @click="openAddUserModal">
+      <button 
+        class="btn btn-primary" 
+        @click="openAddUserModal"
+        :disabled="userRole === 'superadmin' && !authStore.getSelectedSchoolId"
+        :title="userRole === 'superadmin' && !authStore.getSelectedSchoolId ? 'Please select a school first' : ''"
+      >
         <i class="fas fa-user-plus me-2"></i>Add New User
       </button>
+    </div>
+
+    <!-- School Selector for Superadmin -->
+    <div v-if="userRole === 'superadmin'" class="mb-4">
+      <SchoolSelector @school-selected="handleSchoolSelected" />
+    </div>
+
+    <!-- Show message when no school is selected for superadmin -->
+    <div v-if="userRole === 'superadmin' && !authStore.getSelectedSchoolId" class="alert alert-info">
+      <i class="fas fa-info-circle me-2"></i>
+      Please select a school to view and manage its users.
     </div>
 
     <!-- Modern Add User Modal -->
@@ -391,12 +407,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useToast } from 'vue-toastification'
 import { supabase } from '@/lib/supabase'
 import { getUsersWithRoles, deleteUser as deleteUserApi, addUserWithRole, updateUserWithRole, getGrades, getClasses } from '@/api/users'
 import { useAuthStore } from '@/store/auth'
 import AddUserModal from '@/components/AddUserModal.vue'
+import SchoolSelector from '@/components/SchoolSelector.vue'
 
 interface User {
   id: string
@@ -422,6 +439,22 @@ interface User {
 interface Grade {
   id: number
   grade_level: string
+}
+
+// Add interface for user creation
+interface CreateUserData {
+  email: string
+  username: string
+  role: string
+  identification?: string
+  gradeLevel?: string
+  dob?: string
+  age?: number
+  gender?: string
+  class_id?: string
+  nationality?: string
+  religion?: string
+  school_id?: string | null
 }
 
 const toast = useToast()
@@ -474,6 +507,9 @@ const showViewUserModal = ref(false)
 const viewUserTarget = ref<User | null>(null)
 const authStore = useAuthStore()
 const currentUserRole = computed(() => authStore.userRole?.role?.toLowerCase() || null)
+
+// Add computed property for current user's role
+const userRole = computed(() => authStore.userRole?.role?.toLowerCase() || null)
 
 // Pagination computed properties
 const totalUsers = computed(() => filteredUsers.value.length)
@@ -752,7 +788,23 @@ const isLoadingClasses = ref(false)
 const fetchUsers = async () => {
   isLoading.value = true
   try {
-    const { users: authUsers } = await getUsersWithRoles(currentUserRole.value ?? undefined)
+    // Get the school_id based on user role
+    const schoolId = userRole.value === 'admin' 
+      ? authStore.userRole?.school_id 
+      : authStore.getSelectedSchoolId;
+
+    // For superadmin, only fetch users if a school is selected
+    if (userRole.value === 'superadmin' && !schoolId) {
+      users.value = []
+      isLoading.value = false
+      return
+    }
+
+    const { users: authUsers } = await getUsersWithRoles(
+      currentUserRole.value ?? undefined,
+      schoolId // Always pass schoolId for filtering
+    )
+
     // Transform the auth users into our User interface format
     users.value = authUsers.map(user => ({
       id: user.id,
@@ -910,6 +962,18 @@ const closeAddUserModal = () => {
 const handleAddUser = async () => {
   addUserLoading.value = true
   try {
+    // Get the school_id based on user role
+    const schoolId = userRole.value === 'admin' 
+      ? authStore.userRole?.school_id 
+      : authStore.getSelectedSchoolId;
+
+    // Only include school_id for non-superadmin roles
+    const schoolIdToAdd = addUserForm.value.role === 'superadmin' ? null : schoolId;
+
+    if (!schoolIdToAdd && addUserForm.value.role !== 'superadmin') {
+      throw new Error('No school ID found. Please select a school first.');
+    }
+
     await addUserWithRole({
       email: addUserForm.value.email,
       username: addUserForm.value.username,
@@ -921,7 +985,8 @@ const handleAddUser = async () => {
       gender: addUserForm.value.gender,
       class_id: addUserForm.value.class_id,
       nationality: addUserForm.value.nationality,
-      religion: addUserForm.value.religion
+      religion: addUserForm.value.religion,
+      school_id: schoolIdToAdd // Add school_id to the user creation
     })
     toast.success('User added successfully!')
     closeAddUserModal()
@@ -1059,6 +1124,23 @@ const closeViewUserModal = () => {
   showViewUserModal.value = false
   viewUserTarget.value = null
 }
+
+// Add the handler function for school selection
+const handleSchoolSelected = async (schoolId: string) => {
+  if (userRole.value === 'superadmin') {
+    await fetchUsers() // Refetch users when school is selected
+  }
+}
+
+// Add watch for selected school changes
+watch(
+  () => authStore.getSelectedSchoolId,
+  async (newSchoolId) => {
+    if (userRole.value === 'superadmin') {
+      await fetchUsers() // Refetch users when selected school changes
+    }
+  }
+)
 
 // Initialize
 onMounted(() => {

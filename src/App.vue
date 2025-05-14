@@ -2,11 +2,17 @@
   <nav class="navbar navbar-expand-lg navbar-light fixed-top glass-nav">
     <div class="container">
       <router-link class="navbar-brand" to="/">
-        <!-- <img src="@/assets/logo.png" alt="Kids School Logo" height="40" class="d-inline-block align-text-top me-2"> -->
         <template v-if="isLoading">
           Loading...
         </template>
         <template v-else>
+          <img 
+            v-if="isAuthenticated && schoolInfo.logo" 
+            :src="schoolInfo.logo" 
+            alt="School Logo" 
+            height="40" 
+            class="d-inline-block align-text-top me-2"
+          >
           {{ schoolInfo.name || 'LS System' }}
         </template>
       </router-link>
@@ -304,8 +310,17 @@ const isAuthenticated = computed(() => authStore.isAuthenticated)
 const isLoading = ref(true)
 const userRole = computed(() => authStore.userRole?.role?.toLowerCase() || null)
 
-const schoolInfo = ref({
+interface SchoolInfo {
+  name: string;
+  logo?: string | null;
+  email: string;
+  phone: string;
+  address: string;
+}
+
+const schoolInfo = ref<SchoolInfo>({
   name: 'LS System',
+  logo: null,
   email: '',
   phone: '',
   address: ''
@@ -322,6 +337,7 @@ watch(
       // Reset school info when user becomes unauthenticated
       schoolInfo.value = {
         name: 'LS System',
+        logo: null,
         email: '',
         phone: '',
         address: ''
@@ -354,6 +370,7 @@ const confirmLogout = async () => {
     // Reset school info to default values
     schoolInfo.value = {
       name: 'LS System',
+      logo: null,
       email: '',
       phone: '',
       address: ''
@@ -536,7 +553,7 @@ const fetchSchoolInfo = async (schoolId?: string) => {
     if (userRole.value !== 'superadmin' && schoolId) {
       const { data, error } = await supabase
         .from('setup')
-        .select('school_name, school_email, school_contact1, school_address')
+        .select('school_name, school_logo, school_email, school_contact1, school_address')
         .eq('school_id', schoolId)
         .single()
 
@@ -551,6 +568,7 @@ const fetchSchoolInfo = async (schoolId?: string) => {
       if (data) {
         schoolInfo.value = {
           name: data.school_name || 'LS System',
+          logo: data.school_logo || null,
           email: data.school_email || '',
           phone: data.school_contact1 || '',
           address: data.school_address || ''
@@ -560,7 +578,7 @@ const fetchSchoolInfo = async (schoolId?: string) => {
       // For SuperAdmin, fetch from setup table without school_id filter
       const { data, error } = await supabase
         .from('setup')
-        .select('school_name, school_email, school_contact1, school_address')
+        .select('school_name, school_logo, school_email, school_contact1, school_address')
         .single()
 
       if (error) {
@@ -574,6 +592,7 @@ const fetchSchoolInfo = async (schoolId?: string) => {
       if (data) {
         schoolInfo.value = {
           name: data.school_name || 'LS System',
+          logo: data.school_logo || null,
           email: data.school_email || '',
           phone: data.school_contact1 || '',
           address: data.school_address || ''
@@ -584,6 +603,7 @@ const fetchSchoolInfo = async (schoolId?: string) => {
     console.error('Error fetching school info:', error)
     schoolInfo.value = {
       name: 'LS System',
+      logo: null,
       email: '',
       phone: '',
       address: ''
@@ -627,6 +647,13 @@ const fetchSchoolInfo = async (schoolId?: string) => {
     font-weight: bold;
     color: #2c3e50;
     transition: color 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+
+    img {
+      object-fit: contain;
+    }
 
     &:hover {
       color: #42b883;

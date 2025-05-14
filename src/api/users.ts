@@ -46,19 +46,25 @@ export const deleteUser = async (userId: string) => {
   }
 }
 
-export const getUsersWithRoles = async (requestingRole?: string) => {
+export const getUsersWithRoles = async (requestingRole?: string, schoolId?: string | null) => {
   try {
     // Fetch users from Auth
     const { data: usersData, error: usersError } = await admin.auth.admin.listUsers();
     if (usersError) throw usersError;
 
-    // Fetch roles from user_roles table (include all fields and join classes)
-    const { data: rolesData, error: rolesError } = await admin
+    // Build the query for roles data
+    let query = admin
       .from('user_roles')
-      .select('email, role, username, identification, grade_level, dob, age, gender, class_id, nationality, religion, classes(class_name)');
-    if (rolesError) throw rolesError;
+      .select('email, role, username, identification, grade_level, dob, age, gender, class_id, nationality, religion, classes(class_name), school_id');
 
- /*    console.log('rolesData:', JSON.stringify(rolesData, null, 2)); */
+    // Add school_id filter if provided
+    if (schoolId) {
+      query = query.eq('school_id', schoolId);
+    }
+
+    // Execute the query
+    const { data: rolesData, error: rolesError } = await query;
+    if (rolesError) throw rolesError;
 
     // Map roles to users by email
     let usersWithRoles = usersData.users.map(user => {
@@ -84,11 +90,18 @@ export const getUsersWithRoles = async (requestingRole?: string) => {
           return null;
         })(),
         nationality: userRole ? userRole.nationality : null,
-        religion: userRole ? userRole.religion : null
+        religion: userRole ? userRole.religion : null,
+        school_id: userRole ? userRole.school_id : null
       };
     });
 
-/*     console.log('usersWithRoles:', JSON.stringify(usersWithRoles, null, 2)); */
+    // Filter out users that don't have a role in the specified school
+    if (schoolId) {
+      usersWithRoles = usersWithRoles.filter(user => {
+        const userRole = rolesData?.find(r => r.email && user.email && r.email.toLowerCase() === user.email.toLowerCase());
+        return userRole && userRole.school_id === schoolId;
+      });
+    }
 
     // If requestingRole is admin, filter out superadmin users
     if (requestingRole === 'admin') {
@@ -113,19 +126,21 @@ export const addUserWithRole = async ({
   gender,
   class_id,
   nationality,
-  religion 
+  religion,
+  school_id
 }: { 
-  email: string, 
-  username: string, 
-  role: string,
-  identification?: string,
-  gradeLevel?: string,
-  dob?: string,
-  age?: number,
-  gender?: string,
-  class_id?: string,
-  nationality?: string,
-  religion?: string 
+  email: string
+  username: string
+  role: string
+  identification?: string
+  gradeLevel?: string
+  dob?: string
+  age?: number
+  gender?: string
+  class_id?: string
+  nationality?: string
+  religion?: string
+  school_id?: string | null
 }) => {
   try {
     const DEFAULT_PASSWORD = '12345678'
@@ -153,7 +168,8 @@ export const addUserWithRole = async ({
         gender: gender || null,
         class_id: class_id || null,
         nationality: nationality || null,
-        religion: religion || null
+        religion: religion || null,
+        school_id: school_id || null
       }])
     if (roleError) throw roleError
     return userData

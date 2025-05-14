@@ -154,46 +154,18 @@
                   </div>
                 </div>
 
-                <div class="row g-4 mt-2">
-                  <div class="col-md-6">
-                    <div class="form-group">
-                      <label class="form-label">School Description</label>
-                      <div class="input-group">
-                        <span class="input-group-text">
-                          <i class="bi bi-file-text"></i>
-                        </span>
-                        <textarea 
-                          v-model="formData.description"
-                          class="form-control"
-                          rows="6"
-                          placeholder="Tell us about your school..."
-                        ></textarea>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="col-md-6">
-                    <div class="form-group">
-                      <label class="form-label">School Logo</label>
-                      <div class="upload-zone h-100" @dragover.prevent @drop.prevent="handleDrop">
-                        <input 
-                          type="file" 
-                          accept="image/*"
-                          class="file-input" 
-                          @change="handleFileSelect"
-                        >
-                        <div class="upload-content" v-if="!previewUrl">
-                          <i class="bi bi-cloud-arrow-up"></i>
-                          <h4>Upload Logo</h4>
-                          <p>Drag and drop your logo here or click to browse</p>
-                        </div>
-                        <div class="preview-content" v-else>
-                          <img :src="previewUrl" alt="Logo Preview" class="logo-preview">
-                          <button class="remove-image" @click.prevent="removeImage">
-                            <i class="bi bi-x-circle"></i>
-                          </button>
-                        </div>
-                      </div>
-                    </div>
+                <div class="form-group mt-4">
+                  <label class="form-label">School Description</label>
+                  <div class="input-group">
+                    <span class="input-group-text">
+                      <i class="bi bi-file-text"></i>
+                    </span>
+                    <textarea 
+                      v-model="formData.description"
+                      class="form-control"
+                      rows="6"
+                      placeholder="Tell us about your school..."
+                    ></textarea>
                   </div>
                 </div>
               </div>
@@ -319,7 +291,6 @@ const formData = ref({
   type: '',
   establishedYear: '',
   description: '',
-  logo: null as File | null,
   startDate: '',
   endDate: ''
 })
@@ -332,7 +303,6 @@ interface FormData {
   type: string;
   establishedYear: string;
   description: string;
-  logo: File | null;
   startDate: string;
   endDate: string;
 }
@@ -341,7 +311,6 @@ type Step1Fields = Pick<FormData, 'schoolName' | 'email' | 'phone' | 'address'>
 type Step3Fields = Pick<FormData, 'startDate' | 'endDate'>
 
 const isSubmitting = ref(false)
-const previewUrl = ref<string>('')
 
 const validateStep1 = () => {
   const requiredFields: Record<keyof Step1Fields, string> = {
@@ -391,50 +360,6 @@ const prevStep = () => {
   }
 }
 
-const handleFileSelect = (event: Event) => {
-  const input = event.target as HTMLInputElement
-  if (input.files && input.files[0]) {
-    formData.value.logo = input.files[0]
-    // Create preview URL
-    previewUrl.value = URL.createObjectURL(input.files[0])
-  }
-}
-
-const handleDrop = (event: DragEvent) => {
-  const dt = event.dataTransfer
-  if (dt?.files && dt.files[0]) {
-    formData.value.logo = dt.files[0]
-    // Create preview URL
-    previewUrl.value = URL.createObjectURL(dt.files[0])
-  }
-}
-
-const removeImage = () => {
-  formData.value.logo = null
-  previewUrl.value = ''
-  const input = document.querySelector('.file-input') as HTMLInputElement
-  if (input) input.value = ''
-}
-
-const resetForm = () => {
-  formData.value = {
-    schoolName: '',
-    email: '',
-    phone: '',
-    address: '',
-    type: '',
-    establishedYear: '',
-    description: '',
-    logo: null,
-    startDate: '',
-    endDate: ''
-  }
-  previewUrl.value = ''
-  currentStep.value = 1
-  const input = document.querySelector('.file-input') as HTMLInputElement
-  if (input) input.value = ''
-}
-
 const submitForm = async () => {
   if (!validateStep1() || !validateStep3()) {
     return
@@ -442,73 +367,6 @@ const submitForm = async () => {
 
   isSubmitting.value = true
   try {
-    let logoUrl = null
-
-    // Handle logo upload if present
-    if (formData.value.logo) {
-      try {
-        const fileExt = formData.value.logo.name.split('.').pop()
-        const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`
-        const filePath = `logos/${fileName}`
-
-        console.log('Starting file upload process:', {
-          fileName,
-          filePath,
-          fileType: formData.value.logo.type,
-          fileSize: formData.value.logo.size
-        })
-
-        // Check if user is authenticated
-        const { data: { user }, error: authError } = await supabase.auth.getUser()
-        if (authError || !user) {
-          console.error('Authentication error:', authError)
-          throw new Error('You must be authenticated to upload files')
-        }
-
-        // Upload with more detailed error handling
-        const { data: uploadData, error: uploadError } = await supabase.storage
-          .from('school-bucket')
-          .upload(filePath, formData.value.logo, {
-            cacheControl: '3600',
-            upsert: true,
-            contentType: formData.value.logo.type
-          })
-
-        if (uploadError) {
-          console.error('Upload error details:', {
-            error: uploadError,
-            message: uploadError.message,
-            name: uploadError.name
-          })
-          throw new Error(`Upload failed: ${uploadError.message}`)
-        }
-
-        console.log('Upload successful:', uploadData)
-
-        // Get the public URL
-        const { data: urlData } = supabase.storage
-          .from('school-bucket')
-          .getPublicUrl(filePath)
-
-        if (!urlData?.publicUrl) {
-          throw new Error('No public URL generated')
-        }
-
-        logoUrl = urlData.publicUrl
-        console.log('Successfully generated public URL:', logoUrl)
-
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
-        console.error('Detailed upload error:', {
-          error,
-          message: errorMessage,
-          stack: error instanceof Error ? error.stack : undefined
-        })
-        toast.error(`Failed to upload school logo: ${errorMessage}`)
-        return // Stop the form submission if logo upload fails
-      }
-    }
-
     // Create the school record
     const schoolData = {
       name: formData.value.schoolName,
@@ -519,8 +377,7 @@ const submitForm = async () => {
       school_type: formData.value.type,
       year: formData.value.establishedYear,
       start_date: formData.value.startDate,
-      end_date: formData.value.endDate,
-      logo_url: logoUrl || null
+      end_date: formData.value.endDate
     }
 
     console.log('Attempting to create school with data:', schoolData)
@@ -558,14 +415,6 @@ const submitForm = async () => {
         .delete()
         .eq('id', data.id)
       
-      // Also delete the uploaded logo if it exists
-      if (logoUrl) {
-        const filePath = logoUrl.split('/').pop() || ''
-        await supabase.storage
-          .from('school-bucket')
-          .remove([`logos/${filePath}`])
-      }
-      
       toast.error('Error creating setup record')
       throw setupError
     } else {
@@ -581,6 +430,21 @@ const submitForm = async () => {
   } finally {
     isSubmitting.value = false
   }
+}
+
+const resetForm = () => {
+  formData.value = {
+    schoolName: '',
+    email: '',
+    phone: '',
+    address: '',
+    type: '',
+    establishedYear: '',
+    description: '',
+    startDate: '',
+    endDate: ''
+  }
+  currentStep.value = 1
 }
 </script>
 
@@ -769,108 +633,6 @@ const submitForm = async () => {
 
     &::placeholder {
       color: #94a3b8;
-    }
-  }
-}
-
-.upload-zone {
-  border: 2px dashed #e2e8f0;
-  border-radius: 16px;
-  padding: 2.5rem;
-  text-align: center;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  background: #f8fafc;
-  position: relative;
-  overflow: hidden;
-  min-height: 200px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  &:hover {
-    border-color: #10b981;
-    background: #ecfdf5;
-
-    .upload-content i {
-      transform: translateY(-5px);
-    }
-  }
-
-  .file-input {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    opacity: 0;
-    cursor: pointer;
-  }
-
-  .upload-content {
-    i {
-      font-size: 3rem;
-      color: #10b981;
-      margin-bottom: 1rem;
-      transition: transform 0.3s ease;
-    }
-
-    h4 {
-      font-size: 1.25rem;
-      font-weight: 600;
-      color: #1e293b;
-      margin-bottom: 0.5rem;
-    }
-
-    p {
-      color: #64748b;
-      margin: 0;
-    }
-  }
-
-  &.has-preview {
-    border-style: solid;
-    background: white;
-  }
-}
-
-.preview-content {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  .logo-preview {
-    max-width: 100%;
-    max-height: 200px;
-    object-fit: contain;
-    border-radius: 8px;
-  }
-
-  .remove-image {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    background: rgba(255, 255, 255, 0.9);
-    border: none;
-    border-radius: 50%;
-    width: 30px;
-    height: 30px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: all 0.3s ease;
-
-    &:hover {
-      background: #ff4444;
-      color: white;
-    }
-
-    i {
-      font-size: 1.2rem;
     }
   }
 }

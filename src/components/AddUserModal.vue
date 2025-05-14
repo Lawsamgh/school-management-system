@@ -2,7 +2,7 @@
 <template>
   <transition name="modern-modal-fade">
     <div v-if="modelValue" class="modern-modal-overlay">
-      <div class="modern-modal-card">
+      <div class="modern-modal-card" :class="{ 'expanded': addUserForm.role === 'student' || addUserForm.role === 'teacher' }">
         <button class="modern-modal-close" @click="closeModal" aria-label="Close">
           <i class="fas fa-times"></i>
         </button>
@@ -11,179 +11,227 @@
           <p class="text-muted mb-0">Create a new user and assign a role</p>
         </div>
         <form class="modern-modal-form" @submit.prevent="handleAddUser">
-          <!-- Basic Information Section -->
-          <div class="form-section">
-            <h6 class="section-title">Basic Information</h6>
-            <div class="row g-3">
-              <div class="col-md-12">
-                <input 
-                  type="email" 
-                  class="form-control" 
-                  id="addUserEmail" 
-                  v-model="addUserForm.email" 
-                  placeholder="Enter email address" 
-                  required
-                >
-              </div>
-              <div class="col-md-6">
-                <input 
-                  type="text" 
-                  class="form-control" 
-                  id="addUserUsername" 
-                  v-model="addUserForm.username" 
-                  placeholder="Enter username" 
-                  required
-                >
-              </div>
-              <div class="col-md-6">
-                <select 
-                  class="form-select" 
-                  id="addUserRole" 
-                  v-model="addUserForm.role" 
-                  required
-                >
-                  <option value="" disabled>Select role</option>
-                  <option v-for="role in roleOptions" :key="role.value" :value="role.value">{{ role.label }}</option>
-                </select>
-              </div>
-              <div class="col-md-6">
-                <input type="date" class="form-control" v-model="addUserForm.dob" placeholder="Date of Birth" required>
-              </div>
-              <div class="col-md-6">
-                <input type="number" class="form-control" v-model="addUserForm.age" placeholder="Age" min="0" required>
-              </div>
-              <div class="col-md-6">
-                <div class="custom-select-container">
-                  <input 
-                    type="text" 
-                    class="form-control" 
-                    v-model="genderSearch"
-                    @focus="showGenderDropdown = true"
-                    @input="handleGenderSearch"
-                    :placeholder="addUserForm.gender ? genderOptions.find(g => g.value === addUserForm.gender)?.label : 'Search gender'"
-                  >
-                  <div v-if="showGenderDropdown" class="custom-select-dropdown">
-                    <div class="custom-select-options">
-                      <div 
-                        v-for="option in filteredGenders" 
-                        :key="option.value"
-                        class="custom-select-option"
-                        @click="selectGender(option)"
-                        :class="{ 'selected': option.value === addUserForm.gender }"
+          <div class="row" :class="{ 'expanded': addUserForm.role === 'student' || addUserForm.role === 'teacher' }">
+            <!-- Basic Information Section -->
+            <div :class="[
+              'transition-width',
+              (addUserForm.role === 'student' || addUserForm.role === 'teacher') ? 'col-md-6' : 'col-md-12'
+            ]">
+              <div class="form-section h-100">
+                <h6 class="section-title">Basic Information</h6>
+                <div class="row g-3">
+                  <div class="col-md-12">
+                    <select 
+                      class="form-select" 
+                      id="addUserRole" 
+                      v-model="addUserForm.role" 
+                      required
+                    >
+                      <option value="" disabled>Select role</option>
+                      <option v-for="role in roleOptions" :key="role.value" :value="role.value">{{ role.label }}</option>
+                    </select>
+                  </div>
+                  <div class="col-md-12">
+                    <div class="position-relative">
+                      <input 
+                        type="text" 
+                        class="form-control" 
+                        id="addUserIdentification" 
+                        v-model="addUserForm.identification" 
+                        placeholder="Enter identification number" 
+                        required
+                        :readonly="autoGenerateEnabled && addUserForm.role !== 'superadmin'"
+                        :style="autoGenerateEnabled && addUserForm.role !== 'superadmin' ? { backgroundColor: '#f8f9fa' } : {}"
                       >
-                        {{ option.label }}
+                      <div v-if="isGeneratingId" class="position-absolute top-50 end-0 translate-middle-y pe-3">
+                        <div class="spinner-border spinner-border-sm text-primary" role="status">
+                          <span class="visually-hidden">Generating ID...</span>
+                        </div>
                       </div>
-                      <div v-if="filteredGenders.length === 0" class="no-results">
-                        No results found
+                    </div>
+                    <div v-if="autoGenerateEnabled && addUserForm.role && addUserForm.role !== 'superadmin'" class="form-text text-muted small">
+                      <i class="fas fa-info-circle me-1"></i>
+                      ID will be automatically generated for {{ addUserForm.role }} role
+                    </div>
+                  </div>
+                  <div class="col-md-12">
+                    <input 
+                      type="email" 
+                      class="form-control" 
+                      id="addUserEmail" 
+                      v-model="addUserForm.email" 
+                      placeholder="Enter email address" 
+                      required
+                    >
+                  </div>
+                  <div class="col-md-12">
+                    <input 
+                      type="text" 
+                      class="form-control" 
+                      id="addUserUsername" 
+                      v-model="addUserForm.username" 
+                      placeholder="Enter username" 
+                      required
+                    >
+                  </div>
+                  <div class="col-md-6">
+                    <input 
+                      type="date" 
+                      class="form-control" 
+                      v-model="addUserForm.dob" 
+                      placeholder="Date of Birth" 
+                      required
+                      @change="calculateAge"
+                    >
+                  </div>
+                  <div class="col-md-6">
+                    <input 
+                      type="number" 
+                      class="form-control" 
+                      v-model="addUserForm.age" 
+                      placeholder="Age" 
+                      min="0" 
+                      required
+                      readonly
+                      :style="{ backgroundColor: '#f8f9fa' }"
+                    >
+                  </div>
+                  <div class="col-md-12">
+                    <div class="custom-select-container">
+                      <input 
+                        type="text" 
+                        class="form-control" 
+                        v-model="genderSearch"
+                        @focus="showGenderDropdown = true"
+                        @input="handleGenderSearch"
+                        :placeholder="addUserForm.gender ? genderOptions.find(g => g.value === addUserForm.gender)?.label : 'Search gender'"
+                      >
+                      <div v-if="showGenderDropdown" class="custom-select-dropdown">
+                        <div class="custom-select-options">
+                          <div 
+                            v-for="option in filteredGenders" 
+                            :key="option.value"
+                            class="custom-select-option"
+                            @click="selectGender(option)"
+                            :class="{ 'selected': option.value === addUserForm.gender }"
+                          >
+                            {{ option.label }}
+                          </div>
+                          <div v-if="filteredGenders.length === 0" class="no-results">
+                            No results found
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col-md-12">
+                    <div class="custom-select-container">
+                      <input 
+                        type="text" 
+                        class="form-control" 
+                        v-model="nationalitySearch"
+                        @focus="showNationalityDropdown = true"
+                        @input="handleNationalitySearch"
+                        :placeholder="addUserForm.nationality ? nationalityOptions.find(n => n.value === addUserForm.nationality)?.label : 'Search nationality'"
+                      >
+                      <div v-if="showNationalityDropdown" class="custom-select-dropdown">
+                        <div class="custom-select-options">
+                          <div 
+                            v-for="option in filteredNationalities" 
+                            :key="option.value"
+                            class="custom-select-option"
+                            @click="selectNationality(option)"
+                            :class="{ 'selected': option.value === addUserForm.nationality }"
+                          >
+                            {{ option.label }}
+                          </div>
+                          <div v-if="filteredNationalities.length === 0" class="no-results">
+                            No results found
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col-md-12">
+                    <div class="custom-select-container">
+                      <input 
+                        type="text" 
+                        class="form-control" 
+                        v-model="religionSearch"
+                        @focus="showReligionDropdown = true"
+                        @input="handleReligionSearch"
+                        :placeholder="addUserForm.religion ? religionOptions.find(r => r.value === addUserForm.religion)?.label : 'Search religion'"
+                      >
+                      <div v-if="showReligionDropdown" class="custom-select-dropdown">
+                        <div class="custom-select-options">
+                          <div 
+                            v-for="option in filteredReligions" 
+                            :key="option.value"
+                            class="custom-select-option"
+                            @click="selectReligion(option)"
+                            :class="{ 'selected': option.value === addUserForm.religion }"
+                          >
+                            {{ option.label }}
+                          </div>
+                          <div v-if="filteredReligions.length === 0" class="no-results">
+                            No results found
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
-              </div>
-              <div class="col-md-6">
-                <div class="custom-select-container">
-                  <input 
-                    type="text" 
-                    class="form-control" 
-                    v-model="nationalitySearch"
-                    @focus="showNationalityDropdown = true"
-                    @input="handleNationalitySearch"
-                    :placeholder="addUserForm.nationality ? nationalityOptions.find(n => n.value === addUserForm.nationality)?.label : 'Search nationality'"
-                  >
-                  <div v-if="showNationalityDropdown" class="custom-select-dropdown">
-                    <div class="custom-select-options">
-                      <div 
-                        v-for="option in filteredNationalities" 
-                        :key="option.value"
-                        class="custom-select-option"
-                        @click="selectNationality(option)"
-                        :class="{ 'selected': option.value === addUserForm.nationality }"
-                      >
-                        {{ option.label }}
-                      </div>
-                      <div v-if="filteredNationalities.length === 0" class="no-results">
-                        No results found
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div class="col-md-12">
-                <div class="custom-select-container">
-                  <input 
-                    type="text" 
-                    class="form-control" 
-                    v-model="religionSearch"
-                    @focus="showReligionDropdown = true"
-                    @input="handleReligionSearch"
-                    :placeholder="addUserForm.religion ? religionOptions.find(r => r.value === addUserForm.religion)?.label : 'Search religion'"
-                  >
-                  <div v-if="showReligionDropdown" class="custom-select-dropdown">
-                    <div class="custom-select-options">
-                      <div 
-                        v-for="option in filteredReligions" 
-                        :key="option.value"
-                        class="custom-select-option"
-                        @click="selectReligion(option)"
-                        :class="{ 'selected': option.value === addUserForm.religion }"
-                      >
-                        {{ option.label }}
-                      </div>
-                      <div v-if="filteredReligions.length === 0" class="no-results">
-                        No results found
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div v-if="addUserForm.role === 'student'" class="col-md-12">
-                <select class="form-select" v-model="addUserForm.class_id" :disabled="isLoadingClasses" required>
-                  <option value="" disabled>Select class</option>
-                  <option v-for="c in classes" :key="c.class_id" :value="c.class_id">{{ c.class_name }}</option>
-                </select>
               </div>
             </div>
-          </div>
 
-          <!-- Role-specific Information Section -->
-          <div v-if="['teacher', 'student', 'parent', 'accountant', 'registrar', 'admin'].includes(addUserForm.role)" class="form-section">
-            <h6 class="section-title">Additional Information</h6>
-            <div class="row g-3">
-              <div class="col-md-12">
-                <input 
-                  type="text" 
-                  class="form-control" 
-                  id="addUserIdentification" 
-                  v-model="addUserForm.identification" 
-                  placeholder="Enter identification number" 
-                  required
-                >
-              </div>
-              <div v-if="addUserForm.role === 'student'" class="col-md-12">
-                <select 
-                  class="form-select" 
-                  v-model="addUserForm.gradeLevel" 
-                  required
-                  :disabled="isLoadingGrades"
-                >
-                  <option value="" disabled>Select grade level</option>
-                  <option 
-                    v-for="grade in grades" 
-                    :key="grade.id" 
-                    :value="grade.grade_level"
-                  >
-                    {{ grade.grade_level }}
-                  </option>
-                </select>
+            <!-- Role-specific Information Section -->
+            <div v-if="addUserForm.role === 'student' || addUserForm.role === 'teacher'" class="col-md-6 fade-enter">
+              <div class="form-section h-100">
+                <h6 class="section-title">Additional Information</h6>
+                <div class="row g-3">
+                  <div v-if="addUserForm.role === 'student'" class="col-md-12">
+                    <select 
+                      class="form-select" 
+                      v-model="addUserForm.gradeLevel" 
+                      required
+                      :disabled="isLoadingGrades"
+                    >
+                      <option value="" disabled>Select grade level</option>
+                      <option 
+                        v-for="grade in grades" 
+                        :key="grade.id" 
+                        :value="grade.grade_level"
+                      >
+                        {{ grade.grade_level }}
+                      </option>
+                    </select>
+                  </div>
+                  <div class="col-md-12">
+                    <select 
+                      class="form-select" 
+                      v-model="addUserForm.class_id" 
+                      :disabled="isLoadingClasses" 
+                      required
+                    >
+                      <option value="" disabled>{{ addUserForm.role === 'student' ? 'Select class' : 'Select teaching class' }}</option>
+                      <option v-for="c in classes" :key="c.class_id" :value="c.class_id">{{ c.class_name }}</option>
+                    </select>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
 
           <div class="d-flex justify-content-end gap-2 mt-4">
             <button type="button" class="btn btn-outline-secondary" @click="closeModal">Cancel</button>
-            <button type="submit" class="btn btn-primary" :disabled="addUserLoading">
+            <button 
+              type="submit" 
+              class="btn btn-primary" 
+              :disabled="addUserLoading || isGeneratingId"
+            >
               <span v-if="addUserLoading" class="spinner-border spinner-border-sm me-2"></span>
-              Add User
+              <span v-else-if="isGeneratingId">Generating ID...</span>
+              <span v-else>Add User</span>
             </button>
           </div>
         </form>
@@ -193,10 +241,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useToast } from 'vue-toastification'
 import { useAuthStore } from '@/store/auth'
 import { addUserWithRole, getGrades, getClasses } from '@/api/users'
+import { supabase } from '@/lib/supabase'
 
 const props = defineProps<{
   modelValue: boolean
@@ -230,6 +279,8 @@ const grades = ref<{ id: number; grade_level: string }[]>([])
 const isLoadingGrades = ref(false)
 const classes = ref<{ class_id: string; class_name: string }[]>([])
 const isLoadingClasses = ref(false)
+const isGeneratingId = ref(false)
+const autoGenerateEnabled = ref(false)
 
 // Role options
 const allRoleOptions = [
@@ -479,14 +530,16 @@ const nationalitySearch = ref('')
 const showNationalityDropdown = ref(false)
 
 const filteredNationalities = computed(() => {
-  if (!nationalitySearch.value) return nationalityOptions.slice(1) // Skip the "Select nationality" option
+  if (!nationalitySearch.value) return nationalityOptions.slice(1)
   const search = nationalitySearch.value.toLowerCase()
   return nationalityOptions
     .filter(option => option.value && option.label.toLowerCase().includes(search))
 })
 
 const handleNationalitySearch = () => {
-  showNationalityDropdown.value = true
+  if (!showNationalityDropdown.value) {
+    showNationalityDropdown.value = true
+  }
 }
 
 interface SelectOption {
@@ -496,7 +549,7 @@ interface SelectOption {
 
 const selectNationality = (option: SelectOption) => {
   addUserForm.value.nationality = option.value
-  nationalitySearch.value = option.label
+  nationalitySearch.value = ''
   showNationalityDropdown.value = false
 }
 
@@ -562,6 +615,19 @@ const handleAddUser = async () => {
 
   try {
     addUserLoading.value = true
+
+    // Get the school_id based on user role
+    const schoolId = currentUserRole.value === 'admin' 
+      ? authStore.userRole?.school_id 
+      : authStore.getSelectedSchoolId;
+
+    // Only include school_id for non-superadmin roles
+    const schoolIdToAdd = addUserForm.value.role === 'superadmin' ? null : schoolId;
+
+    if (!schoolIdToAdd && addUserForm.value.role !== 'superadmin') {
+      throw new Error('No school ID found. Please select a school first.');
+    }
+
     const userData = await addUserWithRole({
       email: addUserForm.value.email,
       username: addUserForm.value.username,
@@ -573,7 +639,8 @@ const handleAddUser = async () => {
       gender: addUserForm.value.gender,
       class_id: addUserForm.value.class_id,
       nationality: addUserForm.value.nationality,
-      religion: addUserForm.value.religion
+      religion: addUserForm.value.religion,
+      school_id: schoolIdToAdd // Add school_id to the user creation
     })
 
     toast.success('User added successfully! Default password is: 12345678')
@@ -612,28 +679,190 @@ const fetchClasses = async () => {
   }
 }
 
-onMounted(() => {
-  fetchGrades()
-  fetchClasses()
-  document.addEventListener('click', (e: MouseEvent) => {
-    const target = e.target as HTMLElement
-    const nationalityContainer = document.querySelector('.custom-select-container')
-    const religionContainer = document.querySelector('.col-md-12 .custom-select-container')
-    const genderContainer = document.querySelector('.col-md-6 .custom-select-container')
+// Add the calculateAge function
+const calculateAge = () => {
+  if (addUserForm.value.dob) {
+    const birthDate = new Date(addUserForm.value.dob)
+    const today = new Date()
+    let age = today.getFullYear() - birthDate.getFullYear()
+    const monthDiff = today.getMonth() - birthDate.getMonth()
     
-    if (nationalityContainer && !nationalityContainer.contains(target)) {
-      showNationalityDropdown.value = false
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--
     }
     
-    if (religionContainer && !religionContainer.contains(target)) {
-      showReligionDropdown.value = false
+    addUserForm.value.age = age
+  } else {
+    addUserForm.value.age = undefined
+  }
+}
+
+// Add a watch for DOB changes
+watch(() => addUserForm.value.dob, (newDob) => {
+  if (newDob) {
+    calculateAge()
+  }
+})
+
+const selectedNationality = computed(() => {
+  return addUserForm.value.nationality 
+    ? nationalityOptions.find(n => n.value === addUserForm.value.nationality)?.label 
+    : ''
+})
+
+const generateRoleBasedId = async (role: string) => {
+  if (role === 'superadmin') return '';
+
+  // Define role prefixes
+  const prefixes: { [key: string]: string } = {
+    admin: 'AD',
+    teacher: 'TA',
+    student: 'ST',
+    parent: 'PA',
+    accountant: 'AC',
+    registrar: 'RG'
+  };
+
+  const prefix = prefixes[role];
+  let attempts = 0;
+  const maxAttempts = 5;
+
+  while (attempts < maxAttempts) {
+    try {
+      // Start a transaction to ensure atomicity
+      const { data: latestId, error: queryError } = await supabase
+        .rpc('get_next_id_for_role', {
+          role_prefix: prefix,
+          role_name: role
+        });
+
+      if (queryError) throw queryError;
+
+      if (latestId) {
+        // Verify the generated ID is truly unique
+        const { data: existingUser, error: verifyError } = await supabase
+          .from('user_roles')
+          .select('identification')
+          .eq('identification', latestId)
+          .single();
+
+        if (verifyError && verifyError.code === 'PGRST116') {
+          // No existing user found with this ID, we can use it
+          return latestId;
+        }
+      }
+
+      // If we get here, either no ID was generated or it was already taken
+      attempts++;
+      await new Promise(resolve => setTimeout(resolve, 100 * attempts)); // Exponential backoff
+    } catch (error) {
+      console.error('Error generating ID:', error);
+      attempts++;
+      await new Promise(resolve => setTimeout(resolve, 100 * attempts));
+    }
+  }
+
+  // If all attempts fail, generate a timestamp-based fallback ID
+  const timestamp = Date.now().toString().slice(-6); // Take last 6 digits of timestamp
+  const random = Math.floor(Math.random() * 100).toString().padStart(2, '0'); // 2 random digits
+  const fallbackId = `${prefix}${timestamp}${random}`;
+  
+  // Verify the fallback ID
+  const { data: existingUser, error: verifyError } = await supabase
+    .from('user_roles')
+    .select('identification')
+    .eq('identification', fallbackId)
+    .single();
+
+  if (verifyError && verifyError.code === 'PGRST116') {
+    return fallbackId;
+  }
+
+  throw new Error('Could not generate a unique ID. Please try again.');
+};
+
+// Function to check if auto-generation is enabled in setup
+const checkAutoGenerateSettings = async () => {
+  try {
+    // Get the school_id based on user role
+    const schoolId = currentUserRole.value === 'admin' 
+      ? authStore.userRole?.school_id 
+      : authStore.getSelectedSchoolId;
+
+    if (!schoolId) {
+      console.error('No school ID available');
+      autoGenerateEnabled.value = false;
+      return;
     }
 
-    if (genderContainer && !genderContainer.contains(target)) {
-      showGenderDropdown.value = false
+    const { data, error } = await supabase
+      .from('setup')
+      .select('auto_generate_id')
+      .eq('school_id', schoolId)
+      .single();
+
+    if (error) throw error;
+    console.log('Auto generate settings:', data); // Debug log
+    autoGenerateEnabled.value = data?.auto_generate_id === 'Yes';
+  } catch (error) {
+    console.error('Error checking auto-generate settings:', error);
+    autoGenerateEnabled.value = false;
+  }
+};
+
+// Update the role watcher
+watch(() => addUserForm.value.role, async (newRole) => {
+  console.log('Role changed:', { 
+    newRole, 
+    autoGenerateEnabled: autoGenerateEnabled.value,
+    shouldGenerate: newRole && newRole !== 'superadmin' && autoGenerateEnabled.value 
+  });
+  
+  addUserForm.value.identification = '';
+  
+  if (newRole && newRole !== 'superadmin' && autoGenerateEnabled.value) {
+    try {
+      isGeneratingId.value = true;
+      const id = await generateRoleBasedId(newRole);
+      console.log('Generated ID:', id);
+      if (!id) throw new Error('Failed to generate ID');
+      addUserForm.value.identification = id;
+    } catch (error) {
+      console.error('Error in ID generation:', error);
+      toast.error('Failed to generate identification number. Please try again.');
+      addUserForm.value.role = '';
+    } finally {
+      isGeneratingId.value = false;
     }
+  }
+});
+
+onMounted(async () => {
+  await checkAutoGenerateSettings();
+  fetchGrades();
+  fetchClasses();
+  document.addEventListener('click', (e: MouseEvent) => {
+    const target = e.target as HTMLElement
+    const containers = document.querySelectorAll('.custom-select-container')
+    
+    containers.forEach(container => {
+      if (!container.contains(target)) {
+        if (container.querySelector('input')?.placeholder.includes('nationality')) {
+          showNationalityDropdown.value = false
+        } else if (container.querySelector('input')?.placeholder.includes('religion')) {
+          showReligionDropdown.value = false
+        } else if (container.querySelector('input')?.placeholder.includes('gender')) {
+          showGenderDropdown.value = false
+        }
+      }
+    })
   })
 })
+
+// Watch for school changes to recheck settings
+watch(() => authStore.getSelectedSchoolId, async () => {
+  await checkAutoGenerateSettings();
+});
 </script>
 
 <style scoped lang="scss">
@@ -657,10 +886,14 @@ onMounted(() => {
   border-radius: 1.25rem;
   box-shadow: 0 8px 40px rgba(30, 41, 59, 0.18);
   max-width: 800px;
-  width: 100%;
+  width: 95%;
   padding: 2.5rem 3rem 2rem 3rem;
   position: relative;
   animation: modal-pop-in 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+
+  &.expanded {
+    max-width: 1200px;
+  }
 }
 
 @keyframes modal-pop-in {
@@ -711,6 +944,7 @@ onMounted(() => {
     border-radius: 0.75rem;
     padding: 2rem;
     margin-bottom: 1.5rem;
+    height: 100%;
 
     &:last-child {
       margin-bottom: 0;
@@ -802,10 +1036,20 @@ onMounted(() => {
   opacity: 0;
 }
 
-@media (max-width: 850px) {
+@media (max-width: 1200px) {
   .modern-modal-card {
     max-width: 95%;
+    width: 95%;
+  }
+}
+
+@media (max-width: 768px) {
+  .modern-modal-card {
     padding: 2rem 1.5rem 1.5rem 1.5rem;
+  }
+  
+  .row > [class*="col-"] {
+    margin-bottom: 1rem;
   }
 }
 
@@ -877,6 +1121,26 @@ onMounted(() => {
     &:hover {
       background: #a8a8a8;
     }
+  }
+}
+
+// Add transition styles
+.transition-width {
+  transition: all 0.3s ease-in-out;
+}
+
+.fade-enter {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
   }
 }
 </style> 
