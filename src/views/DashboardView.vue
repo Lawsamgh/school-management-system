@@ -24,6 +24,16 @@
                       <i class="fas fa-key me-2"></i>
                       Change Password
                     </button>
+                    <div 
+                      v-if="userRole?.toLowerCase() === 'admin' && authStore.school?.end_date"
+                      class="school-expiry mt-3 ms-3"
+                    >
+                      <i class="fas fa-calendar-alt me-2"></i>
+                      School Session Ends: 
+                      <span class="expiry-date">
+                        {{ new Date(authStore.school.end_date).toLocaleDateString() }}
+                      </span>
+                    </div>
                   </div>
                   <div class="avatar">
                     {{ userInitials }}
@@ -1234,6 +1244,30 @@ const canViewTeaching = computed(() => {
 
 .pulse {
   animation: pulse 2s infinite;
+}
+
+.school-expiry {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 2rem;
+  font-weight: 500;
+  font-size: 0.9rem;
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: #e0fff0;
+  
+  i {
+    font-size: 1rem;
+  }
+
+  .expiry-date {
+    font-weight: 600;
+    margin-left: 0.5rem;
+    color: #ffffff;
+  }
 }
 
 .payments-table-container {
