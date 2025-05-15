@@ -187,8 +187,9 @@
             <!-- Role-specific Information Section -->
             <div v-if="addUserForm.role === 'student' || addUserForm.role === 'teacher'" class="col-md-6 fade-enter">
               <div class="form-section h-100">
-                <h6 class="section-title">Additional Information</h6>
+                <h6 class="section-title">ACADEMIC INFORMATIONn</h6>
                 <div class="row g-3">
+                  <!-- Academic Information -->
                   <div v-if="addUserForm.role === 'student'" class="col-md-12">
                     <select 
                       class="form-select" 
@@ -217,6 +218,77 @@
                       <option v-for="c in classes" :key="c.class_id" :value="c.class_id">{{ c.class_name }}</option>
                     </select>
                   </div>
+
+                  <!-- PARENT INFORMATION - Only for Students -->
+                  <template v-if="addUserForm.role === 'student'">
+                    <div class="col-12">
+                      <h6 class="section-subtitle">PARENT INFORMATION</h6>
+                    </div>
+                    <div class="col-md-12">
+                      <input 
+                        type="text" 
+                        class="form-control" 
+                        v-model="addUserForm.family_name" 
+                        placeholder="Parent/Guardian Name" 
+                        required
+                      >
+                    </div>
+                    <div class="col-md-12">
+                      <div class="custom-select-container">
+                        <input 
+                          type="text" 
+                          class="form-control" 
+                          v-model="relationshipSearch"
+                          @focus="showRelationshipDropdown = true"
+                          @input="handleRelationshipSearch"
+                          :placeholder="addUserForm.family_relationship ? relationshipOptions.find(r => r.value === addUserForm.family_relationship)?.label : 'Select relationship'"
+                        >
+                        <div v-if="showRelationshipDropdown" class="custom-select-dropdown">
+                          <div class="custom-select-options">
+                            <div 
+                              v-for="option in filteredRelationships" 
+                              :key="option.value"
+                              class="custom-select-option"
+                              @click="selectRelationship(option)"
+                              :class="{ 'selected': option.value === addUserForm.family_relationship }"
+                            >
+                              {{ option.label }}
+                            </div>
+                            <div v-if="filteredRelationships.length === 0" class="no-results">
+                              No results found
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-md-12">
+                      <input 
+                        type="email" 
+                        class="form-control" 
+                        v-model="addUserForm.family_email" 
+                        placeholder="Parent/Guardian Email" 
+                        required
+                      >
+                    </div>
+                    <div class="col-md-12">
+                      <input 
+                        type="tel" 
+                        class="form-control" 
+                        v-model="addUserForm.emergency_contact" 
+                        placeholder="Emergency Contact Number" 
+                        required
+                      >
+                    </div>
+                    <div class="col-md-12">
+                      <textarea 
+                        class="form-control" 
+                        v-model="addUserForm.address" 
+                        placeholder="Home Address"
+                        rows="3"
+                        required
+                      ></textarea>
+                    </div>
+                  </template>
                 </div>
               </div>
             </div>
@@ -271,7 +343,12 @@ const addUserForm = ref({
   gender: '',
   class_id: '',
   nationality: '',
-  religion: ''
+  religion: '',
+  family_name: '',
+  family_relationship: '',
+  family_email: '',
+  emergency_contact: '',
+  address: ''
 })
 
 const addUserLoading = ref(false)
@@ -526,6 +603,16 @@ const religionOptions = [
   { value: 'other', label: 'Other' }
 ]
 
+// Relationship options
+const relationshipOptions = [
+  { value: '', label: 'Select relationship' },
+  { value: 'father', label: 'Father' },
+  { value: 'mother', label: 'Mother' },
+  { value: 'guardian', label: 'Guardian' },
+  { value: 'sibling', label: 'Sibling' },
+  { value: 'other', label: 'Other' }
+]
+
 const nationalitySearch = ref('')
 const showNationalityDropdown = ref(false)
 
@@ -593,11 +680,31 @@ const selectGender = (option: SelectOption) => {
   showGenderDropdown.value = false
 }
 
+const relationshipSearch = ref('')
+const showRelationshipDropdown = ref(false)
+
+const filteredRelationships = computed(() => {
+  if (!relationshipSearch.value) return relationshipOptions.slice(1) // Skip the "Select relationship" option
+  const search = relationshipSearch.value.toLowerCase()
+  return relationshipOptions
+    .filter(option => option.value && option.label.toLowerCase().includes(search))
+})
+
+const handleRelationshipSearch = () => {
+  showRelationshipDropdown.value = true
+}
+
+const selectRelationship = (option: SelectOption) => {
+  addUserForm.value.family_relationship = option.value
+  relationshipSearch.value = option.label
+  showRelationshipDropdown.value = false
+}
+
 const closeModal = () => {
   emit('update:modelValue', false)
-  addUserForm.value = {
-    email: '',
-    username: '',
+  addUserForm.value = { 
+    email: '', 
+    username: '', 
     role: '',
     identification: '',
     gradeLevel: '',
@@ -606,7 +713,12 @@ const closeModal = () => {
     gender: '',
     class_id: '',
     nationality: '',
-    religion: ''
+    religion: '',
+    family_name: '',
+    family_relationship: '',
+    family_email: '',
+    emergency_contact: '',
+    address: ''
   }
 }
 
@@ -640,7 +752,12 @@ const handleAddUser = async () => {
       class_id: addUserForm.value.class_id,
       nationality: addUserForm.value.nationality,
       religion: addUserForm.value.religion,
-      school_id: schoolIdToAdd // Add school_id to the user creation
+      school_id: schoolIdToAdd,
+      family_name: addUserForm.value.family_name,
+      family_relationship: addUserForm.value.family_relationship,
+      family_email: addUserForm.value.family_email,
+      emergency_contact: addUserForm.value.emergency_contact,
+      address: addUserForm.value.address
     })
 
     toast.success('User added successfully! Default password is: 12345678')
@@ -853,6 +970,8 @@ onMounted(async () => {
           showReligionDropdown.value = false
         } else if (container.querySelector('input')?.placeholder.includes('gender')) {
           showGenderDropdown.value = false
+        } else if (container.querySelector('input')?.placeholder.includes('relationship')) {
+          showRelationshipDropdown.value = false
         }
       }
     })
@@ -1142,5 +1261,52 @@ watch(() => authStore.getSelectedSchoolId, async () => {
     opacity: 1;
     transform: translateX(0);
   }
+}
+
+.form-control {
+  &.form-control {
+    height: 3.5rem;
+    padding: 0.75rem 1rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.5rem;
+    background-color: #fff;
+    transition: all 0.2s ease;
+    font-size: 0.95rem;
+
+    &:disabled {
+      background-color: #f1f5f9;
+      cursor: not-allowed;
+      opacity: 0.8;
+    }
+
+    &::placeholder {
+      color: #94a3b8;
+    }
+
+    &:focus {
+      border-color: #42b883;
+      box-shadow: 0 0 0 0.2rem rgba(66, 184, 131, 0.15);
+    }
+  }
+
+  &[type="tel"] {
+    letter-spacing: 0.5px;
+  }
+}
+
+textarea.form-control {
+  height: auto !important;
+  min-height: 100px;
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.section-subtitle {
+  color: #2c3e50;
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 1rem 0 0.5rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #e2e8f0;
 }
 </style> 

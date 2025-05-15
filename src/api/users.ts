@@ -127,7 +127,12 @@ export const addUserWithRole = async ({
   class_id,
   nationality,
   religion,
-  school_id
+  school_id,
+  family_name,
+  family_relationship,
+  family_email,
+  emergency_contact,
+  address
 }: { 
   email: string
   username: string
@@ -141,6 +146,11 @@ export const addUserWithRole = async ({
   nationality?: string
   religion?: string
   school_id?: string | null
+  family_name?: string
+  family_relationship?: string
+  family_email?: string
+  emergency_contact?: string
+  address?: string
 }) => {
   try {
     const DEFAULT_PASSWORD = '12345678'
@@ -169,7 +179,12 @@ export const addUserWithRole = async ({
         class_id: class_id || null,
         nationality: nationality || null,
         religion: religion || null,
-        school_id: school_id || null
+        school_id: school_id || null,
+        family_name: family_name || null,
+        family_relationship: family_relationship || null,
+        family_email: family_email || null,
+        emergency_contact: emergency_contact || null,
+        address: address || null
       }])
     if (roleError) throw roleError
     return userData
