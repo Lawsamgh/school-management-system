@@ -1,7 +1,17 @@
 <template>
   <div class="programs">
     <div class="container py-5">
-      <h1 class="text-center mb-5">Extracurricular Activities</h1>
+      <div class="text-center title-wrapper">
+        <h1 class="page-title">Extracurricular Activities</h1>
+      </div>
+      
+      <!-- School context indicator for superadmin -->
+      <div v-if="userRole === 'superadmin'" class="text-center mb-4">
+        <span class="school-context-badge">
+          <i class="bi bi-building me-2"></i>
+          {{ currentSchoolId ? 'Activities for selected school' : 'All activities (No school selected)' }}
+        </span>
+      </div>
       
       <!-- Loading State with Skeleton -->
       <div v-if="isLoading" class="row g-4">
@@ -77,12 +87,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useMotion } from '@vueuse/motion'
 import { Modal } from 'bootstrap'
 import { useRouter } from 'vue-router'
 import { supabase } from '@/lib/supabase'
 import { useToast } from 'vue-toastification'
+import { useAuthStore } from '@/store/auth'
 import earlyLearningImg from '@/assets/images/early-learning.jpg'
 import preschoolImg from '@/assets/images/preschool.jpg'
 import kindergartenImg from '@/assets/images/kindergarten.jpg'
@@ -93,6 +104,7 @@ interface Program {
   program_name: string
   program_description: string
   program_image: string
+  school_id?: string
 }
 
 const modal = ref<HTMLElement | null>(null)
@@ -100,10 +112,23 @@ const selectedProgram = ref<Program | null>(null)
 let bootstrapModal: Modal | null = null
 const router = useRouter()
 const toast = useToast()
+const authStore = useAuthStore()
 
 const programs = ref<Program[]>([])
 const isLoading = ref(true)
 const error = ref<string | null>(null)
+
+// Computed property to get the current user's role
+const userRole = computed(() => authStore.userRole?.role?.toLowerCase() || '')
+
+// Computed property to get the appropriate school_id based on role
+const currentSchoolId = computed(() => {
+  if (userRole.value === 'superadmin') {
+    return authStore.getSelectedSchoolId
+  } else {
+    return authStore.userRole?.school_id
+  }
+})
 
 const fetchPrograms = async () => {
   try {
@@ -111,13 +136,23 @@ const fetchPrograms = async () => {
     error.value = null
     
     console.log('Starting to fetch programs...')
-    console.log('Supabase URL:', import.meta.env.VITE_SUPABASE_URL)
-    console.log('Supabase Key exists:', !!import.meta.env.VITE_SUPABASE_ANON_KEY)
+    console.log('Current school ID:', currentSchoolId.value)
     
-    const { data, error: supabaseError } = await supabase
+    // Base query
+    let query = supabase
       .from('programs')
       .select('*')
-      .order('created_at', { ascending: false })
+    
+    // Add school_id filter if available (for non-superadmin or when superadmin has selected a school)
+    if (currentSchoolId.value) {
+      query = query.eq('school_id', currentSchoolId.value)
+    }
+    
+    // Add order
+    query = query.order('created_at', { ascending: false })
+    
+    // Execute query
+    const { data, error: supabaseError } = await query
 
     console.log('Supabase response:', { data, error: supabaseError })
 
@@ -133,6 +168,17 @@ const fetchPrograms = async () => {
     isLoading.value = false
   }
 }
+
+// Add watcher for selected school changes for superadmin
+watch(
+  () => authStore.getSelectedSchoolId,
+  async (newSchoolId) => {
+    if (userRole.value === 'superadmin' && newSchoolId) {
+      console.log('Selected school changed, refetching activities...')
+      await fetchPrograms()
+    }
+  }
+)
 
 onMounted(async () => {
   modal.value = document.getElementById('programModal')
@@ -476,6 +522,73 @@ const enrollNow = () => {
     background-size: 1000px 100%;
     animation: shimmer 2s infinite linear;
     border-radius: 4px;
+  }
+}
+
+.school-context-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.5rem 1.25rem;
+  background-color: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 2rem;
+  color: #2c3e50;
+  font-size: 0.9rem;
+  font-weight: 500;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  margin-bottom: 1rem;
+  
+  i {
+    color: #42b883;
+  }
+}
+
+// Add this style for the page title with professional underline
+
+.page-title {
+  position: relative;
+  display: inline-block;
+  color: #2c3e50;
+  font-weight: 600;
+  margin-bottom: 3rem;
+  padding: 0 1.5rem 0.5rem;
+  text-shadow: 0 2px 10px rgba(0,0,0,0.05);
+  
+  &::before, &::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    width: 40%;
+    height: 4px;
+    background-color: #42b883;
+    border-radius: 2px;
+  }
+  
+  &::before {
+    left: 0;
+    background: linear-gradient(to right, #42b883, rgba(66, 184, 131, 0.3));
+  }
+  
+  &::after {
+    right: 0;
+    background: linear-gradient(to left, #42b883, rgba(66, 184, 131, 0.3));
+  }
+}
+
+// Add this style for the title wrapper
+
+.title-wrapper {
+  margin-bottom: 3.5rem;
+  position: relative;
+  
+  &::after {
+    content: "✦";
+    position: absolute;
+    left: 50%;
+    bottom: -28px;
+    font-size: 14px;
+    color: #42b883;
+    transform: translateX(-50%);
   }
 }
 </style> 

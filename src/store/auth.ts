@@ -30,6 +30,7 @@ interface AuthState {
   school: School | null
   loading: boolean
   selectedSchoolId: string | null
+  financeModuleEnabled: boolean
 }
 
 export const useAuthStore = defineStore('auth', {
@@ -38,7 +39,8 @@ export const useAuthStore = defineStore('auth', {
     userRole: null,
     school: null,
     loading: false,
-    selectedSchoolId: null
+    selectedSchoolId: null,
+    financeModuleEnabled: false
   }),
 
   getters: {
@@ -52,6 +54,10 @@ export const useAuthStore = defineStore('auth', {
   actions: {
     setUser(user: User | null) {
       this.user = user
+    },
+
+    setFinanceModuleEnabled(enabled: boolean) {
+      this.financeModuleEnabled = enabled
     },
 
     setSelectedSchoolId(schoolId: string | null) {
@@ -234,6 +240,12 @@ export const useAuthStore = defineStore('auth', {
               await this.signOut()
               throw new Error('School session has expired')
             }
+            
+            // Check finance module setting for non-superadmin users
+            await this.checkFinanceModuleEnabled()
+          } else {
+            // For superadmin, always enable finance module
+            this.financeModuleEnabled = true
           }
         }
       } catch (error) {
@@ -244,6 +256,64 @@ export const useAuthStore = defineStore('auth', {
         throw error
       } finally {
         this.loading = false
+      }
+    },
+
+    async checkFinanceModuleEnabled() {
+      try {
+        // Skip if not authenticated
+        if (!this.user || !this.userRole) {
+          console.log('User not authenticated, skipping finance check')
+          this.financeModuleEnabled = false
+          return
+        }
+        
+        // Skip for superadmin, they always have finance enabled
+        if (this.userRole?.role === 'superadmin') {
+          this.financeModuleEnabled = true
+          return
+        }
+        
+        // Get the school_id
+        const schoolId = this.userRole?.school_id
+        if (!schoolId) {
+          console.log('No school ID found, finance module disabled')
+          this.financeModuleEnabled = false
+          return
+        }
+        
+        // Fetch the setup record
+        const { data, error } = await supabase
+          .from('setup')
+          .select('*')
+          .eq('school_id', schoolId)
+          .single()
+          
+        if (error) {
+          if (error.code === 'PGRST116') {
+            console.log('No setup record found for school, finance module disabled')
+            this.financeModuleEnabled = false
+            return
+          }
+          throw error
+        }
+        
+        // Find finance field, looking for various possible names
+        const setupDataKeys = Object.keys(data)
+        const financeField = setupDataKeys.find(key => 
+          key.toLowerCase() === 'finance' || 
+          key.toLowerCase() === 'financefield'
+        )
+        
+        // Check if finance module is enabled
+        const financeValue = financeField ? data[financeField] || 'No' : 'No'
+        this.financeModuleEnabled = String(financeValue).toUpperCase() === 'YES'
+        
+        console.log('Finance module enabled:', this.financeModuleEnabled)
+      } catch (error) {
+        console.error('Error checking finance module:', error)
+        // Default to disabled on error
+        this.financeModuleEnabled = false
       }
     },
 

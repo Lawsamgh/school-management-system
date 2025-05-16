@@ -71,13 +71,6 @@
                   <div v-if="isSchoolDropdownOpen" class="custom-select-dropdown">
                     <div class="custom-select-options">
                       <div 
-                        class="custom-select-option"
-                        @click="selectSchool('', 'All Schools')"
-                        :class="{ 'selected': selectedSchoolId === '' }"
-                      >
-                        <i class="fas fa-globe-americas me-2"></i> All Schools
-                      </div>
-                      <div 
                         v-for="school in filteredSchools" 
                         :key="school.id"
                         class="custom-select-option"
@@ -219,9 +212,15 @@
               <div v-else-if="filteredPayments.length === 0" class="empty-state">
                 <img src="@/assets/empty-data.svg" alt="No payments" class="empty-state-img" v-if="false">
                 <i class="fas fa-receipt fa-4x text-muted mb-3"></i>
-                <h3>No payments found</h3>
-                <p class="text-muted mb-4">No payment records match your current search or filter.</p>
-                
+                <h3>{{ isSuperadminWithNoSchool ? 'Select a School' : 'No payments found' }}</h3>
+                <p class="text-muted mb-4">
+                  <template v-if="isSuperadminWithNoSchool">
+                    Please select a school from the dropdown above to view payment records.
+                  </template>
+                  <template v-else>
+                    No payment records match your current search or filter.
+                  </template>
+                </p>
               </div>
               
               <!-- Data table -->
@@ -1016,6 +1015,32 @@ const schoolSearchQuery = ref('');
 const schoolSearchInput = ref<HTMLInputElement | null>(null);
 const schools = ref<{id: string, name: string}[]>([]);
 
+// Load selected school from localStorage
+const loadSavedSchoolSelection = () => {
+  try {
+    const savedId = localStorage.getItem('selectedSchoolId');
+    const savedName = localStorage.getItem('selectedSchoolName');
+    
+    if (savedId && savedName) {
+      // Verify that the saved school still exists in the list
+      const schoolExists = schools.value.some(school => school.id === savedId);
+      
+      if (schoolExists) {
+        selectedSchoolId.value = savedId;
+        selectedSchoolName.value = savedName;
+        console.log('Loaded saved school selection:', savedId, savedName);
+      } else {
+        // Clear invalid school selection
+        console.warn('Saved school ID no longer exists in schools list:', savedId);
+        localStorage.removeItem('selectedSchoolId');
+        localStorage.removeItem('selectedSchoolName');
+      }
+    }
+  } catch (error) {
+    console.error('Error loading saved school selection:', error);
+  }
+};
+
 // Helper function to get the current school_id based on user role
 const getCurrentSchoolId = (): string | null => {
   return userRole.value?.toLowerCase() === 'admin' 
@@ -1046,8 +1071,18 @@ const paymentForm = ref({
 // Payment options from the database
 const paymentOptions = ref<{ id: number; payment_for: string; amount: number; currency: string }[]>([]);
 
+// Add a computed property to check if user is superadmin with no school selected
+const isSuperadminWithNoSchool = computed(() => {
+  return userRole.value === 'superadmin' && !selectedSchoolId.value;
+});
+
 // Computed property for filtered and sorted payments
 const filteredPayments = computed(() => {
+  // If user is superadmin and no school is selected, return empty array
+  if (isSuperadminWithNoSchool.value) {
+    return [];
+  }
+  
   let result = [...recentPayments.value];
   
   // Apply text search filter
@@ -1283,16 +1318,24 @@ onMounted(async () => {
   console.log('Current user role:', userRole.value);
   console.log('Can delete payments:', canDeletePayments.value);
   
+  // Fetch schools list if superadmin
+  if (userRole.value?.toLowerCase() === 'superadmin') {
+    await fetchSchools();
+    
+    // Load saved school selection after schools are fetched
+    loadSavedSchoolSelection();
+    
+    // If a school was loaded from localStorage, update the data accordingly
+    if (selectedSchoolId.value) {
+      await handleSchoolChange(false); // Don't show toast notification on initial load
+    }
+  }
+  
   // Check database connection before loading data
   await checkDbConnection();
   
   // Fetch school info
   await fetchSchoolInfo();
-  
-  // Fetch schools list if superadmin
-  if (userRole.value?.toLowerCase() === 'superadmin') {
-    await fetchSchools();
-  }
 });
 
 // Check database connection and table access
@@ -1329,11 +1372,11 @@ const fetchRecentPayments = async () => {
     console.log('Fetching payments using API...');
     
     // Get the appropriate school_id based on user role
-    const schoolId = userRole.value?.toLowerCase() === 'admin' 
+    const schoolId = userRole.value === 'admin' 
       ? authStore.userRole?.school_id 
-      : userRole.value?.toLowerCase() === 'superadmin' && selectedSchoolId.value 
+      : userRole.value === 'superadmin' 
         ? selectedSchoolId.value 
-        : userRole.value?.toLowerCase() === 'admin' ? authStore.userRole?.school_id : null;
+        : null;
     
     console.log('Fetching payments with school ID:', schoolId);
     
@@ -2725,6 +2768,15 @@ const selectSchool = (id: string, name: string) => {
   isSchoolDropdownOpen.value = false;
   schoolSearchQuery.value = '';
   
+  // Save to localStorage
+  try {
+    localStorage.setItem('selectedSchoolId', id);
+    localStorage.setItem('selectedSchoolName', name);
+    console.log('Saved school selection to localStorage:', id, name);
+  } catch (error) {
+    console.error('Error saving school selection to localStorage:', error);
+  }
+  
   // Call the existing school change handler
   handleSchoolChange();
 };
@@ -2734,6 +2786,16 @@ const clearSchoolSelection = (event: Event) => {
   event.stopPropagation();
   selectedSchoolId.value = '';
   selectedSchoolName.value = '';
+  
+  // Remove from localStorage
+  try {
+    localStorage.removeItem('selectedSchoolId');
+    localStorage.removeItem('selectedSchoolName');
+    console.log('Cleared school selection from localStorage');
+  } catch (error) {
+    console.error('Error clearing school selection from localStorage:', error);
+  }
+  
   handleSchoolChange();
 };
 
@@ -2751,12 +2813,32 @@ const closeSchoolDropdown = (event: MouseEvent) => {
 onMounted(() => {
   document.addEventListener('click', closeSchoolDropdown);
   
+  // Add event listener for beforeunload to ensure we're saving the most recent selection
+  const saveSchoolSelection = () => {
+    if (selectedSchoolId.value && selectedSchoolName.value) {
+      localStorage.setItem('selectedSchoolId', selectedSchoolId.value);
+      localStorage.setItem('selectedSchoolName', selectedSchoolName.value);
+    }
+  };
+  
+  window.addEventListener('beforeunload', saveSchoolSelection);
+  
+  // Save this function for cleanup
+  (window as any).saveSchoolSelection = saveSchoolSelection;
+  
   // ... rest of existing onMounted code ...
 });
 
 // Remove event listener when component is unmounted
 onUnmounted(() => {
   document.removeEventListener('click', closeSchoolDropdown);
+  
+  // Remove the beforeunload event listener
+  const saveSchoolSelection = (window as any).saveSchoolSelection;
+  if (saveSchoolSelection) {
+    window.removeEventListener('beforeunload', saveSchoolSelection);
+    delete (window as any).saveSchoolSelection;
+  }
 });
 
 // Fetch schools for superadmin
@@ -2773,14 +2855,6 @@ const fetchSchools = async () => {
     
     schools.value = data || [];
     console.log('Schools loaded:', schools.value);
-
-    // If a school is already selected, update the name
-    if (selectedSchoolId.value) {
-      const selectedSchool = schools.value.find(school => school.id === selectedSchoolId.value);
-      if (selectedSchool) {
-        selectedSchoolName.value = selectedSchool.name;
-      }
-    }
   } catch (error) {
     console.error('Error fetching schools:', error);
     toast.error('Failed to load schools list');
@@ -2788,15 +2862,13 @@ const fetchSchools = async () => {
 };
 
 // Handle school change
-const handleSchoolChange = async () => {
+const handleSchoolChange = async (showNotification = true) => {
   console.log('School filter changed to:', selectedSchoolId.value, selectedSchoolName.value);
   await fetchRecentPayments();
   
-  // Show toast notification
-  if (selectedSchoolId.value) {
+  // Show toast notification for selected school if showNotification is true
+  if (selectedSchoolId.value && showNotification) {
     toast.info(`Showing payments for: ${selectedSchoolName.value}`);
-  } else {
-    toast.info('Showing payments for all schools');
   }
 };
 </script>

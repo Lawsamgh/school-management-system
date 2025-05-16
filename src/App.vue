@@ -80,7 +80,11 @@
                           <div class="mega-menu-icon"><i class="fas fa-chalkboard-teacher"></i></div>
                           <div class="mega-menu-content"><h6>Teachers</h6><p>Manage teaching staff</p></div>
                         </router-link>
-                        <router-link to="/students" class="mega-menu-item">
+                        <router-link 
+                          v-if="(userRole === 'superadmin' || userRole === 'admin') && (userRole === 'superadmin' || studentPortalEnabled)"
+                          to="/students" 
+                          class="mega-menu-item"
+                        >
                           <div class="mega-menu-icon"><i class="fas fa-user-graduate"></i></div>
                           <div class="mega-menu-content"><h6>Students</h6><p>Manage student records</p></div>
                         </router-link>
@@ -88,7 +92,11 @@
                           <div class="mega-menu-icon"><i class="fas fa-user-friends"></i></div>
                           <div class="mega-menu-content"><h6>Parents</h6><p>Manage parent accounts</p></div>
                         </router-link>
-                        <router-link to="/accountants" class="mega-menu-item">
+                        <router-link 
+                          v-if="isAuthenticated && (userRole === 'superadmin' || authStore.financeModuleEnabled)"
+                          to="/accountants" 
+                          class="mega-menu-item"
+                        >
                           <div class="mega-menu-icon"><i class="fas fa-calculator"></i></div>
                           <div class="mega-menu-content"><h6>Accountants</h6><p>Manage accounting staff</p></div>
                         </router-link>
@@ -115,7 +123,7 @@
                       </template>
                       
                       <!-- Other Role-Specific Menu Items -->
-                      <template v-else-if="userRole === 'accountant'">
+                      <template v-else-if="userRole === 'accountant' && authStore.financeModuleEnabled">
                         <router-link to="/accountants" class="mega-menu-item">
                           <div class="mega-menu-icon"><i class="fas fa-calculator"></i></div>
                           <div class="mega-menu-content"><h6>Accountants</h6><p>Manage accounting staff</p></div>
@@ -127,7 +135,7 @@
                           <div class="mega-menu-content"><h6>Teachers</h6><p>Manage teaching staff</p></div>
                         </router-link>
                       </template>
-                      <template v-else-if="userRole === 'student'">
+                      <template v-else-if="userRole === 'student' && studentPortalEnabled">
                         <router-link to="/students" class="mega-menu-item">
                           <div class="mega-menu-icon"><i class="fas fa-user-graduate"></i></div>
                           <div class="mega-menu-content"><h6>Students</h6><p>Manage student records</p></div>
@@ -176,13 +184,23 @@
                       <a class="dropdown-item" @click="(e) => handleMenuItemClick('/teachers', e)" :class="{ active: isRouteActive('/teachers') }">
                         <i class="fas fa-chalkboard-teacher me-2"></i>Teachers
                       </a>
-                      <a class="dropdown-item" @click="(e) => handleMenuItemClick('/students', e)" :class="{ active: isRouteActive('/students') }">
+                      <a 
+                        v-if="(userRole === 'superadmin' || userRole === 'admin') && (userRole === 'superadmin' || studentPortalEnabled)"
+                        class="dropdown-item" 
+                        @click="(e) => handleMenuItemClick('/students', e)" 
+                        :class="{ active: isRouteActive('/students') }"
+                      >
                         <i class="fas fa-user-graduate me-2"></i>Students
                       </a>
                       <a class="dropdown-item" @click="(e) => handleMenuItemClick('/parents', e)" :class="{ active: isRouteActive('/parents') }">
                         <i class="fas fa-user-friends me-2"></i>Parents
                       </a>
-                      <a class="dropdown-item" @click="(e) => handleMenuItemClick('/accountants', e)" :class="{ active: isRouteActive('/accountants') }">
+                      <a 
+                        v-if="isAuthenticated && (userRole === 'superadmin' || authStore.financeModuleEnabled)"
+                        class="dropdown-item" 
+                        @click="(e) => handleMenuItemClick('/accountants', e)" 
+                        :class="{ active: isRouteActive('/accountants') }"
+                      >
                         <i class="fas fa-calculator me-2"></i>Accountants
                       </a>
                       <a class="dropdown-item" @click="(e) => handleMenuItemClick('/courses', e)" :class="{ active: isRouteActive('/courses') }">
@@ -203,7 +221,7 @@
                         <i class="fas fa-cog me-2"></i>Settings
                       </a>
                     </template>
-                    <template v-else-if="userRole === 'accountant'">
+                    <template v-else-if="userRole === 'accountant' && authStore.financeModuleEnabled">
                       <a class="dropdown-item" @click="(e) => handleMenuItemClick('/accountants', e)" :class="{ active: isRouteActive('/accountants') }">
                         <i class="fas fa-calculator me-2"></i>Accountants
                       </a>
@@ -213,7 +231,7 @@
                         <i class="fas fa-chalkboard-teacher me-2"></i>Teachers
                       </a>
                     </template>
-                    <template v-else-if="userRole === 'student'">
+                    <template v-else-if="userRole === 'student' && studentPortalEnabled">
                       <a class="dropdown-item" @click="(e) => handleMenuItemClick('/students', e)" :class="{ active: isRouteActive('/students') }">
                         <i class="fas fa-user-graduate me-2"></i>Students
                       </a>
@@ -309,6 +327,7 @@ const authStore = useAuthStore()
 const isAuthenticated = computed(() => authStore.isAuthenticated)
 const isLoading = ref(true)
 const userRole = computed(() => authStore.userRole?.role?.toLowerCase() || null)
+const studentPortalEnabled = ref(false)
 
 interface SchoolInfo {
   name: string;
@@ -546,39 +565,52 @@ onMounted(async () => {
   }
 })
 
+// Function to fetch the school info, including student_portal setting
 const fetchSchoolInfo = async (schoolId?: string) => {
   try {
     isLoading.value = true
+    console.log('Fetching school info for ID:', schoolId)
+    
     // If user is not SuperAdmin and has a school_id, fetch from setup table using school_id
     if (userRole.value !== 'superadmin' && schoolId) {
-      const { data, error } = await supabase
+      // First check for the setup record to get student_portal setting
+      const { data: setupData, error: setupError } = await supabase
         .from('setup')
-        .select('school_name, school_logo, school_email, school_contact1, school_address')
+        .select('*')
         .eq('school_id', schoolId)
         .single()
-
-      if (error) {
-        if (error.code === 'PGRST116') {
-          isLoading.value = false
-          return
+        
+      if (!setupError && setupData) {
+        // Look for student_portal field (case insensitive)
+        const setupDataKeys = Object.keys(setupData)
+        const studentPortalField = setupDataKeys.find(key => 
+          key.toLowerCase() === 'student_portal'
+        )
+        
+        // Update the student portal enabled state
+        if (studentPortalField) {
+          const value = setupData[studentPortalField]
+          studentPortalEnabled.value = String(value).toUpperCase() === 'YES'
+        } else {
+          studentPortalEnabled.value = false
         }
-        throw error
-      }
-
-      if (data) {
+        
+        console.log('Student portal enabled:', studentPortalEnabled.value)
+        
+        // Extract school info from setup data
         schoolInfo.value = {
-          name: data.school_name || 'LS System',
-          logo: data.school_logo || null,
-          email: data.school_email || '',
-          phone: data.school_contact1 || '',
-          address: data.school_address || ''
+          name: setupData.school_name || 'LS System',
+          logo: setupData.school_logo || null,
+          email: setupData.school_email || '',
+          phone: setupData.school_contact1 || '',
+          address: setupData.school_address || ''
         }
       }
     } else if (userRole.value === 'superadmin') {
       // For SuperAdmin, fetch from setup table without school_id filter
       const { data, error } = await supabase
         .from('setup')
-        .select('school_name, school_logo, school_email, school_contact1, school_address')
+        .select('school_name, school_logo, school_email, school_contact1, school_address, student_portal')
         .single()
 
       if (error) {
@@ -590,6 +622,10 @@ const fetchSchoolInfo = async (schoolId?: string) => {
       }
 
       if (data) {
+        // Update student portal enabled state for superadmin
+        studentPortalEnabled.value = String(data.student_portal || '').toUpperCase() === 'YES'
+        console.log('Student portal enabled (superadmin):', studentPortalEnabled.value)
+        
         schoolInfo.value = {
           name: data.school_name || 'LS System',
           logo: data.school_logo || null,
@@ -608,6 +644,7 @@ const fetchSchoolInfo = async (schoolId?: string) => {
       phone: '',
       address: ''
     }
+    studentPortalEnabled.value = false
   } finally {
     isLoading.value = false
   }

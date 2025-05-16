@@ -4,7 +4,7 @@ import { useAuthStore } from '@/store/auth'
 import { useToast } from 'vue-toastification'
 
 // List of routes that don't need school validation
-const publicRoutes = ['/login', '/register', '/forgot-password', '/reset-password']
+const publicRoutes = ['/', '/login', '/register', '/forgot-password', '/reset-password', '/contact']
 
 export async function validateSchoolSession(
   to: RouteLocationNormalized,

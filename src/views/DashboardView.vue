@@ -51,77 +51,155 @@
 
         <!-- Main Dashboard Content -->
         <div class="row g-3">
-          <!-- Students Stats -->
-          <div class="col-md-4" v-motion-slide-visible-once-bottom>
-            <div class="stat-card" :class="{ 'skeleton-loading': loading }">
-              <template v-if="!loading">
-                <div class="stat-icon">
-                  <i class="fas fa-book-reader"></i>
-                </div>
-                <div class="stat-content">
-                  <h3>Students</h3>
-                  <p class="stat-number">{{ studentCount }}</p>
-                  <p class="stat-label">Active Enrollments</p>
-                </div>
-              </template>
-              <template v-else>
-                <div class="skeleton-icon"></div>
-                <div class="stat-content">
-                  <div class="skeleton-text skeleton-sm"></div>
-                  <div class="skeleton-text skeleton-lg"></div>
-                  <div class="skeleton-text skeleton-sm"></div>
-                </div>
-              </template>
+          <!-- Stats Cards -->
+          <template v-if="userRole?.toLowerCase() === 'superadmin'">
+            <!-- Schools Stats for Superadmin -->
+            <div class="col-md-4" v-motion-slide-visible-once-bottom>
+              <div class="stat-card" :class="{ 'skeleton-loading': loading }">
+                <template v-if="!loading">
+                  <div class="stat-icon">
+                    <i class="fas fa-school"></i>
+                  </div>
+                  <div class="stat-content">
+                    <h3>Schools</h3>
+                    <p class="stat-number">{{ schoolCount }}</p>
+                    <p class="stat-label">Active Schools</p>
+                  </div>
+                </template>
+                <template v-else>
+                  <div class="skeleton-icon"></div>
+                  <div class="stat-content">
+                    <div class="skeleton-text skeleton-sm"></div>
+                    <div class="skeleton-text skeleton-lg"></div>
+                    <div class="skeleton-text skeleton-sm"></div>
+                  </div>
+                </template>
+              </div>
             </div>
-          </div>
+            
+            <!-- Schools Stats (2nd card) -->
+            <div class="col-md-4" v-motion-slide-visible-once-bottom>
+              <div class="stat-card" :class="{ 'skeleton-loading': loading }">
+                <template v-if="!loading">
+                  <div class="stat-icon">
+                    <i class="fas fa-school"></i>
+                  </div>
+                  <div class="stat-content">
+                    <h3>Schools</h3>
+                    <p class="stat-number">{{ schoolCount }}</p>
+                    <p class="stat-label">Active Schools</p>
+                  </div>
+                </template>
+                <template v-else>
+                  <div class="skeleton-icon"></div>
+                  <div class="stat-content">
+                    <div class="skeleton-text skeleton-sm"></div>
+                    <div class="skeleton-text skeleton-lg"></div>
+                    <div class="skeleton-text skeleton-sm"></div>
+                  </div>
+                </template>
+              </div>
+            </div>
+            
+            <!-- Schools Stats (3rd card) -->
+            <div class="col-md-4" v-motion-slide-visible-once-bottom>
+              <div class="stat-card" :class="{ 'skeleton-loading': loading }">
+                <template v-if="!loading">
+                  <div class="stat-icon">
+                    <i class="fas fa-school"></i>
+                  </div>
+                  <div class="stat-content">
+                    <h3>Schools</h3>
+                    <p class="stat-number">{{ schoolCount }}</p>
+                    <p class="stat-label">Active Schools</p>
+                  </div>
+                </template>
+                <template v-else>
+                  <div class="skeleton-icon"></div>
+                  <div class="stat-content">
+                    <div class="skeleton-text skeleton-sm"></div>
+                    <div class="skeleton-text skeleton-lg"></div>
+                    <div class="skeleton-text skeleton-sm"></div>
+                  </div>
+                </template>
+              </div>
+            </div>
+          </template>
           
-          <!-- Teachers Stats -->
-          <div class="col-md-4" v-motion-slide-visible-once-bottom>
-            <div class="stat-card" :class="{ 'skeleton-loading': loading }">
-              <template v-if="!loading">
-                <div class="stat-icon">
-                  <i class="fas fa-user-tie"></i>
-                </div>
-                <div class="stat-content">
-                  <h3>Teachers</h3>
-                  <p class="stat-number">{{ teacherCount }}</p>
-                  <p class="stat-label">Active Teachers</p>
-                </div>
-              </template>
-              <template v-else>
-                <div class="skeleton-icon"></div>
-                <div class="stat-content">
-                  <div class="skeleton-text skeleton-sm"></div>
-                  <div class="skeleton-text skeleton-lg"></div>
-                  <div class="skeleton-text skeleton-sm"></div>
-                </div>
-              </template>
+          <!-- Regular Stats for other roles -->
+          <template v-else>
+            <!-- Students Stats -->
+            <div class="col-md-4" v-motion-slide-visible-once-bottom>
+              <div class="stat-card" :class="{ 'skeleton-loading': loading }">
+                <template v-if="!loading">
+                  <div class="stat-icon">
+                    <i class="fas fa-book-reader"></i>
+                  </div>
+                  <div class="stat-content">
+                    <h3>Students</h3>
+                    <p class="stat-number">{{ studentCount }}</p>
+                    <p class="stat-label">Active Enrollments</p>
+                  </div>
+                </template>
+                <template v-else>
+                  <div class="skeleton-icon"></div>
+                  <div class="stat-content">
+                    <div class="skeleton-text skeleton-sm"></div>
+                    <div class="skeleton-text skeleton-lg"></div>
+                    <div class="skeleton-text skeleton-sm"></div>
+                  </div>
+                </template>
+              </div>
             </div>
-          </div>
-          
-          <!-- Students 2 Stats -->
-          <div class="col-md-4" v-motion-slide-visible-once-bottom>
-            <div class="stat-card" :class="{ 'skeleton-loading': loading }">
-              <template v-if="!loading">
-                <div class="stat-icon">
-                  <i class="fas fa-book-reader"></i>
-                </div>
-                <div class="stat-content">
-                  <h3>Students 2</h3>
-                  <p class="stat-number">{{ studentCount }}</p>
-                  <p class="stat-label">Active Enrollments</p>
-                </div>
-              </template>
-              <template v-else>
-                <div class="skeleton-icon"></div>
-                <div class="stat-content">
-                  <div class="skeleton-text skeleton-sm"></div>
-                  <div class="skeleton-text skeleton-lg"></div>
-                  <div class="skeleton-text skeleton-sm"></div>
-                </div>
-              </template>
+            
+            <!-- Teachers Stats -->
+            <div class="col-md-4" v-motion-slide-visible-once-bottom>
+              <div class="stat-card" :class="{ 'skeleton-loading': loading }">
+                <template v-if="!loading">
+                  <div class="stat-icon">
+                    <i class="fas fa-user-tie"></i>
+                  </div>
+                  <div class="stat-content">
+                    <h3>Teachers</h3>
+                    <p class="stat-number">{{ teacherCount }}</p>
+                    <p class="stat-label">Active Teachers</p>
+                  </div>
+                </template>
+                <template v-else>
+                  <div class="skeleton-icon"></div>
+                  <div class="stat-content">
+                    <div class="skeleton-text skeleton-sm"></div>
+                    <div class="skeleton-text skeleton-lg"></div>
+                    <div class="skeleton-text skeleton-sm"></div>
+                  </div>
+                </template>
+              </div>
             </div>
-          </div>
+            
+            <!-- Students 2 Stats -->
+            <div class="col-md-4" v-motion-slide-visible-once-bottom>
+              <div class="stat-card" :class="{ 'skeleton-loading': loading }">
+                <template v-if="!loading">
+                  <div class="stat-icon">
+                    <i class="fas fa-book-reader"></i>
+                  </div>
+                  <div class="stat-content">
+                    <h3>Students 2</h3>
+                    <p class="stat-number">{{ studentCount }}</p>
+                    <p class="stat-label">Active Enrollments</p>
+                  </div>
+                </template>
+                <template v-else>
+                  <div class="skeleton-icon"></div>
+                  <div class="stat-content">
+                    <div class="skeleton-text skeleton-sm"></div>
+                    <div class="skeleton-text skeleton-lg"></div>
+                    <div class="skeleton-text skeleton-sm"></div>
+                  </div>
+                </template>
+              </div>
+            </div>
+          </template>
           
           <!-- Quick Actions -->
           <div 
@@ -150,7 +228,8 @@
                   </button>
 
                   <router-link 
-                    v-if="isAdminOrHigher"
+                    v-if="!loading && authStore.isAuthenticated && (userRole === 'superadmin' || 
+                         ((userRole === 'accountant' || isAdminOrHigher) && authStore.financeModuleEnabled))" 
                     to="/accountants"
                     class="action-button"
                   >
@@ -199,9 +278,9 @@
             <div class="dashboard-card" :class="{ 'skeleton-loading': loading }">
               <div class="card-header">
                 <template v-if="!loading">
-                  <h2>{{ isAdminOrHigher ? 'Recent Payments' : 'Recent Activities' }}</h2>
+                  <h2>{{ authStore.isAuthenticated && (userRole?.toLowerCase() === 'superadmin' || (isAdminOrHigher && authStore.financeModuleEnabled)) ? 'Recent Payments' : 'Recent Activities' }}</h2>
                   <router-link 
-                    v-if="isAdminOrHigher" 
+                    v-if="authStore.isAuthenticated && (userRole?.toLowerCase() === 'superadmin' || (isAdminOrHigher && authStore.financeModuleEnabled))" 
                     to="/accountants" 
                     class="btn btn-outline-primary btn-sm"
                   >
@@ -217,7 +296,7 @@
 
               <!-- Payment Table for Accountants, Admins and Superadmins -->
               <div 
-                v-if="userRole?.toLowerCase() === 'superadmin' || userRole?.toLowerCase() === 'admin'"
+                v-if="!loading && authStore.isAuthenticated && (userRole?.toLowerCase() !== 'superadmin' && ((userRole?.toLowerCase() === 'admin' || userRole?.toLowerCase() === 'accountant') && authStore.financeModuleEnabled))"
                 class="payments-table-container"
               >
                 <div class="responsive-table">
@@ -356,7 +435,7 @@
 
           <!-- Monthly Payment Chart -->
           <div 
-            v-if="showChart"
+            v-if="showChart && userRole?.toLowerCase() !== 'superadmin'"
             class="col-12 mt-3" 
             v-motion-slide-visible-once-bottom
           >
@@ -419,6 +498,7 @@ const showChangePasswordModal = ref(false)
 const recentPayments = ref<any[]>([])
 const teacherCount = ref(0)
 const studentCount = ref(0)
+const schoolCount = ref(0)
 const paymentChart = ref<HTMLCanvasElement | null>(null)
 const chartInstance = ref<Chart | null>(null)
 const selectedYear = ref(new Date().getFullYear())
@@ -426,6 +506,10 @@ const availableYears = ref<number[]>([])
 const monthlyStats = ref<number[]>(Array(12).fill(0))
 const initChart = ref(false)
 const chartInitialized = ref(false)
+const hasPaymentData = ref(false)
+const hasSchoolSelected = computed(() => {
+  return !!authStore.getSelectedSchoolId
+})
 const isValidRole = computed(() => {
   const roleValue = userRole.value?.toLowerCase() || ''
   return ['accountant', 'admin', 'superadmin'].includes(roleValue)
@@ -433,9 +517,22 @@ const isValidRole = computed(() => {
 
 // Computed property to control chart visibility
 const showChart = computed(() => {
+  // Don't show chart while authentication is still loading
+  if (loading.value || !authStore.isAuthenticated) {
+    return false
+  }
+
   const roleValue = userRole.value?.toLowerCase() || ''
   console.log('Role check for chart:', { role: roleValue })
-  return ['accountant', 'admin'].includes(roleValue) && roleValue !== 'superadmin'
+  
+  // Never show for superadmin role
+  if (roleValue === 'superadmin') {
+    return false
+  }
+  
+  // Only show for admin and accountant roles, and when finance module is enabled
+  return ((['admin', 'accountant'].includes(roleValue)) && 
+    authStore.financeModuleEnabled)
 })
 
 // Debug watcher
@@ -470,16 +567,27 @@ const fetchRecentPayments = async () => {
   try {
     console.log('Checking role for payments:', {
       role: userRole.value,
-      isAdminOrHigher: isAdminOrHigher.value
+      isAdmin: isAdminOrHigher.value,
+      finance: authStore.financeModuleEnabled
     })
     
-    if (isAdminOrHigher.value) {
+    // Only fetch for superadmin or admin/accountant with finance module enabled
+    if (userRole.value?.toLowerCase() === 'superadmin' || 
+        (isAdminOrHigher.value && authStore.financeModuleEnabled)) {
       console.log('Fetching payments...')
       
       // Get the school_id based on user role
       const schoolId = userRole.value?.toLowerCase() === 'admin' 
         ? authStore.userRole?.school_id 
         : userRole.value?.toLowerCase() === 'superadmin' ? authStore.getSelectedSchoolId : authStore.userRole?.school_id;
+      
+      // For superadmin, only proceed if a school is selected
+      if (userRole.value?.toLowerCase() === 'superadmin' && !schoolId) {
+        console.log('Superadmin has no school selected, skipping payment fetch')
+        recentPayments.value = [];
+        hasPaymentData.value = false;
+        return;
+      }
       
       console.log('Fetching payments with school ID:', schoolId)
       
@@ -488,13 +596,17 @@ const fetchRecentPayments = async () => {
       
       // Take only the most recent 5 payments
       recentPayments.value = data?.slice(0, 5) || [];
+      hasPaymentData.value = !!(recentPayments.value && recentPayments.value.length > 0);
       console.log('Set recent payments:', recentPayments.value)
     } else {
-      console.log('User does not have permission to view payments')
+      console.log('User does not have permission to view payments or finance module is disabled')
+      recentPayments.value = [];
+      hasPaymentData.value = false;
     }
   } catch (error) {
     console.error('Error fetching recent payments:', error);
     toast.error('Failed to load recent payments')
+    hasPaymentData.value = false;
   }
 }
 
@@ -561,6 +673,28 @@ const fetchStudentCount = async () => {
     console.log('Student count:', studentCount.value);
   } catch (error) {
     console.error('Error fetching student count:', error);
+  }
+}
+
+// Fetch school count for superadmin
+const fetchSchoolCount = async () => {
+  try {
+    if (userRole.value?.toLowerCase() === 'superadmin') {
+      // Query to get total schools
+      const { data, error, count } = await supabase
+        .from('schools')
+        .select('*', { count: 'exact' });
+      
+      if (error) {
+        console.error('Error fetching school count:', error);
+        return;
+      }
+      
+      schoolCount.value = count || 0;
+      console.log('School count:', schoolCount.value);
+    }
+  } catch (error) {
+    console.error('Error fetching school count:', error);
   }
 }
 
@@ -711,6 +845,14 @@ const fetchPaymentStats = async () => {
       ? authStore.userRole?.school_id 
       : userRole.value?.toLowerCase() === 'superadmin' ? authStore.getSelectedSchoolId : authStore.userRole?.school_id;
     
+    // For superadmin, only proceed if a school is selected
+    if (userRole.value?.toLowerCase() === 'superadmin' && !schoolId) {
+      console.log('Superadmin has no school selected, skipping payment stats fetch')
+      monthlyStats.value = Array(12).fill(0);
+      hasPaymentData.value = false;
+      return;
+    }
+    
     console.log('Fetching payment stats with school ID:', schoolId)
     
     // Include school_id in the API call
@@ -726,6 +868,9 @@ const fetchPaymentStats = async () => {
         const month = new Date(payment.payment_date).getMonth()
         monthlyTotals[month] += Number(payment.amount || 0)
       })
+      hasPaymentData.value = true;
+    } else {
+      hasPaymentData.value = false;
     }
     
     console.log('Processed monthly totals:', monthlyTotals)
@@ -734,6 +879,7 @@ const fetchPaymentStats = async () => {
   } catch (error) {
     console.error('Error fetching payment stats:', error)
     toast.error('Failed to load payment statistics')
+    hasPaymentData.value = false;
   }
 }
 
@@ -773,8 +919,15 @@ onMounted(async () => {
       await fetchPaymentStats()
     }
     await fetchRecentPayments()
-    await fetchTeacherCount()
-    await fetchStudentCount()
+    
+    // Fetch counts based on role
+    if (userRole.value?.toLowerCase() === 'superadmin') {
+      await fetchSchoolCount()
+    } else {
+      await fetchTeacherCount()
+      await fetchStudentCount()
+    }
+    
     loading.value = false
   } catch (error) {
     console.error('Error in onMounted:', error)
@@ -804,37 +957,49 @@ const isStudentOrParent = computed(() => {
 })
 
 const isAdminOrHigher = computed(() => {
-  const roleValue = userRole.value?.toLowerCase()
-  return ['accountant', 'admin', 'superadmin'].includes(roleValue)
+  const roleValue = userRole.value?.toLowerCase() ?? ''
+  // Only include accountant if finance module is enabled
+  if (roleValue === 'accountant') {
+    return authStore.financeModuleEnabled
+  }
+  return ['admin', 'superadmin'].includes(roleValue)
 })
 
 const isRegistrarOrHigher = computed(() => {
-  const roleValue = userRole.value?.toLowerCase()
+  const roleValue = userRole.value?.toLowerCase() ?? ''
   return ['registrar', 'superadmin', 'admin'].includes(roleValue)
 })
 
 const isTeacherOrHigher = computed(() => {
-  const roleValue = userRole.value?.toLowerCase()
+  const roleValue = userRole.value?.toLowerCase() ?? ''
   return ['teacher', 'superadmin', 'admin'].includes(roleValue)
 })
 
 const canViewPayments = computed(() => {
-  const roleValue = userRole.value?.toLowerCase()
-  return ['accountant', 'admin', 'superadmin'].includes(roleValue)
+  const roleValue = userRole.value?.toLowerCase() ?? ''
+  // Only include accountant if finance module is enabled
+  if (roleValue === 'accountant') {
+    return authStore.financeModuleEnabled
+  }
+  return ['admin', 'superadmin'].includes(roleValue)
 })
 
 const canViewFinancials = computed(() => {
-  const roleValue = userRole.value?.toLowerCase()
-  return ['accountant', 'admin', 'superadmin'].includes(roleValue)
+  const roleValue = userRole.value?.toLowerCase() ?? ''
+  // Only include accountant if finance module is enabled
+  if (roleValue === 'accountant') {
+    return authStore.financeModuleEnabled
+  }
+  return ['admin', 'superadmin'].includes(roleValue)
 })
 
 const canViewRegistration = computed(() => {
-  const roleValue = userRole.value?.toLowerCase()
+  const roleValue = userRole.value?.toLowerCase() ?? ''
   return ['registrar', 'superadmin', 'admin'].includes(roleValue)
 })
 
 const canViewTeaching = computed(() => {
-  const roleValue = userRole.value?.toLowerCase()
+  const roleValue = userRole.value?.toLowerCase() ?? ''
   return ['teacher', 'superadmin', 'admin'].includes(roleValue)
 })
 
@@ -1077,36 +1242,40 @@ const handleChangePassword = () => {
   display: flex;
   flex-wrap: wrap;
   gap: 1rem;
+  justify-content: flex-start;
+  
+  @media (max-width: 768px) {
+    justify-content: center;
+  }
+}
+
+.action-button {
+  display: flex;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  border: none;
+  background: #f8f9fa;
+  border-radius: 0.5rem;
+  color: #2c3e50;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  flex: 0 0 auto;
+  min-width: 200px;
   justify-content: center;
 
-  .action-button {
-    display: flex;
-    align-items: center;
-    padding: 1rem 1.5rem;
-    border: none;
-    background: #f8f9fa;
-    border-radius: 0.5rem;
-    color: #2c3e50;
-    transition: all 0.3s ease;
-    cursor: pointer;
-    flex: 0 0 auto;
-    min-width: 200px;
-    justify-content: center;
+  &:hover {
+    background: #42b883;
+    color: white;
+    transform: translateY(-5px);
+  }
 
-    &:hover {
-      background: #42b883;
-      color: white;
-      transform: translateY(-5px);
-    }
+  i {
+    font-size: 1.2rem;
+    margin-right: 1rem;
+  }
 
-    i {
-      font-size: 1.2rem;
-      margin-right: 1rem;
-    }
-
-    span {
-      font-weight: 500;
-    }
+  span {
+    font-weight: 500;
   }
 }
 

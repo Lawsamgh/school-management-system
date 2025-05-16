@@ -51,6 +51,14 @@
                 </div>
                 <div 
                   class="settings-tab-item" 
+                  :class="{ active: activeTab === 'access-package' }"
+                  @click="activeTab = 'access-package'"
+                >
+                  <i class="fas fa-key"></i>
+                  <span>Manage Access Package</span>
+                </div>
+                <div 
+                  class="settings-tab-item" 
                   :class="{ active: activeTab === 'security' }"
                   @click="activeTab = 'security'"
                 >
@@ -417,6 +425,51 @@
             <div v-if="userRole === 'superadmin'" v-show="activeTab === 'appearance'" class="settings-card">
               <!-- ... existing appearance content ... -->
             </div>
+
+            <!-- Access Package Settings - Superadmin Only -->
+            <div v-if="userRole === 'superadmin'" v-show="activeTab === 'access-package'" class="settings-card">
+              <div class="settings-card-header">
+                <h2>
+                  <i class="fas fa-key"></i>
+                  Manage Access Package
+                </h2>
+              </div>
+              <div class="settings-card-body">
+                <div class="alert alert-info mb-4">
+                  <i class="fas fa-info-circle me-2"></i>
+                  Configure access packages to control feature availability for different schools.
+                </div>
+                
+                <div class="row">
+                  <div class="col-md-12">
+                    <div class="form-group mb-4">
+                      <label class="form-label fw-bold">Package Features</label>
+                      <div class="feature-list">
+                        <div class="feature-item" v-for="(feature, index) in accessPackage.features" :key="index">
+                          <div class="form-check form-switch">
+                            <input
+                              class="form-check-input"
+                              type="checkbox"
+                              :id="'feature-' + index"
+                              v-model="feature.enabled"
+                              @change="handleFeatureToggle(feature)"
+                              :disabled="savingFeature === feature.name"
+                            >
+                            <label class="form-check-label" :for="'feature-' + index">
+                              {{ feature.name }}
+                              <span v-if="savingFeature === feature.name" class="ms-2 text-muted">
+                                <i class="fas fa-spinner fa-spin"></i>
+                              </span>
+                            </label>
+                          </div>
+                          <p class="feature-description">{{ feature.description }}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -589,6 +642,7 @@ const toast = useToast()
 const savingSchoolInfo = ref(false)
 const savingAcademic = ref(false)
 const savingNotifications = ref(false)
+const savingAccessPackage = ref(false)
 const isInitializing = ref(true)
 
 const activeTab = ref('school')
@@ -1262,7 +1316,8 @@ onMounted(async () => {
       await Promise.all([
         fetchSchoolInfo(),
         fetchEducationalPrograms(),
-        fetchNotificationSettings()
+        fetchNotificationSettings(),
+        fetchAccessPackageSettings() // Add this line
       ])
     }
   } catch (error: any) {
@@ -1473,41 +1528,266 @@ watch(programsList, () => {
   currentPage.value = 1
 })
 
-// Add watch for selectedSchoolId changes
-watch(
-  () => authStore.getSelectedSchoolId,
-  async (newSchoolId) => {
-    if (newSchoolId && userRole.value === 'superadmin') {
-      // Reset loading states
-      savingSchoolInfo.value = false
-      savingAcademic.value = false
-      savingNotifications.value = false
-      
-      // Reset form data
-      schoolInfo.value = {
-        name: '',
-        email: '',
-        phone: '',
-        address: ''
-      }
-      schoolLogoPreview.value = null
-      currentLogoUrl.value = null
-      
-      try {
-        // Fetch all settings when school is selected
-        await Promise.all([
-          fetchSchoolInfo(),
-          fetchEducationalPrograms(),
-          fetchNotificationSettings()
-        ])
-      } catch (error) {
-        console.error('Error fetching settings:', error)
-        toast.error('Failed to load some settings')
-      }
+// Add access package state
+const accessPackage = ref({
+  name: '',
+  features: [
+    { name: 'Finance Module', description: 'Manage online payments, and financial reports', enabled: true },
+    { name: 'Examination Module', description: 'Create exams, record grades, and generate report cards', enabled: false },
+    { name: 'Student Portal', description: 'Tools for teachers to manage classes and assignments', enabled: true },
+    { name: 'Parent Portal', description: 'Dedicated access for parents to view student information', enabled: true },
+    { name: 'Teacher Portal', description: 'Tools for teachers to manage classes and assignments', enabled: true },
+    { name: 'Attendance System', description: 'Track student and staff attendance', enabled: true },
+    { name: 'Auto Generate ID', description: 'Automatically generate identification numbers for users', enabled: false },
+    { name: 'Auto Validate Student ID', description: 'Validate student IDs against payment records', enabled: false }
+  ]
+})
+
+// Add function to fetch access package settings
+const fetchAccessPackageSettings = async () => {
+  try {
+    const schoolId = userRole.value === 'admin' 
+      ? authStore.userRole?.school_id 
+      : authStore.getSelectedSchoolId;
+
+    if (!schoolId) {
+      console.log('No school_id found. For superadmin, please select a school first.');
+      return;
     }
-  },
-  { immediate: true } // This will make it run immediately on component mount
-)
+
+    console.log('Fetching access package settings for school:', schoolId);
+    
+    // Fetch entire setup record to check all available fields
+    const { data: setupData, error: setupError } = await supabase
+      .from('setup')
+      .select('*')
+      .eq('school_id', schoolId)
+      .single();
+      
+    if (setupError) {
+      if (setupError.code === 'PGRST116') {
+        console.log('No setup record found for school:', schoolId);
+        return;
+      }
+      console.error('Error accessing setup table:', setupError);
+      throw setupError;
+    }
+    
+    console.log('Successfully accessed setup record with all fields:', setupData);
+    console.log('Raw field values:', {
+      'auto_generate_id': setupData.auto_generate_id,
+      'AUTO_GENERATE_ID': setupData.AUTO_GENERATE_ID,
+      'autogenerateid': setupData.autogenerateid,
+      'student_check': setupData.student_check,
+      'STUDENT_CHECK': setupData.STUDENT_CHECK,
+      'studentcheck': setupData.studentcheck,
+      'finance': setupData.finance,
+      'student_portal': setupData.student_portal
+    });
+
+    // Find the actual field names in the database
+    const setupDataKeys = Object.keys(setupData);
+    console.log('Available fields in setup table:', setupDataKeys);
+
+    // Look for auto_generate_id with different cases
+    const autoGenerateIdField = setupDataKeys.find(key => 
+      key.toLowerCase() === 'auto_generate_id' || 
+      key.toLowerCase() === 'autogenerateid' ||
+      key.toLowerCase() === 'auto_generate_id_text'
+    );
+    
+    // Look for student_check with different cases
+    const studentCheckField = setupDataKeys.find(key => 
+      key.toLowerCase() === 'student_check' || 
+      key.toLowerCase() === 'studentcheck'
+    );
+
+    // Look for finance field with different cases
+    const financeField = setupDataKeys.find(key => 
+      key.toLowerCase() === 'finance' || 
+      key.toLowerCase() === 'financefield'
+    );
+    
+    // Look for student_portal field with different cases
+    const studentPortalField = setupDataKeys.find(key => 
+      key.toLowerCase() === 'student_portal' || 
+      key.toLowerCase() === 'studentportal'
+    );
+
+    console.log('Found field names:', {
+      autoGenerateIdField,
+      studentCheckField,
+      financeField,
+      studentPortalField
+    });
+
+    // Use the correct field names if found
+    const autoGenerateIdValue = autoGenerateIdField ? setupData[autoGenerateIdField] || 'No' : 'No';
+    const studentCheckValue = studentCheckField ? setupData[studentCheckField] || 'No' : 'No';
+    const financeValue = financeField ? setupData[financeField] || 'No' : 'No';
+    const studentPortalValue = studentPortalField ? setupData[studentPortalField] || 'No' : 'No';
+
+    console.log('Using values:', { 
+      autoGenerateId: autoGenerateIdValue, 
+      studentCheck: studentCheckValue,
+      finance: financeValue,
+      studentPortal: studentPortalValue
+    });
+
+    // Update the features based on the values
+    const autoGenerateIdFeature = accessPackage.value.features.find(f => f.name === 'Auto Generate ID');
+    if (autoGenerateIdFeature) {
+      autoGenerateIdFeature.enabled = String(autoGenerateIdValue).toUpperCase() === 'YES';
+    }
+
+    const autoValidateStudentIdFeature = accessPackage.value.features.find(f => f.name === 'Auto Validate Student ID');
+    if (autoValidateStudentIdFeature) {
+      autoValidateStudentIdFeature.enabled = String(studentCheckValue).toUpperCase() === 'YES';
+    }
+    
+    const financeModuleFeature = accessPackage.value.features.find(f => f.name === 'Finance Module');
+    if (financeModuleFeature) {
+      financeModuleFeature.enabled = String(financeValue).toUpperCase() === 'YES';
+      // Also update the auth store to maintain reactivity
+      authStore.setFinanceModuleEnabled(String(financeValue).toUpperCase() === 'YES');
+    }
+    
+    const studentPortalFeature = accessPackage.value.features.find(f => f.name === 'Student Portal');
+    if (studentPortalFeature) {
+      studentPortalFeature.enabled = String(studentPortalValue).toUpperCase() === 'YES';
+    }
+  } catch (error: any) {
+    console.error('Error fetching access package settings:', error);
+  }
+}
+
+// Add this after access package ref definition
+const savingFeature = ref<string | null>(null);
+
+// Replace saveAccessPackage with this new handler function
+const handleFeatureToggle = async (feature: any) => {
+  // Set the saving state for this specific feature
+  savingFeature.value = feature.name;
+  
+  try {
+    // Get the school_id based on user role
+    const schoolId = userRole.value === 'admin' 
+      ? authStore.userRole?.school_id 
+      : authStore.getSelectedSchoolId;
+
+    if (!schoolId) {
+      throw new Error('No school ID found. Please select a school first.');
+    }
+
+    console.log(`Saving feature "${feature.name}" with enabled=${feature.enabled} for school:`, schoolId);
+
+    // First check the field names in an existing record
+    const { data: existingSetup, error: existingError } = await supabase
+      .from('setup')
+      .select('*')
+      .eq('school_id', schoolId)
+      .maybeSingle();
+
+    let autoGenerateIdField = 'auto_generate_id';
+    let studentCheckField = 'student_check';
+    let financeField = 'finance';
+    let studentPortalField = 'student_portal';
+
+    // If we found an existing record, check for field names
+    if (existingSetup) {
+      const setupDataKeys = Object.keys(existingSetup);
+      
+      // Look for auto_generate_id with different cases
+      const foundAutoGenerateIdField = setupDataKeys.find(key => 
+        key.toLowerCase() === 'auto_generate_id' || 
+        key.toLowerCase() === 'autogenerateid' ||
+        key.toLowerCase() === 'auto_generate_id_text'
+      );
+      
+      // Look for student_check with different cases
+      const foundStudentCheckField = setupDataKeys.find(key => 
+        key.toLowerCase() === 'student_check' || 
+        key.toLowerCase() === 'studentcheck'
+      );
+
+      // Look for finance field with different cases
+      const foundFinanceField = setupDataKeys.find(key => 
+        key.toLowerCase() === 'finance' || 
+        key.toLowerCase() === 'financefield'
+      );
+      
+      // Look for student_portal field with different cases
+      const foundStudentPortalField = setupDataKeys.find(key => 
+        key.toLowerCase() === 'student_portal' || 
+        key.toLowerCase() === 'studentportal'
+      );
+
+      if (foundAutoGenerateIdField) autoGenerateIdField = foundAutoGenerateIdField;
+      if (foundStudentCheckField) studentCheckField = foundStudentCheckField;
+      if (foundFinanceField) financeField = foundFinanceField;
+      if (foundStudentPortalField) studentPortalField = foundStudentPortalField;
+    }
+
+    // Check if the setup record exists
+    const { data: existingData, error: checkError } = await supabase
+      .from('setup')
+      .select('id')
+      .eq('school_id', schoolId)
+      .single();
+
+    if (checkError && checkError.code !== 'PGRST116') {
+      throw checkError;
+    }
+
+    // Prepare the update data
+    const updateData: Record<string, any> = {
+      school_id: schoolId
+    };
+
+    // Only update the specific feature that was toggled
+    if (feature.name === 'Auto Generate ID') {
+      updateData[autoGenerateIdField] = feature.enabled ? 'Yes' : 'No';
+    } else if (feature.name === 'Auto Validate Student ID') {
+      updateData[studentCheckField] = feature.enabled ? 'Yes' : 'No';
+    } else if (feature.name === 'Finance Module') {
+      updateData[financeField] = feature.enabled ? 'Yes' : 'No';
+      
+      // Also update the auth store state to maintain reactivity
+      authStore.setFinanceModuleEnabled(feature.enabled);
+    } else if (feature.name === 'Student Portal') {
+      updateData[studentPortalField] = feature.enabled ? 'Yes' : 'No';
+    }
+
+    // Update or insert the setup record
+    let result;
+    if (existingData?.id) {
+      result = await supabase
+        .from('setup')
+        .update(updateData)
+        .eq('id', existingData.id)
+        .select();
+    } else {
+      result = await supabase
+        .from('setup')
+        .insert([updateData])
+        .select();
+    }
+
+    if (result.error) {
+      throw result.error;
+    }
+    
+    toast.success(`${feature.name} setting updated`);
+  } catch (error: any) {
+    console.error(`Error saving feature "${feature.name}":`, error);
+    toast.error('Failed to save setting: ' + error.message);
+    
+    // Revert the toggle if there was an error
+    feature.enabled = !feature.enabled;
+  } finally {
+    savingFeature.value = null;
+  }
+}
 
 // Add the handler function in the script section
 const handleSchoolSelected = async (schoolId: string) => {
@@ -1532,7 +1812,8 @@ const handleSchoolSelected = async (schoolId: string) => {
       await Promise.all([
         fetchSchoolInfo(),
         fetchEducationalPrograms(),
-        fetchNotificationSettings()
+        fetchNotificationSettings(),
+        fetchAccessPackageSettings() // Add this line
       ])
     } catch (error) {
       console.error('Error fetching settings:', error)
@@ -1540,6 +1821,45 @@ const handleSchoolSelected = async (schoolId: string) => {
     }
   }
 }
+
+// Add watch for selectedSchoolId changes - MOVED AFTER all function definitions
+watch(
+  () => authStore.getSelectedSchoolId,
+  async (newSchoolId) => {
+    if (newSchoolId && userRole.value === 'superadmin') {
+      // Reset loading states
+      savingSchoolInfo.value = false
+      savingAcademic.value = false
+      savingNotifications.value = false
+      
+      // Reset form data
+      schoolInfo.value = {
+        name: '',
+        email: '',
+        phone: '',
+        address: ''
+      }
+      schoolLogoPreview.value = null
+      currentLogoUrl.value = null
+      
+      try {
+        // Fetch all settings when school is selected
+        await Promise.all([
+          fetchSchoolInfo(),
+          fetchEducationalPrograms(),
+          fetchNotificationSettings(),
+          fetchAccessPackageSettings()
+        ])
+      } catch (error) {
+        console.error('Error fetching settings:', error)
+        toast.error('Failed to load some settings')
+      }
+    }
+  },
+  { immediate: true } // This will make it run immediately on component mount
+)
+
+// Program image preview and management
 </script>
 
 <style lang="scss" scoped>
@@ -2469,4 +2789,55 @@ const handleSchoolSelected = async (schoolId: string) => {
     }
   }
 }
-</style> 
+</style>
+
+<style scoped lang="scss">
+// Existing styles...
+
+/* Access package styles */
+.feature-list {
+  margin-top: 1rem;
+  background-color: #f8f9fa;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.feature-item {
+  padding: 0.75rem;
+  border-bottom: 1px solid #e9ecef;
+  transition: all 0.2s ease;
+  
+  &:last-child {
+    border-bottom: none;
+  }
+  
+  &:hover {
+    background-color: #f1f3f5;
+  }
+  
+  .form-check-input {
+    cursor: pointer;
+    width: 2.5rem;
+    height: 1.25rem;
+    margin-top: 0.25rem;
+    
+    &:checked {
+      background-color: #42b883;
+      border-color: #42b883;
+    }
+  }
+  
+  .form-check-label {
+    font-weight: 600;
+    margin-left: 0.5rem;
+  }
+  
+  .feature-description {
+    margin: 0.5rem 0 0 2.5rem;
+    color: #6c757d;
+    font-size: 0.9rem;
+  }
+}
+</style>

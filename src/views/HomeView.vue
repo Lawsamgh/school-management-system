@@ -7,7 +7,7 @@
         <div class="row align-items-center min-vh-75">
           <div class="col-lg-12" v-motion-slide-visible-once-left>
             <div class="text-content">
-              <h1 class="display-4 text-white mb-4">Welcome to {{ schoolInfo.name || 'LS System' }}</h1>
+              <h1 class="display-4 text-white mb-4">Welcome to LS System</h1>
               <p class="lead mb-4 text-white">We are thrilled to have you join our community of forward-thinking schools. Our platform is designed to streamline your onboarding process, enhance communication, and foster a collaborative learning environment. Together, let's empower the next generation of learners!</p>
               <router-link to="/contact" class="btn btn-primary btn-lg">
                Contact Us
@@ -65,34 +65,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
 import { useMotion } from '@vueuse/motion'
-import { supabase } from '@/lib/supabase'
 
-const schoolInfo = ref({
-  name: 'LS System'
-})
-
-const fetchSchoolInfo = async () => {
-  try {
-    const { data, error } = await supabase
-      .from('setup')
-      .select('school_name')
-      .single()
-
-    if (error) throw error
-
-    if (data) {
-      schoolInfo.value.name = data.school_name || 'LS System'
-    }
-  } catch (error) {
-    console.error('Error fetching school info:', error)
-  }
-}
-
-onMounted(() => {
-  fetchSchoolInfo()
-})
+// No need to fetch school info, using static name
 </script>
 
 <style scoped lang="scss">

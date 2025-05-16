@@ -3,6 +3,7 @@ import type { RouteRecordRaw } from 'vue-router'
 import { useAuthStore } from '@/store/auth'
 import { useToast } from 'vue-toastification'
 import { validateSchoolSession } from './middleware'
+import { supabase } from '@/lib/supabase'
 // @ts-ignore - Bootstrap types are not available
 import 'bootstrap'
 
@@ -65,7 +66,59 @@ const routes: RouteRecordRaw[] = [
     path: '/students',
     name: 'Students',
     component: () => import('@/views/StudentsView.vue'),
-    meta: { requiresAuth: true }
+    meta: { requiresAuth: true },
+    beforeEnter: async (to, from, next) => {
+      const authStore = useAuthStore()
+      const toast = useToast()
+      
+      // Always allow superadmin
+      if (authStore.userRole?.role?.toLowerCase() === 'superadmin') {
+        return next()
+      }
+      
+      // For other roles, check student_portal setting
+      try {
+        // Get school_id
+        const schoolId = authStore.userRole?.school_id
+        
+        if (!schoolId) {
+          toast.error('Missing school information')
+          return next('/dashboard')
+        }
+        
+        // Query setup table for student_portal field
+        const { data, error } = await supabase
+          .from('setup')
+          .select('*')
+          .eq('school_id', schoolId)
+          .single()
+          
+        if (error) {
+          console.error('Error checking student portal status:', error)
+          return next('/dashboard')
+        }
+        
+        // Look for student_portal field (case insensitive)
+        if (data) {
+          const setupDataKeys = Object.keys(data)
+          const studentPortalField = setupDataKeys.find(key => 
+            key.toLowerCase() === 'student_portal'
+          )
+          
+          // Check if student portal is enabled
+          if (studentPortalField && String(data[studentPortalField]).toUpperCase() === 'YES') {
+            return next()
+          }
+        }
+        
+        // If we get here, student portal is disabled
+        toast.error('Student portal is disabled')
+        return next('/dashboard')
+      } catch (error) {
+        console.error('Error in student route guard:', error)
+        return next('/dashboard')
+      }
+    }
   },
   {
     path: '/parents',
@@ -77,7 +130,24 @@ const routes: RouteRecordRaw[] = [
     path: '/accountants',
     name: 'Accountants',
     component: () => import('@/views/AccountantsView.vue'),
-    meta: { requiresAuth: true }
+    meta: { requiresAuth: true },
+    beforeEnter: (to, from, next) => {
+      const authStore = useAuthStore()
+      const toast = useToast()
+      
+      // Always allow superadmin
+      if (authStore.userRole?.role?.toLowerCase() === 'superadmin') {
+        return next()
+      }
+      
+      // For other roles, check finance module
+      if (authStore.financeModuleEnabled) {
+        return next()
+      } else {
+        toast.error('Finance module is disabled')
+        return next('/dashboard')
+      }
+    }
   },
   {
     path: '/courses',

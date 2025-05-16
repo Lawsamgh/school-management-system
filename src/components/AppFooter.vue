@@ -5,7 +5,7 @@
         <!-- Company Info Section -->
         <div class="footer-main-content">
           <div class="brand-section">
-            <h4 class="brand-name">{{ schoolInfo.name || 'LS System' }}</h4>
+            <h4 class="brand-name">LS System</h4>
             <p class="brand-description">
               Welcome to our innovative school community! Our platform simplifies onboarding, boosts communication, and fosters collaboration. Let's empower the next generation together!
             </p>
@@ -33,7 +33,7 @@
         <!-- Footer Bottom -->
         <div class="footer-bottom">
           <p class="copyright">
-            &copy; {{ new Date().getFullYear() }} {{ schoolInfo.name || 'LS System' }}. All rights reserved.
+            &copy; {{ new Date().getFullYear() }} LS System. All rights reserved.
           </p>
           <p class="credits">
             Developed by <span class="highlight">Lawsam GH</span>
@@ -46,40 +46,8 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { supabase } from '@/lib/supabase'
 
-// School info ref (only for name)
-const schoolInfo = ref({
-  name: 'LS System'
-})
-
-// Fetch school info function
-const fetchSchoolInfo = async () => {
-  try {
-    const { data, error } = await supabase
-      .from('setup')
-      .select('school_name')
-      .single()
-
-    if (error) {
-      console.error('Supabase error:', error.message, error.details)
-      throw error
-    }
-
-    if (data) {
-      console.log('Fetched school data:', data)
-      schoolInfo.value.name = data.school_name || 'LS System'
-    }
-  } catch (error: any) {
-    console.error('Error fetching school info:', error)
-  }
-}
-
-// Fetch school info on component mount
-onMounted(async () => {
-  console.log('Component mounted, fetching school info...')
-  await fetchSchoolInfo()
-})
+// Static school name, no need to fetch from database
 </script>
 
 <style scoped lang="scss">
