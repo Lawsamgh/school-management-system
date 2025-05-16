@@ -9,13 +9,19 @@ if (!supabaseAdmin) {
 const admin = supabaseAdmin
 
 // Fetch payments with admin privileges (bypassing RLS)
-export const getPayments = async () => {
+export const getPayments = async (schoolId?: string | null) => {
   try {
-    const { data, error } = await admin
+    let query = admin
       .from('payments')
       .select('payment_id, payment_type, payment_by, phone, student_name, identification, payment_for, amount, payment_date, expected_amount, amount_remaining, reference_payment, payment_mode')
       .order('payment_id', { ascending: false })
+    
+    // Add school_id filter if specified
+    if (schoolId) {
+      query = query.eq('school_id', schoolId)
+    }
       
+    const { data, error } = await query
     if (error) throw error
     return data || []
   } catch (error) {
@@ -28,6 +34,7 @@ export const getPayments = async () => {
 export const getPaymentsByDateRange = async (
   startDate: string,
   endDate: string,
+  schoolId?: string | null,
   paymentType?: string,
   paymentPurpose?: string
 ) => {
@@ -38,6 +45,11 @@ export const getPaymentsByDateRange = async (
       .select('*')
       .gte('payment_date', startDate)
       .lte('payment_date', endDate)
+    
+    // Add school_id filter if specified
+    if (schoolId) {
+      query = query.eq('school_id', schoolId)
+    }
     
     // Add payment type filter if specified
     if (paymentType) {
@@ -94,6 +106,7 @@ export const addPayment = async (payment: {
   amount_remaining: number
   reference_payment?: string | null
   payment_mode: string
+  school_id?: string | null
 }) => {
   try {
     const { data, error } = await admin

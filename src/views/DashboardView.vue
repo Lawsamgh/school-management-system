@@ -1,7 +1,7 @@
 <template>
   <div class="dashboard">
     <div class="container py-5">
-      <div class="row g-4">
+      <div class="row g-3">
         <!-- Welcome Card -->
         <div class="col-12" v-motion-slide-visible-once-bottom>
           <div class="welcome-card" :class="{ 'skeleton-loading': loading }">
@@ -49,97 +49,151 @@
           </div>
         </div>
 
-        <!-- Quick Stats -->
-        <div class="col-md-4" v-motion-slide-visible-once-bottom>
-          <div class="stat-card" :class="{ 'skeleton-loading': loading }">
-            <template v-if="!loading">
-              <div class="stat-icon">
-                <i class="fas fa-book-reader"></i>
-              </div>
-              <div class="stat-content">
-                <h3>Students</h3>
-                <p class="stat-number">{{ studentCount }}</p>
-                <p class="stat-label">Active Enrollments</p>
-              </div>
-            </template>
-            <template v-else>
-              <div class="skeleton-icon"></div>
-              <div class="stat-content">
-                <div class="skeleton-text skeleton-sm"></div>
-                <div class="skeleton-text skeleton-lg"></div>
-                <div class="skeleton-text skeleton-sm"></div>
-              </div>
-            </template>
-          </div>
-        </div>
-
-        
-        
-        <div class="col-md-4" v-motion-slide-visible-once-bottom>
-          <div class="stat-card" :class="{ 'skeleton-loading': loading }">
-            <template v-if="!loading">
-              <div class="stat-icon">
-                <i class="fas fa-user-tie"></i>
-              </div>
-              <div class="stat-content">
-                <h3>Teachers</h3>
-                <p class="stat-number">{{ teacherCount }}</p>
-                <p class="stat-label">Active Teachers</p>
-              </div>
-            </template>
-            <template v-else>
-              <div class="skeleton-icon"></div>
-              <div class="stat-content">
-                <div class="skeleton-text skeleton-sm"></div>
-                <div class="skeleton-text skeleton-lg"></div>
-                <div class="skeleton-text skeleton-sm"></div>
-              </div>
-            </template>
-          </div>
-        </div>
-        
-        <div class="col-md-4" v-motion-slide-visible-once-bottom>
-          <div class="stat-card" :class="{ 'skeleton-loading': loading }">
-            <template v-if="!loading">
-              <div class="stat-icon">
-                <i class="fas fa-book-reader"></i>
-              </div>
-              <div class="stat-content">
-                <h3>Students 2</h3>
-                <p class="stat-number">{{ studentCount }}</p>
-                <p class="stat-label">Active Enrollments</p>
-              </div>
-            </template>
-            <template v-else>
-              <div class="skeleton-icon"></div>
-              <div class="stat-content">
-                <div class="skeleton-text skeleton-sm"></div>
-                <div class="skeleton-text skeleton-lg"></div>
-                <div class="skeleton-text skeleton-sm"></div>
-              </div>
-            </template>
-          </div>
-        </div>
-        
-        <!-- Monthly Payment Chart -->
-        <div 
-          v-if="canViewChart"
-          class="col-12" 
-          v-motion-slide-visible-once-bottom
-        >
-          <PaymentChart />
-        </div>
-
-        <!-- Student/Parent View -->
-        <div class="row g-4" v-if="isStudentOrParent">
-          <!-- Student/Parent specific content -->
-        </div>
-
         <!-- Main Dashboard Content -->
-        <div class="row g-4">
+        <div class="row g-3">
+          <!-- Students Stats -->
+          <div class="col-md-4" v-motion-slide-visible-once-bottom>
+            <div class="stat-card" :class="{ 'skeleton-loading': loading }">
+              <template v-if="!loading">
+                <div class="stat-icon">
+                  <i class="fas fa-book-reader"></i>
+                </div>
+                <div class="stat-content">
+                  <h3>Students</h3>
+                  <p class="stat-number">{{ studentCount }}</p>
+                  <p class="stat-label">Active Enrollments</p>
+                </div>
+              </template>
+              <template v-else>
+                <div class="skeleton-icon"></div>
+                <div class="stat-content">
+                  <div class="skeleton-text skeleton-sm"></div>
+                  <div class="skeleton-text skeleton-lg"></div>
+                  <div class="skeleton-text skeleton-sm"></div>
+                </div>
+              </template>
+            </div>
+          </div>
+          
+          <!-- Teachers Stats -->
+          <div class="col-md-4" v-motion-slide-visible-once-bottom>
+            <div class="stat-card" :class="{ 'skeleton-loading': loading }">
+              <template v-if="!loading">
+                <div class="stat-icon">
+                  <i class="fas fa-user-tie"></i>
+                </div>
+                <div class="stat-content">
+                  <h3>Teachers</h3>
+                  <p class="stat-number">{{ teacherCount }}</p>
+                  <p class="stat-label">Active Teachers</p>
+                </div>
+              </template>
+              <template v-else>
+                <div class="skeleton-icon"></div>
+                <div class="stat-content">
+                  <div class="skeleton-text skeleton-sm"></div>
+                  <div class="skeleton-text skeleton-lg"></div>
+                  <div class="skeleton-text skeleton-sm"></div>
+                </div>
+              </template>
+            </div>
+          </div>
+          
+          <!-- Students 2 Stats -->
+          <div class="col-md-4" v-motion-slide-visible-once-bottom>
+            <div class="stat-card" :class="{ 'skeleton-loading': loading }">
+              <template v-if="!loading">
+                <div class="stat-icon">
+                  <i class="fas fa-book-reader"></i>
+                </div>
+                <div class="stat-content">
+                  <h3>Students 2</h3>
+                  <p class="stat-number">{{ studentCount }}</p>
+                  <p class="stat-label">Active Enrollments</p>
+                </div>
+              </template>
+              <template v-else>
+                <div class="skeleton-icon"></div>
+                <div class="stat-content">
+                  <div class="skeleton-text skeleton-sm"></div>
+                  <div class="skeleton-text skeleton-lg"></div>
+                  <div class="skeleton-text skeleton-sm"></div>
+                </div>
+              </template>
+            </div>
+          </div>
+          
+          <!-- Quick Actions -->
+          <div 
+            v-if="!isStudentOrParent" 
+            class="col-md-12" 
+            v-motion-slide-visible-once-bottom
+          >
+            <div class="dashboard-card" :class="{ 'skeleton-loading': loading }">
+              <div class="card-header">
+                <template v-if="!loading">
+                  <h2>Quick Actions</h2>
+                </template>
+                <template v-else>
+                  <div class="skeleton-text skeleton-md"></div>
+                </template>
+              </div>
+              <div class="quick-actions">
+                <template v-if="!loading">
+                  <button 
+                    v-if="isRegistrarOrHigher"
+                    class="action-button" 
+                    @click="showAddUserModal = true"
+                  >
+                    <i class="fas fa-plus-circle"></i>
+                    <span>New Enrollment</span>
+                  </button>
+
+                  <router-link 
+                    v-if="isAdminOrHigher"
+                    to="/accountants"
+                    class="action-button"
+                  >
+                    <i class="fas fa-file-invoice"></i>
+                    <span>Fees and Admission Payments</span>
+                  </router-link>
+
+                  <button 
+                    class="action-button"
+                    @click="handleChangePassword"
+                  >
+                    <i class="fas fa-key"></i>
+                    <span>Change Password</span>
+                  </button>
+
+                  <router-link 
+                    v-if="isTeacherOrHigher"
+                    to="/teachers"
+                    class="action-button"
+                  >
+                    <i class="fas fa-chalkboard"></i>
+                    <span>My Classroom</span>
+                  </router-link>
+
+                  <router-link 
+                    v-if="userRole?.toLowerCase() === 'superadmin' || userRole?.toLowerCase() === 'admin'"
+                    to="/settings"
+                    class="action-button settings-button"
+                  >
+                    <i class="fas fa-cog"></i>
+                    <span>Settings</span>
+                  </router-link>
+                </template>
+                <template v-else>
+                  <div class="skeleton-action-button" v-for="n in 4" :key="n"></div>
+                </template>
+              </div>
+            </div>
+          </div>
+          
           <!-- Recent Activities or Recent Payments -->
           <div 
-            :class="isStudentOrParent ? 'col-lg-12' : 'col-lg-8'" 
+            class="col-md-12" 
             v-motion-slide-visible-once-bottom
           >
             <div class="dashboard-card" :class="{ 'skeleton-loading': loading }">
@@ -178,17 +232,29 @@
                       </tr>
                     </thead>
                     <tbody>
-                      <tr v-for="payment in recentPayments" :key="payment.payment_id">
+                      <tr v-for="payment in recentPayments" :key="payment.payment_id" class="payment-row">
                         <td>
                           <div class="student-info">
                             <div class="student-avatar">
                               {{ getStudentInitials(payment.student_name) }}
                             </div>
-                            <span class="student-name">{{ payment.student_name }}</span>
+                            <div class="student-details">
+                              <span class="student-name">{{ payment.student_name }}</span>
+                              <small class="student-id" v-if="payment.identification">ID: {{ payment.identification }}</small>
+                            </div>
                           </div>
                         </td>
                         <td>
-                          <span class="payment-id">{{ payment.payment_id }}</span>
+                          <div class="payment-id-container">
+                            <div class="id-box">
+                              <span class="payment-id">{{ payment.payment_id }}</span>
+                            </div>
+                            <div class="date-box" v-if="payment.payment_date">
+                              <span class="payment-date">
+                                {{ new Date(payment.payment_date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) }}
+                              </span>
+                            </div>
+                          </div>
                         </td>
                         <td>
                           <span class="payment-purpose">
@@ -196,12 +262,31 @@
                           </span>
                         </td>
                         <td>
-                          <span class="amount-display">
-                            GHC {{ formatAmount(payment.amount) }}
-                          </span>
+                          <div class="amount-container">
+                            <span class="amount-display">
+                              GHC {{ formatAmount(payment.amount) }}
+                            </span>
+                            <span class="amount-status" v-if="payment.amount_remaining > 0">
+                              <i class="fas fa-circle-exclamation status-icon"></i>
+                              <small>Balance: {{ formatAmount(payment.amount_remaining) }}</small>
+                            </span>
+                            <span class="amount-status paid" v-else>
+                              <i class="fas fa-circle-check status-icon"></i>
+                              <small>Fully Paid</small>
+                            </span>
+                          </div>
                         </td>
                         <td>
                           <span class="payment-method" :class="'method-' + payment.payment_type?.toLowerCase()">
+                            <i 
+                              :class="{
+                                'fas fa-money-bill-wave': payment.payment_type?.toLowerCase() === 'cash',
+                                'fas fa-mobile-alt': payment.payment_type?.toLowerCase() === 'momo',
+                                'fas fa-university': payment.payment_type?.toLowerCase() === 'bank',
+                                'fas fa-credit-card': !payment.payment_type || !['cash', 'momo', 'bank'].includes(payment.payment_type?.toLowerCase())
+                              }" 
+                              class="method-icon"
+                            ></i>
                             {{ payment.payment_type }}
                           </span>
                         </td>
@@ -269,85 +354,31 @@
             </div>
           </div>
 
-          <!-- Quick Actions -->
+          <!-- Monthly Payment Chart -->
           <div 
-            v-if="!isStudentOrParent" 
-            class="col-lg-4" 
+            v-if="showChart"
+            class="col-12 mt-3" 
             v-motion-slide-visible-once-bottom
           >
-            <div class="dashboard-card" :class="{ 'skeleton-loading': loading }">
-              <div class="card-header">
-                <template v-if="!loading">
-                  <h2>Quick Actions</h2>
-                </template>
-                <template v-else>
-                  <div class="skeleton-text skeleton-md"></div>
-                </template>
-              </div>
-              <div class="quick-actions">
-                <template v-if="!loading">
-                  <button 
-                    v-if="isRegistrarOrHigher"
-                    class="action-button" 
-                    @click="showAddUserModal = true"
-                  >
-                    <i class="fas fa-plus-circle"></i>
-                    <span>New Enrollment</span>
-                  </button>
+            <PaymentChart />
+          </div>
 
-                  <router-link 
-                    v-if="isAdminOrHigher"
-                    to="/accountants"
-                    class="action-button"
-                  >
-                    <i class="fas fa-file-invoice"></i>
-                    <span>Fees and Admission Payments</span>
-                  </router-link>
+          <!-- Student/Parent View -->
+          <div class="row g-4" v-if="isStudentOrParent">
+            <!-- Student/Parent specific content -->
+          </div>
 
-                  <button 
-                    class="action-button"
-                    @click="handleChangePassword"
-                  >
-                    <i class="fas fa-key"></i>
-                    <span>Change Password</span>
-                  </button>
-
-                  <router-link 
-                    v-if="isTeacherOrHigher"
-                    to="/teachers"
-                    class="action-button"
-                  >
-                    <i class="fas fa-chalkboard"></i>
-                    <span>My Classroom</span>
-                  </router-link>
-
-                  <router-link 
-                    v-if="userRole?.toLowerCase() === 'superadmin' || userRole?.toLowerCase() === 'admin'"
-                    to="/settings"
-                    class="action-button settings-button"
-                  >
-                    <i class="fas fa-cog"></i>
-                    <span>Settings</span>
-                  </router-link>
-                </template>
-                <template v-else>
-                  <div class="skeleton-action-button" v-for="n in 4" :key="n"></div>
-                </template>
-              </div>
+          <!-- Stats Section -->
+          <div class="row g-4" v-if="!isStudentOrParent">
+            <div class="col-md-6 col-lg-3" v-if="isRegistrarOrHigher">
+              <!-- Stats content -->
             </div>
-          </div>
-        </div>
-
-        <!-- Stats Section -->
-        <div class="row g-4" v-if="!isStudentOrParent">
-          <div class="col-md-6 col-lg-3" v-if="isRegistrarOrHigher">
-            <!-- Stats content -->
-          </div>
-          <div class="col-md-6 col-lg-3" v-if="isAdminOrHigher">
-            <!-- Stats content -->
-          </div>
-          <div class="col-md-6 col-lg-3" v-if="isTeacherOrHigher">
-            <!-- Stats content -->
+            <div class="col-md-6 col-lg-3" v-if="isAdminOrHigher">
+              <!-- Stats content -->
+            </div>
+            <div class="col-md-6 col-lg-3" v-if="isTeacherOrHigher">
+              <!-- Stats content -->
+            </div>
           </div>
         </div>
       </div>
@@ -374,6 +405,8 @@ import { Chart } from 'chart.js/auto'
 import type { ChartConfiguration, TooltipItem } from 'chart.js'
 import { useToast } from 'vue-toastification'
 import { useSchoolValidation } from '@/composables/useSchoolValidation'
+import { getUserInitials, getDisplayName } from '@/utils/userUtils'
+import { useMotion } from '@vueuse/motion'
 
 // Initialize toast and validation
 const toast = useToast()
@@ -402,7 +435,7 @@ const isValidRole = computed(() => {
 const showChart = computed(() => {
   const roleValue = userRole.value?.toLowerCase() || ''
   console.log('Role check for chart:', { role: roleValue })
-  return ['accountant', 'admin', 'superadmin'].includes(roleValue)
+  return ['accountant', 'admin'].includes(roleValue) && roleValue !== 'superadmin'
 })
 
 // Debug watcher
@@ -410,32 +443,19 @@ watch(showChangePasswordModal, (newVal) => {
   console.log('Change password modal state:', newVal)
 })
 
-const userName = computed(() => {
-  // First try to get the name from userRole
-  if (authStore.userRole?.username) {
-    return authStore.userRole.username
-  }
-  // Fallback to email if no username is set
-  const email = authStore.user?.email || ''
-  return email.split('@')[0]
-})
+// Computed property for display data
+// Get user display name and initials consistently across the app
+const userName = computed(() => getDisplayName(authStore))
 const userRole = computed(() => {
   const role = authStore.userRole?.role || 'No Role Assigned'
   return role
 })
+const userInitials = computed(() => getUserInitials(userName.value))
 
-const userInitials = computed(() => {
-  const name = userName.value;
-  if (!name) return '';
-  
-  // Split by spaces and get initials
-  const words = name.split(' ');
-  if (words.length >= 2) {
-    return (words[0][0] + words[1][0]).toUpperCase();
-  }
-  // If single word, take first two letters
-  return name.slice(0, 2).toUpperCase();
-})
+// Get student initials using the same utility function
+const getStudentInitials = (name: string): string => {
+  return getUserInitials(name)
+}
 
 // Function to format amount
 const formatAmount = (amount: any): string => {
@@ -455,7 +475,15 @@ const fetchRecentPayments = async () => {
     
     if (isAdminOrHigher.value) {
       console.log('Fetching payments...')
-      const data = await getPayments();
+      
+      // Get the school_id based on user role
+      const schoolId = userRole.value?.toLowerCase() === 'admin' 
+        ? authStore.userRole?.school_id 
+        : userRole.value?.toLowerCase() === 'superadmin' ? authStore.getSelectedSchoolId : authStore.userRole?.school_id;
+      
+      console.log('Fetching payments with school ID:', schoolId)
+      
+      const data = await getPayments(schoolId);
       console.log('Received payments data:', data)
       
       // Take only the most recent 5 payments
@@ -473,10 +501,23 @@ const fetchRecentPayments = async () => {
 // Fetch teacher count from user_roles table
 const fetchTeacherCount = async () => {
   try {
-    const { data, error, count } = await supabase
+    // Get the school_id based on user role
+    const schoolId = userRole.value?.toLowerCase() === 'admin' 
+      ? authStore.userRole?.school_id 
+      : userRole.value?.toLowerCase() === 'superadmin' ? authStore.getSelectedSchoolId : authStore.userRole?.school_id;
+
+    // Base query to get teachers
+    let query = supabase
       .from('user_roles')
       .select('*', { count: 'exact' })
       .eq('role', 'teacher');
+    
+    // Add school_id filter if available
+    if (schoolId) {
+      query = query.eq('school_id', schoolId);
+    }
+    
+    const { data, error, count } = await query;
     
     if (error) {
       console.error('Error fetching teacher count:', error);
@@ -493,10 +534,23 @@ const fetchTeacherCount = async () => {
 // Fetch student count from user_roles table
 const fetchStudentCount = async () => {
   try {
-    const { data, error, count } = await supabase
+    // Get the school_id based on user role
+    const schoolId = userRole.value?.toLowerCase() === 'admin' 
+      ? authStore.userRole?.school_id 
+      : userRole.value?.toLowerCase() === 'superadmin' ? authStore.getSelectedSchoolId : authStore.userRole?.school_id;
+
+    // Base query to get students
+    let query = supabase
       .from('user_roles')
       .select('*', { count: 'exact' })
       .eq('role', 'student');
+    
+    // Add school_id filter if available
+    if (schoolId) {
+      query = query.eq('school_id', schoolId);
+    }
+    
+    const { data, error, count } = await query;
     
     if (error) {
       console.error('Error fetching student count:', error);
@@ -652,7 +706,15 @@ const fetchPaymentStats = async () => {
     const startDate = `${selectedYear.value}-01-01`
     const endDate = `${selectedYear.value}-12-31`
     
-    const data = await getPaymentsByDateRange(startDate, endDate)
+    // Get the school_id based on user role
+    const schoolId = userRole.value?.toLowerCase() === 'admin' 
+      ? authStore.userRole?.school_id 
+      : userRole.value?.toLowerCase() === 'superadmin' ? authStore.getSelectedSchoolId : authStore.userRole?.school_id;
+    
+    console.log('Fetching payment stats with school ID:', schoolId)
+    
+    // Include school_id in the API call
+    const data = await getPaymentsByDateRange(startDate, endDate, schoolId)
     console.log('Payment data received:', data)
 
     // Reset monthly totals
@@ -681,6 +743,27 @@ const initializeYears = () => {
   availableYears.value = Array.from({ length: 5 }, (_, i) => currentYear - i)
 }
 
+// Add watch for selected school changes for superadmin
+watch(
+  () => authStore.getSelectedSchoolId,
+  async (newSchoolId) => {
+    if (userRole.value?.toLowerCase() === 'superadmin') {
+      console.log('Selected school changed, refetching data...');
+      await fetchTeacherCount();
+      await fetchStudentCount();
+      
+      // Also refresh payment chart data when school changes
+      if (showChart.value) {
+        await fetchPaymentStats();
+      }
+      
+      // Refresh recent payments list
+      await fetchRecentPayments();
+    }
+  }
+)
+
+// Initialize
 onMounted(async () => {
   console.log('Component mounted')
   try {
@@ -699,18 +782,6 @@ onMounted(async () => {
   }
 })
 
-const getStudentInitials = (name: string): string => {
-  if (!name) return '';
-  
-  // Split by spaces and get initials
-  const words = name.split(' ');
-  if (words.length >= 2) {
-    return (words[0][0] + words[1][0]).toUpperCase();
-  }
-  // If single word, take first two letters
-  return name.slice(0, 2).toUpperCase();
-}
-
 // Watch for year changes with immediate option
 watch(selectedYear, async (newYear, oldYear) => {
   console.log(`Year changed from ${oldYear} to ${newYear}`)
@@ -721,9 +792,9 @@ watch(selectedYear, async (newYear, oldYear) => {
 
 // Computed property to check if user can view chart
 const canViewChart = computed(() => {
-  const roleValue = authStore.userRole?.role || ''
+  const roleValue = authStore.userRole?.role?.toLowerCase() || ''
   console.log('Current user role:', roleValue)
-  return ['accountant', 'admin', 'superadmin'].includes(roleValue.toLowerCase())
+  return ['accountant', 'admin'].includes(roleValue.toLowerCase())
 })
 
 // Computed properties for role-based checks
@@ -783,7 +854,7 @@ const handleChangePassword = () => {
   color: white;
   position: relative;
   overflow: hidden;
-  margin-bottom: 1rem;
+  margin-bottom: 0.5rem;
   box-shadow: 0 4px 15px rgba(66, 184, 131, 0.2);
 
   .content {
@@ -914,9 +985,10 @@ const handleChangePassword = () => {
   border-radius: 1rem;
   height: 100%;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+  margin-bottom: 0.5rem;
 
   .card-header {
-    padding: 1.5rem;
+    padding: 1.25rem;
     border-bottom: 1px solid #eee;
     display: flex;
     justify-content: space-between;
@@ -1002,24 +1074,29 @@ const handleChangePassword = () => {
 
 .quick-actions {
   padding: 1.5rem;
-  display: grid;
+  display: flex;
+  flex-wrap: wrap;
   gap: 1rem;
+  justify-content: center;
 
   .action-button {
     display: flex;
     align-items: center;
-    padding: 1rem;
+    padding: 1rem 1.5rem;
     border: none;
     background: #f8f9fa;
     border-radius: 0.5rem;
     color: #2c3e50;
     transition: all 0.3s ease;
     cursor: pointer;
+    flex: 0 0 auto;
+    min-width: 200px;
+    justify-content: center;
 
     &:hover {
       background: #42b883;
       color: white;
-      transform: translateX(5px);
+      transform: translateY(-5px);
     }
 
     i {
@@ -1147,12 +1224,14 @@ const handleChangePassword = () => {
 
 .skeleton-action-button {
   height: 48px;
+  width: 200px;
+  display: inline-block;
   border-radius: 8px;
   background: rgba(66, 184, 131, 0.1);
-  margin-bottom: 1rem;
+  margin: 0 0.5rem 0.5rem;
   
   &:last-child {
-    margin-bottom: 0;
+    margin-bottom: 0.5rem;
   }
 }
 
@@ -1315,13 +1394,13 @@ const handleChangePassword = () => {
       }
       
       tbody {
-        tr {
-          transition: none;
+        .payment-row {
+          transition: all 0.2s ease;
           
           &:hover {
-            background-color: #f9fafb !important;
-            transform: none;
-            box-shadow: none;
+            background-color: #f9fafb;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
           }
           
           td {
@@ -1375,32 +1454,91 @@ const handleChangePassword = () => {
       box-shadow: 0 2px 4px rgba(66, 184, 131, 0.2);
     }
     
-    .student-name {
-      font-weight: 600;
-      color: #1f2937;
+    .student-details {
+      display: flex;
+      flex-direction: column;
+      
+      .student-name {
+        font-weight: 600;
+        color: #1f2937;
+        line-height: 1.2;
+      }
+      
+      .student-id {
+        color: #6b7280;
+        font-size: 0.75rem;
+        margin-top: 0.2rem;
+      }
     }
   }
   
-  .payment-id {
-    font-family: 'Courier New', monospace;
-    font-weight: 600;
-    color: #4b5563;
-    font-size: 0.875rem;
-    background-color: #f3f4f6;
-    padding: 0.25rem 0.5rem;
-    border-radius: 0.25rem;
+  .payment-id-container {
+    display: flex;
+    flex-direction: column;
+    
+    .id-box {
+      display: inline-block;
+      margin-bottom: 0.3rem;
+      
+      .payment-id {
+        font-family: 'Courier New', monospace;
+        font-weight: 600;
+        color: #4b5563;
+        font-size: 0.875rem;
+        background-color: #f3f4f6;
+        padding: 0.25rem 0.5rem;
+        border-radius: 0.25rem;
+        display: inline-block;
+      }
+    }
+    
+    .date-box {
+      display: inline-block;
+      
+      .payment-date {
+        color: #6b7280;
+        font-size: 0.75rem;
+        white-space: nowrap;
+      }
+    }
   }
   
   .payment-purpose {
     color: #6366f1;
     font-size: 0.9rem;
     font-weight: 500;
+    background-color: #eef2ff;
+    padding: 0.3rem 0.6rem;
+    border-radius: 20px;
+    display: inline-block;
   }
   
-  .amount-display {
-    font-weight: 700;
-    color: #42b883;
-    font-size: 1rem;
+  .amount-container {
+    display: flex;
+    flex-direction: column;
+    
+    .amount-display {
+      font-weight: 700;
+      color: #42b883;
+      font-size: 1rem;
+    }
+    
+    .amount-status {
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+      margin-top: 0.3rem;
+      color: #f59e0b;
+      font-size: 0.75rem;
+      
+      .status-icon {
+        font-size: 0.8rem;
+      }
+      
+      &.paid {
+        color: #10b981;
+      }
+    }
   }
   
   .payment-method {
@@ -1410,6 +1548,11 @@ const handleChangePassword = () => {
     border-radius: 50px;
     font-size: 0.8rem;
     font-weight: 600;
+    gap: 0.4rem;
+    
+    .method-icon {
+      font-size: 0.9rem;
+    }
     
     &.method-cash {
       background-color: #e3f8ef;
@@ -1441,9 +1584,8 @@ const handleChangePassword = () => {
       margin-bottom: 0;
     }
   }
-}
-
-.view-all-link {
+  
+  .view-all-link {
     text-align: center;
     padding: 1rem;
     border-top: 1px solid #f2f2f2;
@@ -1470,6 +1612,7 @@ const handleChangePassword = () => {
       }
     }
   }
+}
 
 .chart-card {
   background: white;

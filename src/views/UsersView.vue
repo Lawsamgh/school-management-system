@@ -141,6 +141,53 @@
               </div>
             </div>
 
+            <!-- Family & Contact Information Section -->
+            <div class="form-section">
+              <h6 class="section-title">Family & Contact Information</h6>
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <input 
+                    type="text" 
+                    class="form-control" 
+                    v-model="editUserForm.family_name" 
+                    placeholder="Family name"
+                  >
+                </div>
+                <div class="col-md-6">
+                  <input 
+                    type="text" 
+                    class="form-control" 
+                    v-model="editUserForm.family_relationship" 
+                    placeholder="Relationship to family"
+                  >
+                </div>
+                <div class="col-md-6">
+                  <input 
+                    type="email" 
+                    class="form-control" 
+                    v-model="editUserForm.family_email" 
+                    placeholder="Family email address"
+                  >
+                </div>
+                <div class="col-md-6">
+                  <input 
+                    type="text" 
+                    class="form-control" 
+                    v-model="editUserForm.emergency_contact" 
+                    placeholder="Emergency contact number"
+                  >
+                </div>
+                <div class="col-md-12">
+                  <textarea 
+                    class="form-control" 
+                    v-model="editUserForm.address" 
+                    rows="3"
+                    placeholder="Enter complete address"
+                  ></textarea>
+                </div>
+              </div>
+            </div>
+
             <div class="d-flex justify-content-end gap-2 mt-4">
               <button type="button" class="btn btn-outline-secondary" @click="closeEditUserModal">Cancel</button>
               <button type="submit" class="btn btn-primary" :disabled="editUserLoading">
@@ -190,68 +237,203 @@
             <p class="text-muted mb-0">View user information</p>
           </div>
           <div class="modern-modal-form">
-            <div class="form-section user-details-section">
-              <h6 class="section-title">Basic Information</h6>
-              <div class="row g-2 align-items-center">
-                <div class="col-md-6 user-details-field">
-                  <span class="user-details-label">Email</span>
-                  <span class="user-details-value">{{ viewUserTarget?.email }}</span>
+            <!-- User Profile Header -->
+            <div class="user-profile-header">
+              <div class="user-role-badge" :class="getRoleBadgeClass(viewUserTarget?.role || '')">
+                {{ viewUserTarget?.role || 'User' }}
+              </div>
+              <h3 class="user-profile-name">{{ viewUserTarget?.username }}</h3>
+              <div class="user-profile-email">{{ viewUserTarget?.email }}</div>
+              <div class="user-profile-status" :class="'status-' + (viewUserTarget?.status || 'pending').toLowerCase()">
+                <i class="fas fa-circle status-indicator"></i> {{ viewUserTarget?.status || 'Pending' }}
+              </div>
+            </div>
+
+            <!-- Tabs for different sections -->
+            <div class="user-details-tabs">
+              <div class="user-details-tabs-container">
+                <button 
+                  class="user-details-tab-btn" 
+                  :class="{ 'active': activeUserDetailsTab === 'basic' }" 
+                  @click="activeUserDetailsTab = 'basic'"
+                >
+                  <i class="fas fa-user"></i> Basic Info
+                </button>
+                <button 
+                  v-if="viewUserTarget?.role === 'student'"
+                  class="user-details-tab-btn" 
+                  :class="{ 'active': activeUserDetailsTab === 'family' }" 
+                  @click="activeUserDetailsTab = 'family'"
+                >
+                  <i class="fas fa-users"></i> Family & Contact
+                </button>
+                <button 
+                  v-if="['teacher', 'student'].includes(viewUserTarget?.role ?? '')"
+                  class="user-details-tab-btn" 
+                  :class="{ 'active': activeUserDetailsTab === 'additional' }" 
+                  @click="activeUserDetailsTab = 'additional'"
+                >
+                  <i class="fas fa-id-card"></i> Additional
+                </button>
+              </div>
+            </div>
+
+            <!-- Tab Content -->
+            <div class="user-details-tab-content">
+              <!-- Basic Information Tab -->
+              <div v-if="activeUserDetailsTab === 'basic'" class="user-details-tab-pane active">
+                <div class="form-section user-details-section">
+                  <h6 class="section-title">Basic Information</h6>
+                  <div class="row g-4">
+                    <div class="col-md-12 user-details-field" v-if="['teacher', 'student', 'parent', 'accountant', 'registrar', 'admin'].includes(viewUserTarget?.role ?? '')">
+                      <div class="info-card">
+                        <div class="info-icon"><i class="fas fa-id-badge"></i></div>
+                        <div class="info-content">
+                          <span class="user-details-label">Identification</span>
+                          <span class="user-details-value">{{ viewUserTarget?.identification || '—' }}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-md-6 user-details-field">
+                      <div class="info-card">
+                        <div class="info-icon"><i class="fas fa-calendar-alt"></i></div>
+                        <div class="info-content">
+                          <span class="user-details-label">Date of Birth</span>
+                          <span class="user-details-value">{{ viewUserTarget?.dob || '—' }}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-md-6 user-details-field">
+                      <div class="info-card">
+                        <div class="info-icon"><i class="fas fa-sort-numeric-up"></i></div>
+                        <div class="info-content">
+                          <span class="user-details-label">Age</span>
+                          <span class="user-details-value">{{ viewUserTarget?.age || '—' }}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-md-6 user-details-field">
+                      <div class="info-card">
+                        <div class="info-icon"><i class="fas fa-venus-mars"></i></div>
+                        <div class="info-content">
+                          <span class="user-details-label">Gender</span>
+                          <span class="user-details-value text-capitalize">{{ viewUserTarget?.gender || '—' }}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-md-6 user-details-field">
+                      <div class="info-card">
+                        <div class="info-icon"><i class="fas fa-flag"></i></div>
+                        <div class="info-content">
+                          <span class="user-details-label">Nationality</span>
+                          <span class="user-details-value text-capitalize">{{ viewUserTarget?.nationality || '—' }}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-md-6 user-details-field">
+                      <div class="info-card">
+                        <div class="info-icon"><i class="fas fa-pray"></i></div>
+                        <div class="info-content">
+                          <span class="user-details-label">Religion</span>
+                          <span class="user-details-value text-capitalize">{{ viewUserTarget?.religion || '—' }}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-md-6 user-details-field">
+                      <div class="info-card">
+                        <div class="info-icon"><i class="fas fa-clock"></i></div>
+                        <div class="info-content">
+                          <span class="user-details-label">Last Login</span>
+                          <span class="user-details-value">{{ formatDate(viewUserTarget?.last_sign_in_at ?? null) }}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <div class="col-md-6 user-details-field">
-                  <span class="user-details-label">Username</span>
-                  <span class="user-details-value">{{ viewUserTarget?.username }}</span>
+              </div>
+
+              <!-- Family & Contact Tab (Only for students) -->
+              <div v-if="activeUserDetailsTab === 'family' && viewUserTarget?.role === 'student'" class="user-details-tab-pane active">
+                <div class="form-section user-details-section">
+                  <h6 class="section-title">Family & Contact Information</h6>
+                  <div class="row g-4">
+                    <div class="col-md-6 user-details-field">
+                      <div class="info-card">
+                        <div class="info-icon"><i class="fas fa-user-friends"></i></div>
+                        <div class="info-content">
+                          <span class="user-details-label">Family Name</span>
+                          <span class="user-details-value">{{ viewUserTarget?.family_name || '—' }}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-md-6 user-details-field">
+                      <div class="info-card">
+                        <div class="info-icon"><i class="fas fa-people-arrows"></i></div>
+                        <div class="info-content">
+                          <span class="user-details-label">Family Relationship</span>
+                          <span class="user-details-value text-capitalize">{{ viewUserTarget?.family_relationship || '—' }}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-md-6 user-details-field">
+                      <div class="info-card">
+                        <div class="info-icon"><i class="fas fa-envelope"></i></div>
+                        <div class="info-content">
+                          <span class="user-details-label">Family Email</span>
+                          <span class="user-details-value">{{ viewUserTarget?.family_email || '—' }}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-md-6 user-details-field">
+                      <div class="info-card">
+                        <div class="info-icon"><i class="fas fa-phone-alt"></i></div>
+                        <div class="info-content">
+                          <span class="user-details-label">Emergency Contact</span>
+                          <span class="user-details-value">{{ viewUserTarget?.emergency_contact || '—' }}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-12 user-details-field">
+                      <div class="info-card">
+                        <div class="info-icon"><i class="fas fa-map-marker-alt"></i></div>
+                        <div class="info-content">
+                          <span class="user-details-label">Address</span>
+                          <span class="user-details-value">{{ viewUserTarget?.address || '—' }}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <div class="col-md-6 user-details-field">
-                  <span class="user-details-label">Role</span>
-                  <span class="user-details-value text-capitalize">{{ viewUserTarget?.role }}</span>
-                </div>
-                <div class="col-md-6 user-details-field">
-                  <span class="user-details-label">Status</span>
-                  <span class="user-details-value">{{ viewUserTarget?.status }}</span>
-                </div>
-                <div class="col-md-6 user-details-field">
-                  <span class="user-details-label">Last Login</span>
-                  <span class="user-details-value">{{ formatDate(viewUserTarget?.last_sign_in_at ?? null) }}</span>
-                </div>
-                <div class="col-md-6 user-details-field">
-                  <span class="user-details-label">Date of Birth</span>
-                  <span class="user-details-value">{{ viewUserTarget?.dob || '—' }}</span>
-                </div>
-                <div class="col-md-6 user-details-field">
-                  <span class="user-details-label">Age</span>
-                  <span class="user-details-value">{{ viewUserTarget?.age || '—' }}</span>
-                </div>
-                <div class="col-md-6 user-details-field">
-                  <span class="user-details-label">Gender</span>
-                  <span class="user-details-value text-capitalize">{{ viewUserTarget?.gender || '—' }}</span>
-                </div>
-                <div class="col-md-6 user-details-field">
-                  <span class="user-details-label">Nationality</span>
-                  <span class="user-details-value text-capitalize">{{ viewUserTarget?.nationality || '—' }}</span>
-                </div>
-                <div class="col-md-6 user-details-field">
-                  <span class="user-details-label">Religion</span>
-                  <span class="user-details-value text-capitalize">{{ viewUserTarget?.religion || '—' }}</span>
+              </div>
+
+              <!-- Additional Information Tab -->
+              <div v-if="activeUserDetailsTab === 'additional' && ['teacher', 'student'].includes(viewUserTarget?.role ?? '')" class="user-details-tab-pane active">
+                <div class="form-section user-details-section">
+                  <h6 class="section-title">Additional Information</h6>
+                  <div class="row g-4">
+                    <div v-if="viewUserTarget?.role === 'student'" class="col-md-6 user-details-field">
+                      <div class="info-card">
+                        <div class="info-icon"><i class="fas fa-graduation-cap"></i></div>
+                        <div class="info-content">
+                          <span class="user-details-label">Grade Level</span>
+                          <span class="user-details-value">{{ viewUserTarget?.grade_level || '—' }}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div v-if="['student', 'teacher'].includes(viewUserTarget?.role ?? '')" class="col-md-12 user-details-field">
+                      <div class="info-card">
+                        <div class="info-icon"><i class="fas fa-chalkboard"></i></div>
+                        <div class="info-content">
+                          <span class="user-details-label">Class</span>
+                          <span class="user-details-value">{{ viewUserTarget?.class_name || '—' }}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
-            <div class="form-section user-details-section" v-if="['teacher', 'student', 'parent', 'accountant', 'registrar', 'admin'].includes(viewUserTarget?.role ?? '')">
-              <h6 class="section-title">Additional Information</h6>
-              <div class="row g-2 align-items-center">
-                <div class="col-md-6 user-details-field">
-                  <span class="user-details-label">Identification</span>
-                  <span class="user-details-value">{{ viewUserTarget?.identification }}</span>
-                </div>
-                <div class="col-md-6 user-details-field" v-if="viewUserTarget?.role === 'student'">
-                  <span class="user-details-label">Grade Level</span>
-                  <span class="user-details-value">{{ viewUserTarget?.grade_level }}</span>
-                </div>
-                <div class="col-md-6 user-details-field" v-if="viewUserTarget?.role === 'student'">
-                  <span class="user-details-label">Class</span>
-                  <span class="user-details-value">{{ viewUserTarget?.class_name || '—' }}</span>
-                </div>
-              </div>
-            </div>
+
             <div class="d-flex justify-content-end gap-2 mt-4">
               <button type="button" class="btn btn-outline-secondary" @click="closeViewUserModal">Close</button>
             </div>
@@ -434,6 +616,11 @@ interface User {
   class_name?: string | null
   nationality?: string | null
   religion?: string | null
+  family_name?: string | null
+  family_relationship?: string | null
+  family_email?: string | null
+  address?: string | null
+  emergency_contact?: string | null
 }
 
 interface Grade {
@@ -495,7 +682,12 @@ const editUserForm = ref({
   gender: '',
   class_id: '',
   nationality: '',
-  religion: ''
+  religion: '',
+  family_name: '',
+  family_relationship: '',
+  family_email: '',
+  address: '',
+  emergency_contact: ''
 })
 const editUserLoading = ref(false)
 const showDeleteUserModal = ref(false)
@@ -507,6 +699,7 @@ const showViewUserModal = ref(false)
 const viewUserTarget = ref<User | null>(null)
 const authStore = useAuthStore()
 const currentUserRole = computed(() => authStore.userRole?.role?.toLowerCase() || null)
+const activeUserDetailsTab = ref('basic')
 
 // Add computed property for current user's role
 const userRole = computed(() => authStore.userRole?.role?.toLowerCase() || null)
@@ -824,7 +1017,12 @@ const fetchUsers = async () => {
       class_id: user.class_id || null,
       class_name: user.class_name || null,
       nationality: user.nationality || null,
-      religion: user.religion || null
+      religion: user.religion || null,
+      family_name: user.family_name || null,
+      family_relationship: user.family_relationship || null,
+      family_email: user.family_email || null,
+      address: user.address || null,
+      emergency_contact: user.emergency_contact || null
     }))
   } catch (error: any) {
     console.error('Error fetching users:', error)
@@ -1007,7 +1205,12 @@ const openEditUserModal = (user: User) => {
     gender: user.gender,
     class_id: user.class_id,
     nationality: user.nationality,
-    religion: user.religion
+    religion: user.religion,
+    family_name: user.family_name,
+    family_relationship: user.family_relationship,
+    family_email: user.family_email,
+    address: user.address,
+    emergency_contact: user.emergency_contact
   }) // Debug log
   editUserForm.value = {
     email: user.email,
@@ -1020,7 +1223,12 @@ const openEditUserModal = (user: User) => {
     gender: user.gender || '',
     class_id: user.class_id || '',
     nationality: user.nationality || '',
-    religion: user.religion || ''
+    religion: user.religion || '',
+    family_name: user.family_name || '',
+    family_relationship: user.family_relationship || '',
+    family_email: user.family_email || '',
+    address: user.address || '',
+    emergency_contact: user.emergency_contact || ''
   }
   console.log('Edit form data:', editUserForm.value) // Debug log
   showEditUserModal.value = true
@@ -1039,7 +1247,12 @@ const closeEditUserModal = () => {
     gender: '',
     class_id: '',
     nationality: '',
-    religion: ''
+    religion: '',
+    family_name: '',
+    family_relationship: '',
+    family_email: '',
+    address: '',
+    emergency_contact: ''
   }
 }
 
@@ -1066,7 +1279,12 @@ const handleEditUser = async () => {
       gender: editUserForm.value.gender || undefined,
       class_id: editUserForm.value.class_id || undefined,
       nationality: editUserForm.value.nationality || undefined,
-      religion: editUserForm.value.religion || undefined
+      religion: editUserForm.value.religion || undefined,
+      family_name: editUserForm.value.family_name || undefined,
+      family_relationship: editUserForm.value.family_relationship || undefined,
+      family_email: editUserForm.value.family_email || undefined,
+      address: editUserForm.value.address || undefined,
+      emergency_contact: editUserForm.value.emergency_contact || undefined
     }
 
     console.log('Updating user with data:', updateData) // Debug log
@@ -1118,6 +1336,19 @@ const handleRoleChange = () => {
 const openViewUserModal = (user: User) => {
   viewUserTarget.value = user
   showViewUserModal.value = true
+  
+  // Set default tab to 'basic'
+  activeUserDetailsTab.value = 'basic'
+  
+  // If additional tab is selected but user isn't student or teacher, reset to basic
+  if (activeUserDetailsTab.value === 'additional' && !['student', 'teacher'].includes(user.role)) {
+    activeUserDetailsTab.value = 'basic'
+  }
+  
+  // If family tab is selected but user isn't student, reset to basic
+  if (activeUserDetailsTab.value === 'family' && user.role !== 'student') {
+    activeUserDetailsTab.value = 'basic'
+  }
 }
 
 const closeViewUserModal = () => {
@@ -1557,5 +1788,189 @@ onMounted(() => {
   background: #e9fbe7;
   color: #22c55e;
   border: 1px solid #b6f2c2;
+}
+
+.user-profile-header {
+  text-align: center;
+  padding: 1.5rem 1rem;
+  margin-bottom: 1.5rem;
+  background: linear-gradient(to right, #f8f9fa, #f1f5f9);
+  border-radius: 0.75rem;
+  border: 1px solid #eaecef;
+}
+
+.user-profile-name {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0.75rem 0 0.25rem;
+  color: #2c3e50;
+}
+
+.user-profile-email {
+  color: #64748b;
+  font-size: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.user-role-badge {
+  display: inline-block;
+  padding: 0.4rem 1rem;
+  border-radius: 2rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0 auto 0.5rem;
+}
+
+.user-profile-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 1rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.status-active {
+  background: #e6f6e6;
+  color: #16a34a;
+}
+
+.status-inactive {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.status-pending {
+  background: #fff7e6;
+  color: #d97706;
+}
+
+.status-indicator {
+  font-size: 0.6rem;
+}
+
+.user-details-tabs {
+  margin-bottom: 1.5rem;
+}
+
+.user-details-tabs-container {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 1rem;
+}
+
+.user-details-tab-btn {
+  background: none;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  color: #64748b;
+  transition: all 0.2s;
+  cursor: pointer;
+}
+
+.user-details-tab-btn:hover {
+  background: #f1f5f9;
+  color: #334155;
+}
+
+.user-details-tab-btn.active {
+  background: #eef5f1;
+  color: #42b883;
+  font-weight: 600;
+}
+
+.user-details-tab-btn i {
+  margin-right: 0.4rem;
+}
+
+.user-details-tab-content {
+  margin-top: 1.5rem;
+}
+
+.user-details-tab-pane {
+  display: none;
+}
+
+.user-details-tab-pane.active {
+  display: block;
+  animation: fade-in 0.3s ease;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.info-card {
+  display: flex;
+  gap: 1rem;
+  padding: 1rem;
+  border-radius: 0.75rem;
+  background: white;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  border: 1px solid #e5e7eb;
+  height: 100%;
+  transition: all 0.2s;
+}
+
+.info-card:hover {
+  border-color: #d1d5db;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+  transform: translateY(-2px);
+}
+
+.info-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.5rem;
+  background: #eef5f1;
+  color: #42b883;
+  font-size: 1rem;
+}
+
+.info-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.form-section {
+  background: #fafafa !important;
+}
+
+.user-details-label {
+  color: #64748b;
+  font-size: 0.8rem;
+  margin-bottom: 0.25rem;
+  font-weight: 500;
+}
+
+.user-details-value {
+  color: #1e293b;
+  font-weight: 600;
+  font-size: 1rem;
+  word-break: break-word;
+}
+
+@media (max-width: 768px) {
+  .user-details-tabs-container {
+    flex-wrap: wrap;
+  }
+  
+  .info-card {
+    padding: 0.75rem;
+  }
 }
 </style> 

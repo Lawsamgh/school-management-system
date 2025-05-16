@@ -6,15 +6,19 @@
         <div class="col-12 mb-4">
           <div class="header-card" :class="{ 'skeleton-loading': isLoadingPayments }">
             <template v-if="!isLoadingPayments">
-              <h1 class="mb-2">Fees and Admission Payments</h1>
-              <p class="lead">Manage student fees, payments, and financial records</p>
-              <div class="header-actions mt-3 d-flex justify-content-end">
-                <button class="btn btn-light me-2 header-btn" @click="openPaymentModal">
-                  <i class="fas fa-plus-circle me-1"></i> Record New Payment
-                </button>
-                <button class="btn btn-light header-btn" @click="openReportModal">
-                  <i class="fas fa-chart-bar me-1"></i> Generate Reports
-                </button>
+              <div class="welcome-header">
+                <div class="user-info">
+                  <h1 class="mb-2">Fees and Admission Payments</h1>
+                  <p class="lead">Manage student fees, payments, and financial records</p>
+                  <!-- Optional badge for role display -->
+                  <div class="role-badge mt-2" v-if="userRole">
+                    <i class="fas fa-user-tag me-2"></i>
+                    {{ userRole }}
+                  </div>
+                </div>
+                <div class="avatar">
+                  {{ userInitials }}
+                </div>
               </div>
             </template>
             <template v-else>
@@ -27,6 +31,93 @@
                 </div>
               </div>
             </template>
+          </div>
+        </div>
+        
+        <!-- School Selector for Superadmin - New Position -->
+        <div class="col-12 mb-4" v-if="userRole?.toLowerCase() === 'superadmin' && !isLoadingPayments">
+          <div class="school-selector-card">
+            <div class="d-flex justify-content-between align-items-center">
+              <div class="d-flex align-items-center">
+                <i class="fas fa-school me-3 school-icon"></i>
+                <div>
+                  <h3 class="mb-2">Select School</h3>
+                  <p class="text-muted">Filter payment records by school</p>
+                </div>
+              </div>
+              <!-- Add buttons here for superadmin -->
+              <div class="action-buttons">
+                <button class="btn btn-success me-2 action-btn" @click="openPaymentModal">
+                  <i class="fas fa-plus-circle me-1"></i> Record New Payment
+                </button>
+                <button class="btn btn-primary action-btn" @click="openReportModal">
+                  <i class="fas fa-chart-bar me-1"></i> Generate Reports
+                </button>
+              </div>
+            </div>
+            
+            <!-- Replace with SchoolSelector-style component -->
+            <div class="school-selector mt-3">
+              <div class="form-group">
+                <div class="custom-select-container">
+                  <input 
+                    type="text" 
+                    class="form-control" 
+                    v-model="schoolSearchQuery"
+                    @focus="isSchoolDropdownOpen = true"
+                    :placeholder="selectedSchoolName || 'Search for a school...'"
+                    ref="schoolSearchInput"
+                  >
+                  <div v-if="isSchoolDropdownOpen" class="custom-select-dropdown">
+                    <div class="custom-select-options">
+                      <div 
+                        class="custom-select-option"
+                        @click="selectSchool('', 'All Schools')"
+                        :class="{ 'selected': selectedSchoolId === '' }"
+                      >
+                        <i class="fas fa-globe-americas me-2"></i> All Schools
+                      </div>
+                      <div 
+                        v-for="school in filteredSchools" 
+                        :key="school.id"
+                        class="custom-select-option"
+                        @click="selectSchool(school.id, school.name)"
+                        :class="{ 'selected': selectedSchoolId === school.id }"
+                      >
+                        <i class="fas fa-school me-2"></i> {{ school.name }}
+                      </div>
+                      <div v-if="filteredSchools.length === 0 && schoolSearchQuery" class="no-results">
+                        No schools found
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Action Card for Non-Superadmin Users -->
+        <div class="col-12 mb-4" v-if="userRole?.toLowerCase() !== 'superadmin' && !isLoadingPayments">
+          <div class="school-selector-card">
+            <div class="d-flex justify-content-between align-items-center">
+              <div class="d-flex align-items-center">
+                <i class="fas fa-sliders-h me-3 school-icon"></i>
+                <div>
+                  <h3 class="mb-2">Payment Actions</h3>
+                  <p class="text-muted">Record and manage payment data</p>
+                </div>
+              </div>
+              <!-- Add buttons here for non-superadmin -->
+              <div class="action-buttons">
+                <button class="btn btn-success me-2 action-btn" @click="openPaymentModal">
+                  <i class="fas fa-plus-circle me-1"></i> Record New Payment
+                </button>
+                <button class="btn btn-primary action-btn" @click="openReportModal">
+                  <i class="fas fa-chart-bar me-1"></i> Generate Reports
+                </button>
+              </div>
+            </div>
           </div>
         </div>
         
@@ -95,6 +186,7 @@
                     </button>
                   </div>
                 </div>
+                <!-- Remove school filter from here as we've moved it above -->
               </div>
               <div v-else class="d-flex align-items-center gap-3">
                 <div class="skeleton-search"></div>
@@ -787,7 +879,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, computed, watch } from 'vue';
+import { onMounted, ref, computed, watch, onUnmounted } from 'vue';
 import { Modal } from 'bootstrap';
 import { supabase } from '@/lib/supabase';
 import { getPayments, getPaymentOptions, addPayment, getPaymentById, deletePayment, getPaymentsByDateRange, updatePaymentRemaining, updatePaymentReference, getRelatedPayments, getPaymentHistoryByReference } from '@/api/payments';
@@ -796,6 +888,7 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { useAuthStore } from '@/store/auth';
 import { sendPaymentConfirmationSMS } from '@/services/smsService';
+import { getUserInitials, getDisplayName } from '@/utils/userUtils';
 // NOTE: If vue-toastification is not installed, run:
 // npm install --save vue-toastification@2.0.0-rc.5
 // Then in your main.ts file:
@@ -809,6 +902,12 @@ const toast = useToast();
 // Get user role from auth store
 const authStore = useAuthStore();
 const userRole = computed(() => authStore.userRole?.role?.toLowerCase() || '');
+
+// Get user display name
+const userName = computed(() => getDisplayName(authStore));
+
+// Get user initials for the avatar
+const userInitials = computed(() => getUserInitials(userName.value));
 
 // Payment modal reference
 const paymentModalRef = ref<HTMLElement | null>(null);
@@ -908,6 +1007,24 @@ const generateStudentId = () => {
   return `ST${nextNumber.toString().padStart(5, '0')}`;
 };
 
+// After authStore declaration
+// Add these refs and methods which are used in multiple places
+const selectedSchoolId = ref('');
+const selectedSchoolName = ref('');
+const isSchoolDropdownOpen = ref(false);
+const schoolSearchQuery = ref('');
+const schoolSearchInput = ref<HTMLInputElement | null>(null);
+const schools = ref<{id: string, name: string}[]>([]);
+
+// Helper function to get the current school_id based on user role
+const getCurrentSchoolId = (): string | null => {
+  return userRole.value?.toLowerCase() === 'admin' 
+    ? authStore.userRole?.school_id || null
+    : userRole.value?.toLowerCase() === 'superadmin' && selectedSchoolId.value 
+      ? selectedSchoolId.value 
+      : null;
+};
+
 // Payment form data
 const paymentForm = ref({
   payment_id: generatePaymentId(),
@@ -922,7 +1039,8 @@ const paymentForm = ref({
   payment_date: new Date().toISOString().slice(0, 10),
   amount_remaining: 0,
   reference_payment: null as string | null,
-  payment_mode: 'Admission' // Default to 'Admission'
+  payment_mode: 'Admission', // Default to 'Admission'
+  school_id: getCurrentSchoolId()
 });
 
 // Payment options from the database
@@ -1170,6 +1288,11 @@ onMounted(async () => {
   
   // Fetch school info
   await fetchSchoolInfo();
+  
+  // Fetch schools list if superadmin
+  if (userRole.value?.toLowerCase() === 'superadmin') {
+    await fetchSchools();
+  }
 });
 
 // Check database connection and table access
@@ -1205,7 +1328,16 @@ const fetchRecentPayments = async () => {
     isLoadingPayments.value = true;
     console.log('Fetching payments using API...');
     
-    const data = await getPayments();
+    // Get the appropriate school_id based on user role
+    const schoolId = userRole.value?.toLowerCase() === 'admin' 
+      ? authStore.userRole?.school_id 
+      : userRole.value?.toLowerCase() === 'superadmin' && selectedSchoolId.value 
+        ? selectedSchoolId.value 
+        : userRole.value?.toLowerCase() === 'admin' ? authStore.userRole?.school_id : null;
+    
+    console.log('Fetching payments with school ID:', schoolId);
+    
+    const data = await getPayments(schoolId);
     
     console.log('Payments data received:', data);
     console.log('Number of records:', data ? data.length : 0);
@@ -1321,7 +1453,8 @@ const openPaymentModal = () => {
     payment_date: new Date().toISOString().slice(0, 10),
     amount_remaining: 0,
     reference_payment: null,
-    payment_mode: 'Admission'
+    payment_mode: 'Admission',
+    school_id: getCurrentSchoolId()
   };
   formError.value = null;
   paymentModal?.show();
@@ -1348,10 +1481,19 @@ const openReportModal = () => {
 // Add function to check SMS settings
 const checkSmsEnabled = async () => {
   try {
-    const { data, error } = await supabase
-      .from('setup')
-      .select('sms')
-      .single();
+    // Get the current school ID
+    const schoolId = getCurrentSchoolId();
+    
+    // Build query with school_id filter
+    let query = supabase.from('setup').select('sms');
+    
+    // Add school_id filter if available
+    if (schoolId) {
+      query = query.eq('school_id', schoolId);
+    }
+    
+    // Execute the query and get the first result
+    const { data, error } = await query.limit(1).single();
 
     if (error) throw error;
     return data?.sms === 'true';
@@ -1427,7 +1569,8 @@ const submitPayment = async () => {
       expected_amount: Number(paymentForm.value.expected_amount),
       payment_date: new Date(paymentForm.value.payment_date).toISOString(),
       reference_payment: referencePaymentId,
-      payment_mode: paymentMode.value === 'new' ? 'Admission' : 'Continue Student'
+      payment_mode: paymentMode.value === 'new' ? 'Admission' : 'Continue Student',
+      school_id: paymentForm.value.school_id || getCurrentSchoolId()
     };
     
     const result = await addPayment(paymentRecord);
@@ -1904,9 +2047,17 @@ const generateReport = async () => {
   try {
     isGeneratingReport.value = true;
     
+    // Get the appropriate school_id based on user role
+    const schoolId = userRole.value?.toLowerCase() === 'admin' 
+      ? authStore.userRole?.school_id 
+      : userRole.value?.toLowerCase() === 'superadmin' && selectedSchoolId.value 
+        ? selectedSchoolId.value 
+        : userRole.value?.toLowerCase() === 'admin' ? authStore.userRole?.school_id : null;
+    
     const payments = await getPaymentsByDateRange(
       reportFilters.value.startDate,
       reportFilters.value.endDate,
+      schoolId,
       reportFilters.value.paymentType,
       reportFilters.value.paymentPurpose
     );
@@ -2203,7 +2354,9 @@ const selectFollowUpPayment = (payment: any) => {
     // Set reference to the original payment
     reference_payment: payment.payment_id,
     // Set payment mode to Continue Student
-    payment_mode: 'Continue Student'
+    payment_mode: 'Continue Student',
+    // Keep the same school_id
+    school_id: payment.school_id || getCurrentSchoolId()
   };
   
   console.log('Selected follow-up payment with mode:', paymentForm.value.payment_mode); // Debug log
@@ -2292,7 +2445,8 @@ const checkStudentId = async () => {
         payment_date: new Date().toISOString().slice(0, 10),
         amount_remaining: 0,
         reference_payment: null,
-        payment_mode: 'Admission'
+        payment_mode: 'Admission',
+        school_id: getCurrentSchoolId()
       };
     }
   } else {
@@ -2352,7 +2506,8 @@ const checkStudentId = async () => {
           payment_date: new Date().toISOString().slice(0, 10),
           amount_remaining: 0,
           reference_payment: null,
-          payment_mode: 'Admission'
+          payment_mode: 'Admission',
+          school_id: getCurrentSchoolId()
         };
       }
     } else {
@@ -2375,7 +2530,8 @@ const checkStudentId = async () => {
         payment_date: new Date().toISOString().slice(0, 10),
         amount_remaining: 0,
         reference_payment: null,
-        payment_mode: 'Admission'
+        payment_mode: 'Admission',
+        school_id: getCurrentSchoolId()
       };
       studentFeedback.value = '';
       followUpSearch.value = '';
@@ -2410,7 +2566,8 @@ watch(() => paymentMode.value, (newMode) => {
       payment_date: new Date().toISOString().slice(0, 10),
       amount_remaining: 0,
       reference_payment: null,
-      payment_mode: 'Admission'
+      payment_mode: 'Admission',
+      school_id: getCurrentSchoolId()
     };
   } else {
     // Reset for continue student, but leave ID field empty for user input
@@ -2427,7 +2584,8 @@ watch(() => paymentMode.value, (newMode) => {
       payment_date: new Date().toISOString().slice(0, 10),
       amount_remaining: 0,
       reference_payment: null,
-      payment_mode: 'Continue Student'
+      payment_mode: 'Continue Student',
+      school_id: getCurrentSchoolId()
     };
   }
 });
@@ -2452,11 +2610,23 @@ const fetchSchoolInfo = async () => {
   try {
     console.log('Fetching school info...');
     
-    // Try to fetch school info
-    const { data, error } = await supabase
-      .from('setup')
-      .select('school_name, school_contact1, school_email, school_address')
-      .single();
+    // Get the appropriate school_id based on user role
+    const schoolId = userRole.value?.toLowerCase() === 'admin' 
+      ? authStore.userRole?.school_id 
+      : userRole.value?.toLowerCase() === 'superadmin' && selectedSchoolId.value 
+        ? selectedSchoolId.value 
+        : null;
+    
+    // Start building the query
+    let query = supabase.from('setup').select('school_name, school_contact1, school_email, school_address');
+    
+    // Add school_id filter if available
+    if (schoolId) {
+      query = query.eq('school_id', schoolId);
+    }
+    
+    // Execute the query and get the first result
+    const { data, error } = await query.limit(1);
     
     if (error) {
       console.error('Error fetching school info:', error.message, error.details, error.hint);
@@ -2465,12 +2635,12 @@ const fetchSchoolInfo = async () => {
     
     console.log('Fetched school data:', data);
     
-    if (data) {
+    if (data && data.length > 0) {
       schoolInfo.value = {
-        name: data.school_name || '',
-        address: data.school_address || '',
-        email: data.school_email || '',
-        phone: data.school_contact1 || ''
+        name: data[0].school_name || '',
+        address: data[0].school_address || '',
+        email: data[0].school_email || '',
+        phone: data[0].school_contact1 || ''
       };
       console.log('Updated schoolInfo:', schoolInfo.value);
     }
@@ -2520,6 +2690,115 @@ const createSetupTable = async () => {
     return false;
   }
 };
+
+// Filter schools based on search query
+const filteredSchools = computed(() => {
+  if (!schoolSearchQuery.value.trim()) {
+    return schools.value;
+  }
+  
+  const query = schoolSearchQuery.value.toLowerCase().trim();
+  return schools.value.filter(school => 
+    school.name.toLowerCase().includes(query)
+  );
+});
+
+// Toggle the school dropdown
+const toggleSchoolDropdown = () => {
+  isSchoolDropdownOpen.value = !isSchoolDropdownOpen.value;
+  
+  // Focus the search input when opening
+  if (isSchoolDropdownOpen.value) {
+    setTimeout(() => {
+      if (schoolSearchInput.value) {
+        schoolSearchInput.value.focus();
+        schoolSearchQuery.value = '';
+      }
+    }, 100);
+  }
+};
+
+// Select a school
+const selectSchool = (id: string, name: string) => {
+  selectedSchoolId.value = id;
+  selectedSchoolName.value = name;
+  isSchoolDropdownOpen.value = false;
+  schoolSearchQuery.value = '';
+  
+  // Call the existing school change handler
+  handleSchoolChange();
+};
+
+// Clear school selection
+const clearSchoolSelection = (event: Event) => {
+  event.stopPropagation();
+  selectedSchoolId.value = '';
+  selectedSchoolName.value = '';
+  handleSchoolChange();
+};
+
+// Close dropdown when clicking outside
+const closeSchoolDropdown = (event: MouseEvent) => {
+  const target = event.target as HTMLElement;
+  const dropdown = document.querySelector('.search-school-container');
+  
+  if (dropdown && !dropdown.contains(target)) {
+    isSchoolDropdownOpen.value = false;
+  }
+};
+
+// Add event listener for clicks outside the dropdown
+onMounted(() => {
+  document.addEventListener('click', closeSchoolDropdown);
+  
+  // ... rest of existing onMounted code ...
+});
+
+// Remove event listener when component is unmounted
+onUnmounted(() => {
+  document.removeEventListener('click', closeSchoolDropdown);
+});
+
+// Fetch schools for superadmin
+const fetchSchools = async () => {
+  try {
+    if (userRole.value?.toLowerCase() !== 'superadmin') return;
+    
+    const { data, error } = await supabase
+      .from('schools')
+      .select('id, name')
+      .order('name');
+      
+    if (error) throw error;
+    
+    schools.value = data || [];
+    console.log('Schools loaded:', schools.value);
+
+    // If a school is already selected, update the name
+    if (selectedSchoolId.value) {
+      const selectedSchool = schools.value.find(school => school.id === selectedSchoolId.value);
+      if (selectedSchool) {
+        selectedSchoolName.value = selectedSchool.name;
+      }
+    }
+  } catch (error) {
+    console.error('Error fetching schools:', error);
+    toast.error('Failed to load schools list');
+  }
+};
+
+// Handle school change
+const handleSchoolChange = async () => {
+  console.log('School filter changed to:', selectedSchoolId.value, selectedSchoolName.value);
+  await fetchRecentPayments();
+  
+  // Show toast notification
+  if (selectedSchoolId.value) {
+    toast.info(`Showing payments for: ${selectedSchoolName.value}`);
+  } else {
+    toast.info('Showing payments for all schools');
+  }
+};
 </script>
 
 <style lang="scss" scoped>
@@ -2544,6 +2823,73 @@ const createSetupTable = async () => {
   color: white;
   margin-bottom: 1rem;
   box-shadow: 0 4px 15px rgba(66, 184, 131, 0.2);
+  
+  .welcome-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 2rem;
+
+    .user-info {
+      flex: 1;
+    }
+
+    .avatar {
+      width: 120px;
+      height: 120px;
+      background: rgba(255, 255, 255, 0.2);
+      backdrop-filter: blur(10px);
+      border-radius: 25px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 4.2rem;
+      font-weight: 500;
+      color: white;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+      transition: transform 0.3s ease;
+
+      &:hover {
+        transform: scale(1.05);
+      }
+    }
+  }
+  
+  .role-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.4rem 0.8rem;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 2rem;
+    font-size: 0.9rem;
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+  }
+  
+  @media (max-width: 768px) {
+    .welcome-header {
+      flex-direction: column-reverse;
+      align-items: center;
+      text-align: center;
+      gap: 1.5rem;
+
+      .avatar {
+        width: 120px;
+        height: 120px;
+        font-size: 3.6rem;
+      }
+
+      .user-info {
+        text-align: center;
+        
+        .role-badge {
+          margin-top: 0.5rem;
+        }
+      }
+    }
+  }
   
   .header-actions {
     .btn {
@@ -4272,5 +4618,384 @@ const createSetupTable = async () => {
 
 .school-address, .school-contact {
   margin-bottom: 0.25rem;
+}
+
+/* School Selector Card Styles */
+.school-selector-card {
+  background-color: white;
+  border-radius: 1rem;
+  padding: 1.5rem;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  
+  .school-icon {
+    font-size: 2rem;
+    color: #42b883;
+  }
+  
+  h3 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 0.25rem;
+  }
+  
+  .text-muted {
+    font-size: 0.9rem;
+  }
+  
+  .school-select {
+    border-color: #e0e0e0;
+    border-radius: 0.75rem;
+    height: 50px;
+    
+    &:focus {
+      border-color: #42b883;
+      box-shadow: 0 0 0 0.25rem rgba(66, 184, 131, 0.25);
+    }
+  }
+  
+  .action-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    
+    @media (max-width: 768px) {
+      margin-top: 1rem;
+      width: 100%;
+      justify-content: flex-start;
+    }
+  }
+  
+  .action-btn {
+    padding: 0.5rem 1.2rem;
+    border-radius: 0.5rem;
+    font-weight: 500;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    
+    &:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+    }
+    
+    &.btn-success {
+      background-color: #42b883;
+      border-color: #42b883;
+      
+      &:hover, &:focus {
+        background-color: #3aa876;
+        border-color: #3aa876;
+      }
+    }
+  }
+  
+  @media (max-width: 992px) {
+    .d-flex.justify-content-between {
+      flex-direction: column;
+      align-items: flex-start;
+      
+      .action-buttons {
+        margin-top: 1rem;
+        width: 100%;
+      }
+    }
+  }
+}
+
+/* School Search Dropdown Styles */
+.search-school-container {
+  position: relative;
+  width: 100%;
+  z-index: 100;
+  
+  &.active {
+    .selected-display {
+      border-color: #42b883;
+      box-shadow: 0 0 0 0.25rem rgba(66, 184, 131, 0.25);
+      border-bottom-left-radius: 0;
+      border-bottom-right-radius: 0;
+      background-color: #fff;
+    }
+  }
+  
+  .selected-display {
+    display: flex;
+    align-items: center;
+    min-height: 50px;
+    padding: 0.5rem 1rem;
+    background-color: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    
+    &:hover {
+      border-color: #ced4da;
+      background-color: #f8f9fa;
+    }
+    
+    /* Prevent browser highlighting/selection */
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    
+    .placeholder {
+      color: #adb5bd;
+      display: flex;
+      align-items: center;
+      width: 100%;
+      
+      i {
+        color: #6c757d;
+        margin-right: 0.5rem;
+      }
+    }
+    
+    .btn-clear {
+      background: none;
+      border: none;
+      color: #dc3545;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+      
+      &:hover {
+        background-color: rgba(220, 53, 69, 0.1);
+      }
+    }
+  }
+  
+  .dropdown-panel {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    background-color: #fff;
+    border: 1px solid #e0e0e0;
+    border-top: none;
+    border-bottom-left-radius: 0.75rem;
+    border-bottom-right-radius: 0.75rem;
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+    z-index: 100;
+    overflow: hidden;
+    
+    .search-input-container {
+      padding: 0.75rem;
+      border-bottom: 1px solid #f0f0f0;
+      position: relative;
+      background-color: #fff;
+      
+      .search-input {
+        padding-left: 2.5rem;
+        height: 40px;
+        border-radius: 0.5rem;
+        font-size: 0.9rem;
+        background-color: #fff;
+        
+        &:focus {
+          border-color: #42b883;
+          box-shadow: 0 0 0 0.2rem rgba(66, 184, 131, 0.25);
+          background-color: #fff;
+        }
+      }
+      
+      .search-icon {
+        position: absolute;
+        left: 1.5rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #adb5bd;
+        pointer-events: none;
+      }
+    }
+    
+    .dropdown-options {
+      max-height: 280px;
+      overflow-y: auto;
+      background-color: #fff;
+      
+      &::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+      
+      &::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 3px;
+      }
+      
+      &::-webkit-scrollbar-thumb {
+        background: #ccc;
+        border-radius: 3px;
+        
+        &:hover {
+          background: #aaa;
+        }
+      }
+      
+      .dropdown-option {
+        padding: 0.75rem 1rem;
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+        display: flex;
+        align-items: center;
+        color: #495057;
+        background-color: #fff;
+        
+        i {
+          color: #42b883;
+          margin-right: 0.5rem;
+        }
+        
+        &:hover {
+          background-color: #f5f9f7;
+        }
+        
+        &.active {
+          background-color: #e3f8ef;
+          font-weight: 600;
+          color: #2c845e;
+        }
+        
+        &.all-option {
+          border-bottom: 1px solid #f0f0f0;
+          
+          i {
+            color: #5c6bc0;
+          }
+        }
+      }
+      
+      .no-results {
+        padding: 1rem;
+        text-align: center;
+        color: #6c757d;
+        font-style: italic;
+        background-color: #fff;
+        
+        i {
+          color: #dc3545;
+        }
+      }
+    }
+  }
+}
+
+/* School Selector Styles - Matching SchoolSelector.vue */
+.school-selector {
+  .form-label {
+    font-weight: 600;
+    color: #1e293b;
+    margin-bottom: 0.5rem;
+  }
+
+  .custom-select-container {
+    position: relative;
+
+    .form-control {
+      height: 3.5rem;
+      padding: 0.75rem 1rem;
+      border: 2px solid #e2e8f0;
+      border-radius: 0.5rem;
+      background-color: #fff;
+      transition: all 0.2s ease;
+      font-size: 0.95rem;
+      width: 100%;
+
+      &:disabled {
+        background-color: #f8fafc;
+        cursor: not-allowed;
+        opacity: 0.8;
+      }
+
+      &::placeholder {
+        color: #94a3b8;
+      }
+
+      &:focus {
+        border-color: #42b883;
+        box-shadow: 0 0 0 3px rgba(66, 184, 131, 0.1);
+      }
+    }
+  }
+
+  .custom-select-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.5rem;
+    margin-top: 0.25rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    z-index: 50;
+    max-height: 250px;
+    overflow-y: auto;
+  }
+
+  .custom-select-options {
+    padding: 0.5rem 0;
+  }
+
+  .custom-select-option {
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    
+    &:hover {
+      background: #f8f9fa;
+      color: #42b883;
+    }
+    
+    &.selected {
+      background: #42b883;
+      color: white;
+      
+      &:hover {
+        background: #3aa876;
+      }
+    }
+  }
+
+  .no-results {
+    padding: 0.75rem 1rem;
+    color: #64748b;
+    text-align: center;
+    font-style: italic;
+  }
+
+  /* Custom scrollbar for the dropdown */
+  .custom-select-dropdown {
+    &::-webkit-scrollbar {
+      width: 8px;
+    }
+    
+    &::-webkit-scrollbar-track {
+      background: #f1f1f1;
+      border-radius: 4px;
+    }
+    
+    &::-webkit-scrollbar-thumb {
+      background: #c1c1c1;
+      border-radius: 4px;
+      
+      &:hover {
+        background: #a8a8a8;
+      }
+    }
+  }
 }
 </style> 

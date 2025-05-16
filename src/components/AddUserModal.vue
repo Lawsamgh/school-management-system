@@ -40,18 +40,45 @@
                         v-model="addUserForm.identification" 
                         placeholder="Enter identification number" 
                         required
-                        :readonly="autoGenerateEnabled && addUserForm.role !== 'superadmin'"
-                        :style="autoGenerateEnabled && addUserForm.role !== 'superadmin' ? { backgroundColor: '#f8f9fa' } : {}"
+                        :readonly="autoGenerateEnabled && addUserForm.role !== 'superadmin' && addUserForm.role !== 'student'"
+                        :style="autoGenerateEnabled && addUserForm.role !== 'superadmin' && addUserForm.role !== 'student' ? { backgroundColor: '#f8f9fa' } : {}"
+                        :class="{ 
+                          'is-valid': addUserForm.role === 'student' && studentIdValid === true,
+                          'is-invalid': addUserForm.role === 'student' && studentIdValid === false
+                        }"
+                        @input="addUserForm.role === 'student' ? debouncedValidateStudentId() : null"
                       >
                       <div v-if="isGeneratingId" class="position-absolute top-50 end-0 translate-middle-y pe-3">
                         <div class="spinner-border spinner-border-sm text-primary" role="status">
                           <span class="visually-hidden">Generating ID...</span>
                         </div>
                       </div>
+                      <div v-if="isCheckingStudentId" class="position-absolute top-50 end-0 translate-middle-y pe-3">
+                        <div class="spinner-border spinner-border-sm text-primary" role="status">
+                          <span class="visually-hidden">Checking Student ID...</span>
+                        </div>
+                      </div>
                     </div>
-                    <div v-if="autoGenerateEnabled && addUserForm.role && addUserForm.role !== 'superadmin'" class="form-text text-muted small">
+                    <div v-if="autoGenerateEnabled && addUserForm.role && addUserForm.role !== 'superadmin' && addUserForm.role !== 'student'" class="form-text text-muted small">
                       <i class="fas fa-info-circle me-1"></i>
                       ID will be automatically generated for {{ addUserForm.role }} role
+                    </div>
+                    <div v-if="autoGenerateEnabled && addUserForm.role === 'student'" class="form-text text-muted small">
+                      <i class="fas fa-info-circle me-1"></i>
+                      Enter a custom ID for student or use school ID
+                    </div>
+                    <div v-if="addUserForm.role === 'student' && studentIdMessage" class="form-text small"
+                      :class="{
+                        'text-success': studentIdValid === true,
+                        'text-danger': studentIdValid === false,
+                        'text-muted': studentIdValid === null
+                      }">
+                      <i class="fas" :class="{
+                        'fa-check-circle': studentIdValid === true,
+                        'fa-exclamation-circle': studentIdValid === false,
+                        'fa-info-circle': studentIdValid === null
+                      }"></i>
+                      {{ studentIdMessage }}
                     </div>
                   </div>
                   <div class="col-md-12">
@@ -72,7 +99,13 @@
                       v-model="addUserForm.username" 
                       placeholder="Enter username" 
                       required
+                      :readonly="isUsernameAutopopulated"
+                      :class="{ 'auto-populated': isUsernameAutopopulated }"
                     >
+                    <div v-if="isUsernameAutopopulated" class="form-text text-success small">
+                      <i class="fas fa-check-circle me-1"></i>
+                      Auto-populated from student record
+                    </div>
                   </div>
                   <div class="col-md-6">
                     <input 
@@ -185,113 +218,115 @@
             </div>
 
             <!-- Role-specific Information Section -->
-            <div v-if="addUserForm.role === 'student' || addUserForm.role === 'teacher'" class="col-md-6 fade-enter">
-              <div class="form-section h-100">
-                <h6 class="section-title">ACADEMIC INFORMATIONn</h6>
-                <div class="row g-3">
-                  <!-- Academic Information -->
-                  <div v-if="addUserForm.role === 'student'" class="col-md-12">
-                    <select 
-                      class="form-select" 
-                      v-model="addUserForm.gradeLevel" 
-                      required
-                      :disabled="isLoadingGrades"
-                    >
-                      <option value="" disabled>Select grade level</option>
-                      <option 
-                        v-for="grade in grades" 
-                        :key="grade.id" 
-                        :value="grade.grade_level"
+            <transition name="slide-fade">
+              <div v-if="addUserForm.role === 'student' || addUserForm.role === 'teacher'" class="col-md-6 fade-enter">
+                <div class="form-section h-100">
+                  <h6 class="section-title">ACADEMIC INFORMATION</h6>
+                  <div class="row g-3">
+                    <!-- Academic Information -->
+                    <div v-if="addUserForm.role === 'student'" class="col-md-12">
+                      <select 
+                        class="form-select" 
+                        v-model="addUserForm.gradeLevel" 
+                        required
+                        :disabled="isLoadingGrades"
                       >
-                        {{ grade.grade_level }}
-                      </option>
-                    </select>
-                  </div>
-                  <div class="col-md-12">
-                    <select 
-                      class="form-select" 
-                      v-model="addUserForm.class_id" 
-                      :disabled="isLoadingClasses" 
-                      required
-                    >
-                      <option value="" disabled>{{ addUserForm.role === 'student' ? 'Select class' : 'Select teaching class' }}</option>
-                      <option v-for="c in classes" :key="c.class_id" :value="c.class_id">{{ c.class_name }}</option>
-                    </select>
-                  </div>
-
-                  <!-- PARENT INFORMATION - Only for Students -->
-                  <template v-if="addUserForm.role === 'student'">
-                    <div class="col-12">
-                      <h6 class="section-subtitle">PARENT INFORMATION</h6>
+                        <option value="" disabled>Select grade level</option>
+                        <option 
+                          v-for="grade in grades" 
+                          :key="grade.id" 
+                          :value="grade.grade_level"
+                        >
+                          {{ grade.grade_level }}
+                        </option>
+                      </select>
                     </div>
                     <div class="col-md-12">
-                      <input 
-                        type="text" 
-                        class="form-control" 
-                        v-model="addUserForm.family_name" 
-                        placeholder="Parent/Guardian Name" 
+                      <select 
+                        class="form-select" 
+                        v-model="addUserForm.class_id" 
+                        :disabled="isLoadingClasses" 
                         required
                       >
+                        <option value="" disabled>{{ addUserForm.role === 'student' ? 'Select class' : 'Select teaching class' }}</option>
+                        <option v-for="c in classes" :key="c.class_id" :value="c.class_id">{{ c.class_name }}</option>
+                      </select>
                     </div>
-                    <div class="col-md-12">
-                      <div class="custom-select-container">
+
+                    <!-- PARENT INFORMATION - Only for Students -->
+                    <template v-if="addUserForm.role === 'student'">
+                      <div class="col-12">
+                        <h6 class="section-subtitle">PARENT INFORMATION</h6>
+                      </div>
+                      <div class="col-md-12">
                         <input 
                           type="text" 
                           class="form-control" 
-                          v-model="relationshipSearch"
-                          @focus="showRelationshipDropdown = true"
-                          @input="handleRelationshipSearch"
-                          :placeholder="addUserForm.family_relationship ? relationshipOptions.find(r => r.value === addUserForm.family_relationship)?.label : 'Select relationship'"
+                          v-model="addUserForm.family_name" 
+                          placeholder="Parent/Guardian Name" 
+                          required
                         >
-                        <div v-if="showRelationshipDropdown" class="custom-select-dropdown">
-                          <div class="custom-select-options">
-                            <div 
-                              v-for="option in filteredRelationships" 
-                              :key="option.value"
-                              class="custom-select-option"
-                              @click="selectRelationship(option)"
-                              :class="{ 'selected': option.value === addUserForm.family_relationship }"
-                            >
-                              {{ option.label }}
-                            </div>
-                            <div v-if="filteredRelationships.length === 0" class="no-results">
-                              No results found
+                      </div>
+                      <div class="col-md-12">
+                        <div class="custom-select-container">
+                          <input 
+                            type="text" 
+                            class="form-control" 
+                            v-model="relationshipSearch"
+                            @focus="showRelationshipDropdown = true"
+                            @input="handleRelationshipSearch"
+                            :placeholder="addUserForm.family_relationship ? relationshipOptions.find(r => r.value === addUserForm.family_relationship)?.label : 'Select relationship'"
+                          >
+                          <div v-if="showRelationshipDropdown" class="custom-select-dropdown">
+                            <div class="custom-select-options">
+                              <div 
+                                v-for="option in filteredRelationships" 
+                                :key="option.value"
+                                class="custom-select-option"
+                                @click="selectRelationship(option)"
+                                :class="{ 'selected': option.value === addUserForm.family_relationship }"
+                              >
+                                {{ option.label }}
+                              </div>
+                              <div v-if="filteredRelationships.length === 0" class="no-results">
+                                No results found
+                              </div>
                             </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                    <div class="col-md-12">
-                      <input 
-                        type="email" 
-                        class="form-control" 
-                        v-model="addUserForm.family_email" 
-                        placeholder="Parent/Guardian Email" 
-                        required
-                      >
-                    </div>
-                    <div class="col-md-12">
-                      <input 
-                        type="tel" 
-                        class="form-control" 
-                        v-model="addUserForm.emergency_contact" 
-                        placeholder="Emergency Contact Number" 
-                        required
-                      >
-                    </div>
-                    <div class="col-md-12">
-                      <textarea 
-                        class="form-control" 
-                        v-model="addUserForm.address" 
-                        placeholder="Home Address"
-                        rows="3"
-                        required
-                      ></textarea>
-                    </div>
-                  </template>
+                      <div class="col-md-12">
+                        <input 
+                          type="email" 
+                          class="form-control" 
+                          v-model="addUserForm.family_email" 
+                          placeholder="Parent/Guardian Email" 
+                          required
+                        >
+                      </div>
+                      <div class="col-md-12">
+                        <input 
+                          type="tel" 
+                          class="form-control" 
+                          v-model="addUserForm.emergency_contact" 
+                          placeholder="Emergency Contact Number" 
+                          required
+                        >
+                      </div>
+                      <div class="col-md-12">
+                        <textarea 
+                          class="form-control" 
+                          v-model="addUserForm.address" 
+                          placeholder="Home Address"
+                          rows="3"
+                          required
+                        ></textarea>
+                      </div>
+                    </template>
+                  </div>
                 </div>
               </div>
-            </div>
+            </transition>
           </div>
 
           <div class="d-flex justify-content-end gap-2 mt-4">
@@ -299,10 +334,11 @@
             <button 
               type="submit" 
               class="btn btn-primary" 
-              :disabled="addUserLoading || isGeneratingId"
+              :disabled="addUserLoading || isGeneratingId || (addUserForm.role === 'student' && isCheckingStudentId) || (addUserForm.role === 'student' && studentIdValid === false)"
             >
               <span v-if="addUserLoading" class="spinner-border spinner-border-sm me-2"></span>
               <span v-else-if="isGeneratingId">Generating ID...</span>
+              <span v-else-if="addUserForm.role === 'student' && isCheckingStudentId">Validating ID...</span>
               <span v-else>Add User</span>
             </button>
           </div>
@@ -317,7 +353,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useToast } from 'vue-toastification'
 import { useAuthStore } from '@/store/auth'
 import { addUserWithRole, getGrades, getClasses } from '@/api/users'
-import { supabase } from '@/lib/supabase'
+import { supabase, supabaseAdmin } from '@/lib/supabase'
 
 const props = defineProps<{
   modelValue: boolean
@@ -358,6 +394,242 @@ const classes = ref<{ class_id: string; class_name: string }[]>([])
 const isLoadingClasses = ref(false)
 const isGeneratingId = ref(false)
 const autoGenerateEnabled = ref(false)
+const isUsernameAutopopulated = ref(false) // Track if username was auto-populated
+
+// Add refs for student ID validation
+const isCheckingStudentId = ref(false);
+const studentIdValid = ref<boolean | null>(null);
+const studentIdMessage = ref('');
+const setupData = ref<{ student_check?: string } | null>(null);
+
+// Add a debounced validation function for student ID
+const validateStudentId = async () => {
+  // Only validate for student role and if ID is provided
+  if (addUserForm.value.role !== 'student' || !addUserForm.value.identification) {
+    studentIdValid.value = null;
+    studentIdMessage.value = '';
+    // Clear username and family_name when ID is cleared
+    if (isUsernameAutopopulated.value) {
+      addUserForm.value.username = '';
+      addUserForm.value.family_name = '';
+      isUsernameAutopopulated.value = false;
+    }
+    return;
+  }
+
+  try {
+    isCheckingStudentId.value = true;
+    studentIdValid.value = null; // Reset to null while checking
+    studentIdMessage.value = 'Checking if validation is enabled...';
+    
+    // First check if validation is enabled for this school
+    // Get the school_id
+    const schoolId = currentUserRole.value === 'admin' 
+      ? authStore.userRole?.school_id 
+      : authStore.getSelectedSchoolId;
+
+    if (!schoolId) {
+      console.error('No school ID available');
+      studentIdValid.value = null;
+      studentIdMessage.value = '';
+      isCheckingStudentId.value = false;
+      return;
+    }
+
+    // Check setup settings - using regular supabase client for setup table
+    const { data: setupDataResult, error: setupError } = await supabase
+      .from('setup')
+      .select('student_check')
+      .eq('school_id', schoolId)
+      .single();
+
+    if (setupError) {
+      console.error('Error checking student_check setting:', setupError);
+      studentIdValid.value = null;
+      studentIdMessage.value = '';
+      isCheckingStudentId.value = false;
+      return;
+    }
+    
+    // Store the setup data for reference in the UI
+    setupData.value = setupDataResult;
+
+    // If validation is not enabled, don't show any validation messages
+    if (!setupDataResult?.student_check || setupDataResult.student_check.toLowerCase() !== 'yes') {
+      console.log('Student ID validation is disabled');
+      studentIdValid.value = null;
+      studentIdMessage.value = '';
+      isCheckingStudentId.value = false;
+      return;
+    }
+    
+    // If we reach here, validation is enabled, so proceed with checking
+    studentIdMessage.value = 'Checking student ID...';
+    
+    // Check if student exists in payments table using exact match first
+    const trimmedId = addUserForm.value.identification.trim();
+    
+    // Use supabaseAdmin for payments table access
+    if (!supabaseAdmin) {
+      console.error('Admin client not available');
+      studentIdValid.value = false;
+      studentIdMessage.value = 'Error checking student ID. Please contact administrator.';
+      isCheckingStudentId.value = false;
+      return;
+    }
+    
+    // First try exact match - include student_name and payment_by fields
+    const { data: paymentData, error: paymentError } = await supabaseAdmin
+      .from('payments')
+      .select('identification, school_id, student_name, payment_by')
+      .eq('school_id', schoolId)
+      .eq('identification', trimmedId)
+      .limit(10);
+
+    if (paymentError) {
+      console.error('Error checking student ID:', paymentError);
+      studentIdValid.value = false;
+      studentIdMessage.value = 'Error checking student ID. Please try again.';
+      return;
+    }
+
+    // Check if we found an exact match
+    let exists = paymentData && paymentData.length > 0;
+    let matchedPayment = paymentData && paymentData.length > 0 ? paymentData[0] : null;
+
+    // If no exact match, try case-insensitive search
+    if (!exists) {
+      console.log('No exact match found, trying case-insensitive search...');
+      
+      // Use Postgres ILIKE for case-insensitive search with wildcards
+      const { data: caseInsensitiveResults, error: caseInsensitiveError } = await supabaseAdmin
+        .from('payments')
+        .select('identification, school_id, student_name, payment_by')
+        .eq('school_id', schoolId)
+        .or(`identification.ilike.${trimmedId},identification.ilike.%${trimmedId}%`)
+        .limit(10);
+        
+      if (!caseInsensitiveError && caseInsensitiveResults && caseInsensitiveResults.length > 0) {
+        console.log('Found case-insensitive matches:', caseInsensitiveResults);
+        exists = true;
+        matchedPayment = caseInsensitiveResults[0];
+        
+        // Display the exact ID that matched for clarity
+        const matchedIds = caseInsensitiveResults.map(r => r.identification);
+        console.log('Matched IDs:', matchedIds);
+      }
+    }
+    
+    // If still no match, try one more approach with a more flexible search
+    if (!exists) {
+      console.log('No matches found, trying more flexible pattern matching...');
+      
+      // Try a more flexible pattern match
+      const { data: flexibleResults, error: flexibleError } = await supabaseAdmin
+        .from('payments')
+        .select('identification, school_id, student_name, payment_by')
+        .eq('school_id', schoolId)
+        .or(`identification.ilike.%${trimmedId}%,identification.ilike.${trimmedId}%,identification.ilike.%${trimmedId}`)
+        .limit(10);
+      
+      if (!flexibleError && flexibleResults && flexibleResults.length > 0) {
+        console.log('Found matches with flexible pattern matching:', flexibleResults);
+        exists = true;
+        matchedPayment = flexibleResults[0];
+        
+        // If we found matches, suggest these IDs to the user
+        const matchedIds = flexibleResults.map(r => r.identification);
+        console.log('Matched IDs with flexible search:', matchedIds);
+        
+        // Update available IDs if we don't have any yet
+        if (!availableStudentIds.value.length) {
+          availableStudentIds.value = matchedIds;
+          hasLoadedStudentIds.value = true;
+        }
+      }
+    }
+
+    // Detailed debugging
+    console.log('Student ID check details:', {
+      enteredId: addUserForm.value.identification,
+      trimmedId: trimmedId,
+      schoolId: schoolId,
+      paymentData: paymentData,
+      paymentCount: paymentData?.length || 0,
+      exists: exists,
+      matchedPayment: matchedPayment
+    });
+
+    // Try a broader search without the school_id filter for debugging
+    const { data: allPaymentsWithThisId, error: broadSearchError } = await supabaseAdmin
+      .from('payments')
+      .select('identification, school_id, student_name, payment_by')
+      .ilike('identification', `%${trimmedId}%`)
+      .limit(10);
+
+    console.log('Broader search results without school filter:', {
+      results: allPaymentsWithThisId,
+      count: allPaymentsWithThisId?.length || 0,
+      error: broadSearchError
+    });
+
+    studentIdValid.value = exists;
+    
+    if (exists && matchedPayment) {
+      studentIdMessage.value = 'Student ID found in payment records!';
+      
+      // Auto-populate username with student_name if available
+      if (matchedPayment.student_name && !addUserForm.value.username) {
+        addUserForm.value.username = matchedPayment.student_name;
+        isUsernameAutopopulated.value = true; // Set flag to make username field readonly
+        console.log('Auto-populated username with student name:', matchedPayment.student_name);
+      }
+      
+      // Auto-populate family_name with payment_by if available
+      if (matchedPayment.payment_by && !addUserForm.value.family_name) {
+        addUserForm.value.family_name = matchedPayment.payment_by;
+        console.log('Auto-populated family name with payment by:', matchedPayment.payment_by);
+      }
+    } else {
+      studentIdMessage.value = 'Student ID not found in payment records.';
+      
+      // Clear username and family_name when ID is not found
+      if (isUsernameAutopopulated.value) {
+        addUserForm.value.username = '';
+        addUserForm.value.family_name = '';
+        isUsernameAutopopulated.value = false;
+      }
+      
+      // Refresh available IDs to help the user
+      fetchAvailableStudentIds();
+    }
+  } catch (error) {
+    console.error('Error validating student ID:', error);
+    studentIdValid.value = false;
+    studentIdMessage.value = 'Error checking student ID. Please try again.';
+    
+    // Clear username and family_name on error
+    if (isUsernameAutopopulated.value) {
+      addUserForm.value.username = '';
+      addUserForm.value.family_name = '';
+      isUsernameAutopopulated.value = false;
+    }
+  } finally {
+    isCheckingStudentId.value = false;
+  }
+};
+
+// Use a simple debounce implementation for the validation
+let studentIdDebounceTimer: number | null = null;
+const debouncedValidateStudentId = () => {
+  if (studentIdDebounceTimer) {
+    clearTimeout(studentIdDebounceTimer);
+  }
+  
+  studentIdDebounceTimer = window.setTimeout(() => {
+    validateStudentId();
+  }, 500); // 500ms debounce delay
+};
 
 // Role options
 const allRoleOptions = [
@@ -720,13 +992,163 @@ const closeModal = () => {
     emergency_contact: '',
     address: ''
   }
+  // Reset validation states
+  studentIdValid.value = null;
+  studentIdMessage.value = '';
+  isUsernameAutopopulated.value = false; // Reset the auto-populated flag
+  if (studentIdDebounceTimer) {
+    clearTimeout(studentIdDebounceTimer);
+    studentIdDebounceTimer = null;
+  }
 }
 
 const handleAddUser = async () => {
   if (addUserLoading.value) return
+  
+  // Prevent submission if student ID is being checked or is invalid
+  if (addUserForm.value.role === 'student' && (isCheckingStudentId.value || studentIdValid.value === false)) {
+    toast.error('Please wait for student ID validation to complete or fix the invalid ID');
+    return;
+  }
 
   try {
-    addUserLoading.value = true
+    // If role is student, first check if validation is required
+    if (addUserForm.value.role === 'student' && addUserForm.value.identification) {
+      console.log('Checking if student ID validation is needed...');
+      
+      // Show loading state
+      addUserLoading.value = true;
+      
+      // Get the school_id
+      const schoolId = currentUserRole.value === 'admin' 
+        ? authStore.userRole?.school_id 
+        : authStore.getSelectedSchoolId;
+
+      if (!schoolId) {
+        console.error('No school ID available');
+        throw new Error('No school ID found. Please select a school first.');
+      }
+
+      // Check if student validation is enabled
+      const { data: setupDataResult, error: setupError } = await supabase
+        .from('setup')
+        .select('student_check')
+        .eq('school_id', schoolId)
+        .single();
+
+      if (setupError) {
+        console.error('Error checking student_check setting:', setupError);
+        // Continue with form submission even if we can't check the setting
+      } else {
+        console.log('Student check setting for form submission:', {
+          setupData: setupDataResult,
+          student_check: setupDataResult?.student_check,
+          shouldValidate: setupDataResult?.student_check?.toLowerCase() === 'yes'
+        });
+
+        // Only validate if student_check is 'Yes'
+        if (setupDataResult?.student_check?.toLowerCase() === 'yes') {
+          console.log('Validating student ID before form submission...');
+          
+          // Check if admin client is available
+          if (!supabaseAdmin) {
+            console.error('Admin client not available');
+            toast.error('Error accessing payment records. Please contact administrator.');
+            addUserLoading.value = false;
+            return;
+          }
+          
+          // Trim the student ID for consistency
+          const trimmedId = addUserForm.value.identification.trim();
+          
+          // First try exact match
+          const { data: paymentData, error: paymentError } = await supabaseAdmin
+            .from('payments')
+            .select('identification, school_id')
+            .eq('school_id', schoolId)
+            .eq('identification', trimmedId)
+            .limit(10);
+
+          if (paymentError) {
+            console.error('Error checking student ID:', paymentError);
+            toast.error('Error checking student ID. Please try again.');
+            addUserLoading.value = false;
+            return;
+          }
+
+          // Check if we found an exact match
+          let studentExists = paymentData && paymentData.length > 0;
+
+          // If no exact match, try case-insensitive search
+          if (!studentExists) {
+            console.log('No exact match found during form submission, trying case-insensitive search...');
+            
+            // Use Postgres ILIKE for case-insensitive search with wildcards
+            const { data: caseInsensitiveResults, error: caseInsensitiveError } = await supabaseAdmin
+              .from('payments')
+              .select('identification, school_id')
+              .eq('school_id', schoolId)
+              .or(`identification.ilike.${trimmedId},identification.ilike.%${trimmedId}%`)
+              .limit(10);
+              
+            if (!caseInsensitiveError && caseInsensitiveResults && caseInsensitiveResults.length > 0) {
+              console.log('Found case-insensitive matches during form submission:', caseInsensitiveResults);
+              studentExists = true;
+              
+              // Use the exact ID that matched in the database for consistency
+              if (caseInsensitiveResults[0]?.identification) {
+                addUserForm.value.identification = caseInsensitiveResults[0].identification;
+                console.log('Updated student ID to match database:', addUserForm.value.identification);
+              }
+            }
+          }
+           
+          // If still no match, try one more approach with a more flexible search
+          if (!studentExists) {
+            console.log('No matches found during form submission, trying more flexible pattern matching...');
+            
+            // Try a more flexible pattern match
+            const { data: flexibleResults, error: flexibleError } = await supabaseAdmin
+              .from('payments')
+              .select('identification, school_id')
+              .eq('school_id', schoolId)
+              .or(`identification.ilike.%${trimmedId}%,identification.ilike.${trimmedId}%,identification.ilike.%${trimmedId}`)
+              .limit(10);
+            
+            if (!flexibleError && flexibleResults && flexibleResults.length > 0) {
+              console.log('Found matches with flexible pattern matching during form submission:', flexibleResults);
+              studentExists = true;
+              
+              // Use the exact ID that matched in the database for consistency
+              if (flexibleResults[0]?.identification) {
+                addUserForm.value.identification = flexibleResults[0].identification;
+                console.log('Updated student ID to match database (flexible search):', addUserForm.value.identification);
+              }
+            }
+          }
+          
+          // Detailed debugging
+          console.log('Student ID check details for form submission:', {
+            enteredId: addUserForm.value.identification,
+            trimmedId,
+            schoolId,
+            paymentData,
+            paymentCount: paymentData?.length || 0,
+            studentExists
+          });
+          
+          if (!studentExists) {
+            toast.error('Student ID not found in payment records. Please check and try again.');
+            addUserLoading.value = false;
+            return;
+          }
+        } else {
+          console.log('Student ID validation is disabled, skipping validation');
+        }
+      }
+    } else {
+      addUserLoading.value = true;
+    }
 
     // Get the school_id based on user role
     const schoolId = currentUserRole.value === 'admin' 
@@ -744,7 +1166,7 @@ const handleAddUser = async () => {
       email: addUserForm.value.email,
       username: addUserForm.value.username,
       role: addUserForm.value.role,
-      identification: addUserForm.value.identification,
+      identification: addUserForm.value.identification.trim(), // Ensure ID is trimmed
       gradeLevel: addUserForm.value.gradeLevel,
       dob: addUserForm.value.dob,
       age: addUserForm.value.age || undefined,
@@ -821,6 +1243,17 @@ watch(() => addUserForm.value.dob, (newDob) => {
   }
 })
 
+// Add a watch for identification changes when role is student
+watch(() => addUserForm.value.identification, (newId, oldId) => {
+  if (addUserForm.value.role === 'student' && !newId && oldId && isUsernameAutopopulated.value) {
+    // Clear username and family_name when ID is manually cleared
+    addUserForm.value.username = '';
+    addUserForm.value.family_name = '';
+    isUsernameAutopopulated.value = false;
+    console.log('Cleared auto-populated fields because student ID was cleared');
+  }
+})
+
 const selectedNationality = computed(() => {
   return addUserForm.value.nationality 
     ? nationalityOptions.find(n => n.value === addUserForm.value.nationality)?.label 
@@ -828,13 +1261,13 @@ const selectedNationality = computed(() => {
 })
 
 const generateRoleBasedId = async (role: string) => {
-  if (role === 'superadmin') return '';
+  if (role === 'superadmin' || role === 'student') return '';
 
   // Define role prefixes
   const prefixes: { [key: string]: string } = {
     admin: 'AD',
     teacher: 'TA',
-    student: 'ST',
+    student: 'ST', // Keep this for reference, even though student IDs aren't auto-generated now
     parent: 'PA',
     accountant: 'AC',
     registrar: 'RG'
@@ -932,12 +1365,52 @@ watch(() => addUserForm.value.role, async (newRole) => {
   console.log('Role changed:', { 
     newRole, 
     autoGenerateEnabled: autoGenerateEnabled.value,
-    shouldGenerate: newRole && newRole !== 'superadmin' && autoGenerateEnabled.value 
+    shouldGenerate: newRole && newRole !== 'superadmin' && newRole !== 'student' && autoGenerateEnabled.value 
   });
   
-  addUserForm.value.identification = '';
+  // Reset validation state and auto-populated flags
+  studentIdValid.value = null;
+  studentIdMessage.value = '';
+  isUsernameAutopopulated.value = false;
   
-  if (newRole && newRole !== 'superadmin' && autoGenerateEnabled.value) {
+  // Always reset these flags when role changes
+  hasLoadedStudentIds.value = false;
+  availableStudentIds.value = [];
+  
+  // If role is student, fetch available student IDs and check if we should clear the ID
+  if (newRole === 'student') {
+    // Force fetch available IDs regardless of previous state
+    fetchAvailableStudentIds();
+    
+    // Check if student_check is enabled
+    const schoolId = currentUserRole.value === 'admin' 
+      ? authStore.userRole?.school_id 
+      : authStore.getSelectedSchoolId;
+      
+    if (schoolId) {
+      try {
+        const { data: setupData, error } = await supabase
+          .from('setup')
+          .select('student_check')
+          .eq('school_id', schoolId)
+          .single();
+          
+        if (!error && setupData) {
+          // Only clear the identification field if student_check is not 'Yes'
+          if (setupData.student_check?.toLowerCase() !== 'yes') {
+            console.log('Student check is not enabled, clearing identification field');
+            addUserForm.value.identification = '';
+          } else {
+            console.log('Student check is enabled, keeping identification field');
+          }
+        }
+      } catch (err) {
+        console.error('Error checking student_check setting:', err);
+      }
+    }
+  } else if (newRole && newRole !== 'superadmin' && autoGenerateEnabled.value) {
+    // For non-student roles, clear the ID field and generate a new one if auto-generate is enabled
+    addUserForm.value.identification = '';
     try {
       isGeneratingId.value = true;
       const id = await generateRoleBasedId(newRole);
@@ -951,6 +1424,9 @@ watch(() => addUserForm.value.role, async (newRole) => {
     } finally {
       isGeneratingId.value = false;
     }
+  } else {
+    // For superadmin or when auto-generate is disabled, just clear the ID
+    addUserForm.value.identification = '';
   }
 });
 
@@ -982,6 +1458,74 @@ onMounted(async () => {
 watch(() => authStore.getSelectedSchoolId, async () => {
   await checkAutoGenerateSettings();
 });
+
+// Add a function to fetch available student IDs
+const availableStudentIds = ref<string[]>([]);
+const isLoadingStudentIds = ref(false);
+const hasLoadedStudentIds = ref(false);
+
+const fetchAvailableStudentIds = async () => {
+  // Only fetch IDs when role is student
+  if (addUserForm.value.role !== 'student') return;
+  
+  // Reset the loaded state when fetching again
+  hasLoadedStudentIds.value = false;
+  isLoadingStudentIds.value = true;
+  availableStudentIds.value = [];
+  
+  try {
+    // Get the school_id
+    const schoolId = currentUserRole.value === 'admin' 
+      ? authStore.userRole?.school_id 
+      : authStore.getSelectedSchoolId;
+
+    if (!schoolId) {
+      console.error('No school ID available');
+      return;
+    }
+    
+    // Check if admin client is available
+    if (!supabaseAdmin) {
+      console.error('Admin client not available');
+      toast.error('Error accessing payment records. Please contact administrator.');
+      return;
+    }
+    
+    console.log('Fetching student IDs from payments table for school:', schoolId);
+    
+    // Fetch all distinct student IDs from payments table for this school using admin client
+    const { data, error } = await supabaseAdmin
+      .from('payments')
+      .select('identification')
+      .eq('school_id', schoolId)
+      .not('identification', 'is', null)  // Exclude null values
+      .order('identification')
+      .limit(100);
+    
+    if (error) {
+      console.error('Error fetching student IDs:', error);
+      return;
+    }
+    
+    // Extract unique IDs and filter out empty strings
+    const uniqueIds = [...new Set(data?.map(item => item.identification?.trim()))]
+      .filter(id => id && id.trim() !== '');
+    
+    availableStudentIds.value = uniqueIds;
+    
+    console.log('Available student IDs in payments table:', {
+      count: uniqueIds.length,
+      ids: uniqueIds,
+      rawData: data
+    });
+    
+    hasLoadedStudentIds.value = true;
+  } catch (error) {
+    console.error('Error in fetchAvailableStudentIds:', error);
+  } finally {
+    isLoadingStudentIds.value = false;
+  }
+};
 </script>
 
 <style scoped lang="scss">
@@ -1009,9 +1553,13 @@ watch(() => authStore.getSelectedSchoolId, async () => {
   padding: 2.5rem 3rem 2rem 3rem;
   position: relative;
   animation: modal-pop-in 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.65s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transform-origin: center;
+  will-change: transform, max-width;
 
   &.expanded {
     max-width: 1200px;
+    transform: scale(1.01);
   }
 }
 
@@ -1064,6 +1612,12 @@ watch(() => authStore.getSelectedSchoolId, async () => {
     padding: 2rem;
     margin-bottom: 1.5rem;
     height: 100%;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+
+    &:hover {
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+    }
 
     &:last-child {
       margin-bottom: 0;
@@ -1077,6 +1631,19 @@ watch(() => authStore.getSelectedSchoolId, async () => {
     font-size: 0.95rem;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    position: relative;
+    padding-bottom: 0.75rem;
+    
+    &:after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 40px;
+      height: 3px;
+      background: #42b883;
+      border-radius: 3px;
+    }
   }
 
   .form-control,
@@ -1148,10 +1715,24 @@ watch(() => authStore.getSelectedSchoolId, async () => {
 // Modal fade/scale animation
 .modern-modal-fade-enter-active,
 .modern-modal-fade-leave-active {
-  transition: opacity 0.2s;
+  transition: opacity 0.3s, transform 0.3s;
 }
 .modern-modal-fade-enter-from,
 .modern-modal-fade-leave-to {
+  opacity: 0;
+  transform: scale(0.95);
+}
+
+// Slide fade transition for the right panel
+.slide-fade-enter-active {
+  transition: all 0.65s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.slide-fade-leave-active {
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.slide-fade-enter-from,
+.slide-fade-leave-to {
+  transform: translateX(40px);
   opacity: 0;
 }
 
@@ -1189,6 +1770,18 @@ watch(() => authStore.getSelectedSchoolId, async () => {
   z-index: 50;
   max-height: 250px;
   overflow-y: auto;
+  animation: dropdown-fade-in 0.2s ease;
+}
+
+@keyframes dropdown-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .custom-select-options {
@@ -1245,17 +1838,37 @@ watch(() => authStore.getSelectedSchoolId, async () => {
 
 // Add transition styles
 .transition-width {
-  transition: all 0.3s ease-in-out;
+  transition: all 0.65s cubic-bezier(0.34, 1.56, 0.64, 1);
+  will-change: width, flex-basis, transform;
+  transform-origin: left center;
+  
+  &.col-md-12 {
+    animation: width-full 0.65s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  
+  &.col-md-6 {
+    animation: width-half 0.65s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+}
+
+@keyframes width-full {
+  from { width: 50%; }
+  to { width: 100%; }
+}
+
+@keyframes width-half {
+  from { width: 100%; }
+  to { width: 50%; }
 }
 
 .fade-enter {
-  animation: fadeIn 0.3s ease-in-out;
+  animation: fadeIn 0.65s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 @keyframes fadeIn {
   from {
     opacity: 0;
-    transform: translateX(20px);
+    transform: translateX(40px);
   }
   to {
     opacity: 1;
@@ -1308,5 +1921,77 @@ textarea.form-control {
   margin: 1rem 0 0.5rem;
   padding-bottom: 0.5rem;
   border-bottom: 1px solid #e2e8f0;
+}
+
+// Add CSS for the available ID badges
+.available-ids-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  max-height: 100px;
+  overflow-y: auto;
+  padding: 0.5rem;
+  background-color: #f8f9fa;
+  border-radius: 0.5rem;
+}
+
+.available-id-badge {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  background-color: #e9ecef;
+  border-radius: 0.25rem;
+  font-size: 0.8rem;
+  color: #495057;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.available-id-badge:hover {
+  background-color: #42b883;
+  color: white;
+}
+
+// Add animation for form inputs
+.form-control, .form-select {
+  &:focus {
+    animation: input-pulse 1s ease;
+  }
+}
+
+@keyframes input-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(66, 184, 131, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 5px rgba(66, 184, 131, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(66, 184, 131, 0);
+  }
+}
+
+// Row animation
+.row.expanded {
+  animation: row-expand 0.65s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes row-expand {
+  from {
+    opacity: 0.95;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+// Add styling for auto-populated fields
+.auto-populated {
+  background-color: #f0f9f4 !important;
+  border-color: #42b883 !important;
+  color: #2c3e50 !important;
+  font-weight: 500;
+  box-shadow: inset 0 0 0 1px rgba(66, 184, 131, 0.2);
 }
 </style> 

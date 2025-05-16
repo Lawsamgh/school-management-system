@@ -55,7 +55,7 @@ export const getUsersWithRoles = async (requestingRole?: string, schoolId?: stri
     // Build the query for roles data
     let query = admin
       .from('user_roles')
-      .select('email, role, username, identification, grade_level, dob, age, gender, class_id, nationality, religion, classes(class_name), school_id');
+      .select('email, role, username, identification, grade_level, dob, age, gender, class_id, nationality, religion, family_name, family_relationship, family_email, address, emergency_contact, classes(class_name), school_id');
 
     // Add school_id filter if provided
     if (schoolId) {
@@ -91,6 +91,11 @@ export const getUsersWithRoles = async (requestingRole?: string, schoolId?: stri
         })(),
         nationality: userRole ? userRole.nationality : null,
         religion: userRole ? userRole.religion : null,
+        family_name: userRole ? userRole.family_name : null,
+        family_relationship: userRole ? userRole.family_relationship : null,
+        family_email: userRole ? userRole.family_email : null,
+        address: userRole ? userRole.address : null,
+        emergency_contact: userRole ? userRole.emergency_contact : null,
         school_id: userRole ? userRole.school_id : null
       };
     });
@@ -205,7 +210,12 @@ export const updateUserWithRole = async ({
   gender,
   class_id,
   nationality,
-  religion 
+  religion,
+  family_name,
+  family_relationship,
+  family_email,
+  address,
+  emergency_contact 
 }: { 
   email: string, 
   username: string, 
@@ -217,7 +227,12 @@ export const updateUserWithRole = async ({
   gender?: string,
   class_id?: string,
   nationality?: string,
-  religion?: string 
+  religion?: string,
+  family_name?: string,
+  family_relationship?: string,
+  family_email?: string,
+  address?: string,
+  emergency_contact?: string
 }) => {
   try {
     // 1. Find the user by email in Auth
@@ -245,7 +260,12 @@ export const updateUserWithRole = async ({
         gender: gender || null,
         class_id: class_id || null,
         nationality: nationality || null,
-        religion: religion || null
+        religion: religion || null,
+        family_name: family_name || null,
+        family_relationship: family_relationship || null,
+        family_email: family_email || null,
+        address: address || null,
+        emergency_contact: emergency_contact || null
       })
       .eq('email', email)
     if (roleError) throw roleError

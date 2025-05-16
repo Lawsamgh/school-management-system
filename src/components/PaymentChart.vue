@@ -25,25 +25,50 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
-import Chart from 'chart.js/auto'
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
+import { Chart } from 'chart.js/auto'
+import type { ChartConfiguration } from 'chart.js'
 import { getPaymentsByDateRange } from '@/api/payments'
 import { useToast } from 'vue-toastification'
+import { useAuthStore } from '@/store/auth'
 
 const toast = useToast()
-const chart = ref(null)
-const chartInstance = ref(null)
+const authStore = useAuthStore()
+const chart = ref<HTMLCanvasElement | null>(null)
+const chartInstance = ref<Chart | null>(null)
 const loading = ref(true)
 const selectedYear = ref(new Date().getFullYear())
+
+// Get the user role for permission checks
+const userRole = computed(() => authStore.userRole?.role?.toLowerCase() || '')
+
+// Determine the appropriate school_id based on user role
+const schoolId = computed(() => {
+  if (userRole.value === 'admin') {
+    return authStore.userRole?.school_id
+  } else if (userRole.value === 'superadmin') {
+    return authStore.getSelectedSchoolId
+  }
+  return authStore.userRole?.school_id
+})
 
 // Available years (current year and 4 years back)
 const availableYears = ref(
   Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i)
 )
 
-const initChart = (data) => {
-  const ctx = chart.value?.getContext('2d')
-  if (!ctx) return
+const initChart = (data: number[]) => {
+  const canvas = chart.value
+  if (!canvas) {
+    console.log('Canvas element not found')
+    return
+  }
+
+  const ctx = canvas.getContext('2d')
+  if (!ctx) {
+    console.log('Failed to get canvas context')
+    return
+  }
 
   // Destroy existing chart if it exists
   if (chartInstance.value) {
@@ -55,7 +80,7 @@ const initChart = (data) => {
     'July', 'August', 'September', 'October', 'November', 'December'
   ]
 
-  chartInstance.value = new Chart(ctx, {
+  const chartConfig: ChartConfiguration<'bar', number[], string> = {
     type: 'bar',
     data: {
       labels: months,
@@ -91,18 +116,22 @@ const initChart = (data) => {
         }
       }
     }
-  })
+  }
+
+  chartInstance.value = new Chart(ctx, chartConfig)
 }
 
 const fetchData = async () => {
   try {
     loading.value = true
     console.log('Fetching data for year:', selectedYear.value)
+    console.log('Using school ID:', schoolId.value)
 
     const startDate = `${selectedYear.value}-01-01`
     const endDate = `${selectedYear.value}-12-31`
     
-    const data = await getPaymentsByDateRange(startDate, endDate)
+    // Pass the school_id to filter payments by school
+    const data = await getPaymentsByDateRange(startDate, endDate, schoolId.value)
     console.log('Received data:', data)
 
     // Process data into monthly totals
@@ -124,6 +153,17 @@ const fetchData = async () => {
     loading.value = false
   }
 }
+
+// Watch for changes to the selected school (for superadmin)
+watch(
+  () => authStore.getSelectedSchoolId,
+  () => {
+    if (userRole.value === 'superadmin') {
+      console.log('School changed, refreshing chart data...')
+      fetchData()
+    }
+  }
+)
 
 onMounted(() => {
   console.log('PaymentChart mounted')
