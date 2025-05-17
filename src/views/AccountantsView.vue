@@ -474,9 +474,13 @@
                   <div class="form-floating">
                     <select class="form-select" id="paymentType" v-model="paymentForm.payment_type" required>
                       <option value="">Select payment method</option>
-                      <option value="Cash">Cash</option>
-                      <option value="Momo">Mobile Money (Momo)</option>
-                      <option value="Bank">Bank Transfer</option>
+                      <option 
+                        v-for="type in paymentTypes" 
+                        :key="type.id" 
+                        :value="type.type_name"
+                      >
+                        {{ type.type_name }}
+                      </option>
                     </select>
                     <label for="paymentType">Payment Method</label>
                   </div>
@@ -1071,6 +1075,10 @@ const paymentForm = ref({
 // Payment options from the database
 const paymentOptions = ref<{ id: number; payment_for: string; amount: number; currency: string }[]>([]);
 
+// Payment types from the database
+const paymentTypes = ref<{ id: number; type_name: string; school_id?: string }[]>([]);
+
+// Add a computed property to check if user is superadmin with no school selected
 // Add a computed property to check if user is superadmin with no school selected
 const isSuperadminWithNoSchool = computed(() => {
   return userRole.value === 'superadmin' && !selectedSchoolId.value;
@@ -1336,7 +1344,20 @@ onMounted(async () => {
   
   // Fetch school info
   await fetchSchoolInfo();
+  
+  // Fetch payment types
+  await fetchPaymentTypes();
 });
+
+// Add watch for selectedSchoolId to refresh payment types
+watch(
+  () => selectedSchoolId.value,
+  async () => {
+    if (userRole.value === 'superadmin') {
+      await fetchPaymentTypes();
+    }
+  }
+);
 
 // Check database connection and table access
 const checkDbConnection = async () => {
@@ -1447,7 +1468,11 @@ const fetchPaymentOptions = async () => {
   try {
     console.log('Fetching payment options using API...');
     
-    const data = await getPaymentOptions();
+    // Get current school ID
+    const schoolId = getCurrentSchoolId();
+    console.log('Fetching payment options for school ID:', schoolId);
+    
+    const data = await getPaymentOptions(schoolId);
     
     console.log('Payment options fetched:', data);
     paymentOptions.value = data;
@@ -1474,13 +1499,80 @@ const fetchPaymentOptions = async () => {
   }
 };
 
+// Fetch payment types from Supabase
+const fetchPaymentTypes = async () => {
+  try {
+    console.log('Fetching payment types...');
+    
+    // Get the appropriate school_id based on user role
+    const schoolId = getCurrentSchoolId();
+    console.log('Fetching payment types for school ID:', schoolId);
+    
+    // Skip if no school ID is available (for superadmin with no selection)
+    if (!schoolId && userRole.value === 'superadmin') {
+      console.log('No school selected, using default payment types');
+      paymentTypes.value = [
+        { id: 1, type_name: 'Cash' },
+        { id: 2, type_name: 'Momo' },
+        { id: 3, type_name: 'Bank' }
+      ];
+      return;
+    }
+    
+    // Build query with school_id filter
+    let query = supabase.from('payments_type').select('*');
+    
+    // Add school_id filter if available
+    if (schoolId) {
+      query = query.eq('school_id', schoolId);
+    }
+    
+    // Execute the query
+    const { data, error } = await query.order('id', { ascending: true });
+    
+    if (error) {
+      console.error('Error fetching payment types:', error);
+      throw error;
+    }
+    
+    console.log('Payment types data:', data);
+    
+    // Use the fetched data or fallback to defaults if empty
+    if (data && data.length > 0) {
+      paymentTypes.value = data;
+    } else {
+      console.log('No payment types found, using defaults');
+      paymentTypes.value = [
+        { id: 1, type_name: 'Cash' },
+        { id: 2, type_name: 'Momo' },
+        { id: 3, type_name: 'Bank' }
+      ];
+    }
+  } catch (error) {
+    console.error('Error fetching payment types:', error);
+    toast.warning('Unable to load payment types. Using default options.');
+    
+    // Use default payment types on error
+    paymentTypes.value = [
+      { id: 1, type_name: 'Cash' },
+      { id: 2, type_name: 'Momo' },
+      { id: 3, type_name: 'Bank' }
+    ];
+  }
+};
+
 // Open payment modal
-const openPaymentModal = () => {
+const openPaymentModal = async () => {
   // Reset mode and search
   paymentMode.value = 'new';
   followUpSearch.value = '';
   selectedFollowUpPayment.value = null;
   studentFeedback.value = ''; // Reset the feedback message
+  
+  // Ensure payment types are loaded
+  if (paymentTypes.value.length === 0) {
+    await fetchPaymentTypes();
+  }
   
   // Reset form with a new generated ID
   paymentForm.value = {

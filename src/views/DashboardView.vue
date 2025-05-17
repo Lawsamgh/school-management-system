@@ -246,7 +246,7 @@
                   </button>
 
                   <router-link 
-                    v-if="isTeacherOrHigher"
+                    v-if="isTeacherOrHigher && (userRole?.toLowerCase() === 'superadmin' || teacherPortalEnabled)"
                     to="/teachers"
                     class="action-button"
                   >
@@ -507,6 +507,7 @@ const monthlyStats = ref<number[]>(Array(12).fill(0))
 const initChart = ref(false)
 const chartInitialized = ref(false)
 const hasPaymentData = ref(false)
+const teacherPortalEnabled = ref(false)
 const hasSchoolSelected = computed(() => {
   return !!authStore.getSelectedSchoolId
 })
@@ -920,6 +921,9 @@ onMounted(async () => {
     }
     await fetchRecentPayments()
     
+    // Fetch school setup info to check teacher_portal
+    await fetchSchoolInfo()
+    
     // Fetch counts based on role
     if (userRole.value?.toLowerCase() === 'superadmin') {
       await fetchSchoolCount()
@@ -1009,6 +1013,48 @@ const handleChangePassword = () => {
     showChangePasswordModal.value = true
   })
 }
+
+// Now, update the fetchSchoolInfo function to check for teacher_portal field
+const fetchSchoolInfo = async () => {
+  try {
+    // Get the school_id based on user role
+    const schoolId = userRole.value?.toLowerCase() === 'admin' 
+      ? authStore.userRole?.school_id 
+      : userRole.value?.toLowerCase() === 'superadmin' ? authStore.getSelectedSchoolId : authStore.userRole?.school_id;
+    
+    if (!schoolId) {
+      console.log('No school_id found');
+      return;
+    }
+    
+    const { data: setupData, error: setupError } = await supabase
+      .from('setup')
+      .select('*')
+      .eq('school_id', schoolId)
+      .single();
+      
+    if (!setupError && setupData) {
+      // Look for teacher_portal field (case insensitive)
+      const setupDataKeys = Object.keys(setupData);
+      const teacherPortalField = setupDataKeys.find(key => 
+        key.toLowerCase() === 'teacher_portal'
+      );
+      
+      // Update the teacher portal enabled state
+      if (teacherPortalField) {
+        const value = setupData[teacherPortalField];
+        teacherPortalEnabled.value = String(value).toUpperCase() === 'YES';
+      } else {
+        teacherPortalEnabled.value = false;
+      }
+      
+      console.log('Teacher portal enabled:', teacherPortalEnabled.value);
+    }
+  } catch (error) {
+    console.error('Error fetching school setup:', error);
+    teacherPortalEnabled.value = false;
+  }
+};
 </script>
 
 <style lang="scss" scoped>

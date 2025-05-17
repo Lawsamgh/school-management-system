@@ -76,12 +76,22 @@ export const getPaymentsByDateRange = async (
 }
 
 // Get payment options (like fees types and amounts)
-export const getPaymentOptions = async () => {
+export const getPaymentOptions = async (schoolId?: string | null) => {
   try {
-    const { data, error } = await admin
+    // Start building the query
+    let query = admin
       .from('payments_setup')
       .select('id, payment_for, amount, currency, created_at')
-      .order('payment_for', { ascending: true })
+      
+    // Add school_id filter if provided
+    if (schoolId) {
+      query = query.eq('school_id', schoolId)
+    }
+    
+    // Order by payment_for
+    query = query.order('payment_for', { ascending: true })
+    
+    const { data, error } = await query
       
     if (error) throw error
     return data || []

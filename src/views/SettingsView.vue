@@ -62,8 +62,8 @@
                   :class="{ active: activeTab === 'security' }"
                   @click="activeTab = 'security'"
                 >
-                  <i class="fas fa-shield-alt"></i>
-                  <span>Security</span>
+                  <i class="fas fa-list"></i>
+                  <span>Manage Value List</span>
                 </div>
                 <div 
                   class="settings-tab-item" 
@@ -91,6 +91,14 @@
                 >
                   <i class="fas fa-running"></i>
                   <span>Manage Activities</span>
+                </div>
+                <div 
+                  class="settings-tab-item" 
+                  :class="{ active: activeTab === 'security' }"
+                  @click="activeTab = 'security'"
+                >
+                  <i class="fas fa-list"></i>
+                  <span>Manage Value List</span>
                 </div>
               </template>
             </div>
@@ -416,9 +424,114 @@
               </div>
             </div>
 
-            <!-- Security Settings - Admin Only -->
-            <div v-if="userRole === 'superadmin'" v-show="activeTab === 'security'" class="settings-card">
-              <!-- ... existing security content ... -->
+            <!-- Security Settings - Visible to both Admin and Superadmin -->
+            <div v-if="userRole === 'superadmin' || userRole === 'admin'" v-show="activeTab === 'security'" class="settings-card">
+              <div class="settings-card-header">
+                <h2>
+                  <i class="fas fa-list"></i>
+                  Manage Value List
+                </h2>
+              </div>
+              <div class="settings-card-body">
+                <div class="alert alert-info mb-4">
+                  <i class="fas fa-info-circle me-2"></i>
+                  Manage system value lists that are used throughout the application.
+                </div>
+                
+                <div class="row g-4">
+                  <!-- Class Levels Card -->
+                  <div class="col-md-6 col-lg-4">
+                    <div class="value-list-card">
+                      <div class="value-card-icon">
+                        <i class="fas fa-layer-group"></i>
+                      </div>
+                      <div class="value-card-content">
+                        <h4>Class Levels</h4>
+                        <p>Manage grade levels and classes</p>
+                      </div>
+                      <div class="value-card-actions">
+                        <button class="btn-value-action">
+                          <i class="fas fa-chevron-right"></i>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Subjects Card -->
+                  <div class="col-md-6 col-lg-4">
+                    <div class="value-list-card">
+                      <div class="value-card-icon">
+                        <i class="fas fa-book"></i>
+                      </div>
+                      <div class="value-card-content">
+                        <h4>Subjects</h4>
+                        <p>Manage academic subjects</p>
+                      </div>
+                      <div class="value-card-actions">
+                        <button class="btn-value-action">
+                          <i class="fas fa-chevron-right"></i>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Academic Terms Card -->
+                  <div class="col-md-6 col-lg-4">
+                    <div class="value-list-card">
+                      <div class="value-card-icon">
+                        <i class="fas fa-calendar-alt"></i>
+                      </div>
+                      <div class="value-card-content">
+                        <h4>Academic Terms</h4>
+                        <p>Manage terms and semesters</p>
+                      </div>
+                      <div class="value-card-actions">
+                        <button class="btn-value-action">
+                          <i class="fas fa-chevron-right"></i>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Payment Types Card -->
+                  <div class="col-md-6 col-lg-4">
+                    <div class="value-list-card">
+                      <div class="value-card-icon">
+                        <i class="fas fa-money-bill-wave"></i>
+                      </div>
+                      <div class="value-card-content">
+                        <h4>Payment Types</h4>
+                        <p>Manage payment categories</p>
+                      </div>
+                      <div class="value-card-actions">
+                        <button class="btn-value-action" @click="openPaymentTypesModal">
+                          <i class="fas fa-chevron-right"></i>
+                        </button>
+                      </div>
+                      <span class="value-list-badge" v-if="paymentTypes.length > 0">{{ paymentTypes.length }}</span>
+                    </div>
+                  </div>
+
+                  <!-- Class Fees Setup Card (previously Departments) -->
+                  <div class="col-md-6 col-lg-4">
+                    <div class="value-list-card">
+                      <div class="value-card-icon">
+                        <i class="fas fa-money-check-alt"></i>
+                      </div>
+                      <div class="value-card-content">
+                        <h4>Class Fees Setup</h4>
+                        <p>Manage class fee structures</p>
+                      </div>
+                      <div class="value-card-actions">
+                        <button class="btn-value-action" @click="openClassFeesModal">
+                          <i class="fas fa-chevron-right"></i>
+                        </button>
+                      </div>
+                      <span class="value-list-badge" v-if="fees.length > 0">{{ fees.length }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <!-- Appearance Settings - Admin Only -->
@@ -620,6 +733,520 @@
               </span>
               <span v-else>
                 <i class="fas fa-save me-2"></i>Save Changes
+              </span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Class Fees Setup Modal -->
+    <div v-show="isClassFeesModalOpen" class="modal-overlay">
+      <div class="modal-container" style="max-width: 800px; width: 90%;">
+        <div class="modal-content">
+          <div class="modal-header">
+            <i class="fas fa-money-check-alt text-primary"></i>
+            <h3>Class Fees Setup</h3>
+            <button class="modal-close-btn" @click="closeClassFeesModal">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+          <div class="modal-body">
+            <div class="alert alert-info mb-4">
+              <i class="fas fa-info-circle me-2"></i>
+              Manage payment types and fees for different class levels.
+            </div>
+            
+            <!-- Add New Fee Form -->
+            <div class="card mb-4">
+              <div class="card-header bg-light">
+                <h5 class="mb-0">Add New Fee</h5>
+              </div>
+              <div class="card-body">
+                <form @submit.prevent="saveFee">
+                  <div class="row g-3">
+                    <div class="col-md-6">
+                      <div class="form-group">
+                        <label for="paymentFor" class="form-label">Fee Description <span class="text-danger">*</span></label>
+                        <input 
+                          type="text" 
+                          id="paymentFor" 
+                          v-model="newFee.payment_for" 
+                          class="form-control"
+                          placeholder="E.g. Tuition Fee, Sport Fee, etc."
+                          required
+                        >
+                      </div>
+                    </div>
+                    <div class="col-md-3">
+                      <div class="form-group">
+                        <label for="amount" class="form-label">Amount <span class="text-danger">*</span></label>
+                        <input 
+                          type="number" 
+                          id="amount" 
+                          v-model="newFee.amount" 
+                          class="form-control"
+                          placeholder="Amount"
+                          min="0"
+                          step="0.01"
+                          required
+                        >
+                      </div>
+                    </div>
+                    <div class="col-md-3">
+                      <div class="form-group">
+                        <label for="currency" class="form-label">Currency <span class="text-danger">*</span></label>
+                        <input 
+                          type="text" 
+                          id="currency" 
+                          v-model="newFee.currency" 
+                          class="form-control"
+                          placeholder="GHS, USD, EUR."
+                          required
+                        >
+                      </div>
+                    </div>
+                    <div class="col-12 text-end">
+                      <button 
+                        type="submit" 
+                        class="btn btn-primary" 
+                        :disabled="savingFee"
+                      >
+                        <i class="fas fa-save me-2"></i>
+                        {{ savingFee ? 'Saving...' : 'Save Fee' }}
+                      </button>
+                    </div>
+                  </div>
+                </form>
+              </div>
+            </div>
+            
+            <!-- Existing Fees Table -->
+            <div class="card">
+              <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Existing Fees</h5>
+                <div v-if="loadingFees" class="spinner-border spinner-border-sm text-primary" role="status">
+                  <span class="visually-hidden">Loading...</span>
+                </div>
+              </div>
+              <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                  <thead class="table-light">
+                    <tr>
+                      <th>ID</th>
+                      <th>Fee Description</th>
+                      <th>Amount</th>
+                      <th>Currency</th>
+                      <th class="text-end">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-if="loadingFees && fees.length === 0">
+                      <td colspan="5" class="text-center py-4">
+                        <div class="spinner-border text-primary" role="status">
+                          <span class="visually-hidden">Loading...</span>
+                        </div>
+                      </td>
+                    </tr>
+                    <tr v-else-if="fees.length === 0">
+                      <td colspan="5" class="text-center py-4">
+                        No fees found. Add your first fee above.
+                      </td>
+                    </tr>
+                    <tr v-for="fee in fees" :key="fee.id">
+                      <td>{{ fee.id }}</td>
+                      <td>{{ fee.payment_for }}</td>
+                      <td>{{ fee.amount }}</td>
+                      <td>{{ fee.currency }}</td>
+                      <td class="text-end">
+                        <button 
+                          class="btn btn-sm btn-outline-primary me-2" 
+                          @click="editFee(fee)"
+                        >
+                          <i class="fas fa-edit"></i>
+                        </button>
+                        <button 
+                          class="btn btn-sm btn-outline-danger" 
+                          @click="confirmDeleteFee(fee)"
+                          :disabled="deletingFeeId === fee.id"
+                        >
+                          <i v-if="deletingFeeId === fee.id" class="fas fa-spinner fa-spin"></i>
+                          <i v-else class="fas fa-trash"></i>
+                        </button>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-secondary" @click="closeClassFeesModal">
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Edit Fee Modal -->
+    <div v-show="isEditFeeModalOpen" class="modal-overlay">
+      <div class="modal-container">
+        <div class="modal-content">
+          <div class="modal-header">
+            <i class="fas fa-edit text-primary"></i>
+            <h3>Edit Fee</h3>
+            <button class="modal-close-btn" @click="closeEditFeeModal">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+          <div class="modal-body">
+            <form @submit.prevent="updateFee">
+              <div class="row g-3">
+                <div class="col-md-12">
+                  <div class="form-group">
+                    <label for="editPaymentFor" class="form-label">Fee Description <span class="text-danger">*</span></label>
+                    <input 
+                      type="text" 
+                      id="editPaymentFor" 
+                      v-model="editingFee.payment_for" 
+                      class="form-control"
+                      placeholder="E.g. Tuition Fee, Sport Fee, etc."
+                      required
+                    >
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="form-group">
+                    <label for="editAmount" class="form-label">Amount <span class="text-danger">*</span></label>
+                    <input 
+                      type="number" 
+                      id="editAmount" 
+                      v-model="editingFee.amount" 
+                      class="form-control"
+                      placeholder="Amount"
+                      min="0"
+                      step="0.01"
+                      required
+                    >
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="form-group">
+                    <label for="editCurrency" class="form-label">Currency <span class="text-danger">*</span></label>
+                    <input 
+                      type="text" 
+                      id="editCurrency" 
+                      v-model="editingFee.currency" 
+                      class="form-control"
+                      placeholder="USD, EUR, etc."
+                      required
+                    >
+                  </div>
+                </div>
+              </div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button 
+              class="btn btn-outline-secondary" 
+              @click="closeEditFeeModal"
+              type="button"
+            >
+              Cancel
+            </button>
+            <button 
+              class="btn btn-primary ms-2" 
+              @click="updateFee"
+              :disabled="updatingFee"
+              type="button"
+            >
+              <span v-if="updatingFee">
+                <i class="fas fa-spinner fa-spin me-2"></i>Saving...
+              </span>
+              <span v-else>
+                <i class="fas fa-save me-2"></i>Save Changes
+              </span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Delete Fee Modal -->
+    <div v-show="isDeleteFeeModalOpen" class="modal-overlay">
+      <div class="modal-container">
+        <div class="modal-content">
+          <div class="modal-header">
+            <i class="fas fa-exclamation-triangle text-danger"></i>
+            <h3>Delete Fee</h3>
+            <button class="modal-close-btn" @click="closeDeleteFeeModal">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+          <div class="modal-body">
+            <p>Are you sure you want to delete the fee "<span class="fw-bold">{{ selectedFee?.payment_for }}</span>"?</p>
+            <p class="text-muted">This action cannot be undone.</p>
+          </div>
+          <div class="modal-footer">
+            <button 
+              class="btn btn-outline-secondary" 
+              @click="closeDeleteFeeModal"
+              type="button"
+            >
+              Cancel
+            </button>
+            <button 
+              class="btn btn-danger ms-2" 
+              @click="deleteFee"
+              :disabled="deletingFeeId !== null"
+              type="button"
+            >
+              <span v-if="deletingFeeId !== null">
+                <i class="fas fa-spinner fa-spin me-2"></i>Deleting...
+              </span>
+              <span v-else>
+                <i class="fas fa-trash me-2"></i>Delete Fee
+              </span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Payment Types Modal -->
+    <div v-show="isPaymentTypesModalOpen" class="modal-overlay">
+      <div class="modal-container" style="max-width: 800px; width: 90%;">
+        <div class="modal-content">
+          <div class="modal-header">
+            <i class="fas fa-money-bill-wave text-primary"></i>
+            <h3>Payment Types</h3>
+            <button class="modal-close-btn" @click="closePaymentTypesModal">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+          <div class="modal-body">
+            <div class="alert alert-info mb-4">
+              <i class="fas fa-info-circle me-2"></i>
+              Manage payment types that can be used throughout the application.
+            </div>
+            
+            <!-- Add New Payment Type Form -->
+            <div class="card mb-4">
+              <div class="card-header bg-light">
+                <h5 class="mb-0">Add New Payment Type</h5>
+              </div>
+              <div class="card-body">
+                <form @submit.prevent="savePaymentType">
+                  <div class="row g-3">
+                    <div class="col-md-6">
+                      <div class="form-group">
+                        <label for="typeName" class="form-label">Type Name <span class="text-danger">*</span></label>
+                        <input 
+                          type="text" 
+                          id="typeName" 
+                          v-model="newPaymentType.type_name" 
+                          class="form-control"
+                          placeholder="E.g. Mobile Money, Bank etc."
+                          required
+                        >
+                      </div>
+                    </div>
+                    <div class="col-md-6">
+                      <div class="form-group">
+                        <label for="typeDescription" class="form-label">Description</label>
+                        <input 
+                          type="text" 
+                          id="typeDescription" 
+                          v-model="newPaymentType.description" 
+                          class="form-control"
+                          placeholder="Brief description of this payment type"
+                        >
+                      </div>
+                    </div>
+                    <div class="col-12 text-end">
+                      <button 
+                        type="submit" 
+                        class="btn btn-primary" 
+                        :disabled="savingPaymentType"
+                      >
+                        <i class="fas fa-save me-2"></i>
+                        {{ savingPaymentType ? 'Saving...' : 'Save Payment Type' }}
+                      </button>
+                    </div>
+                  </div>
+                </form>
+              </div>
+            </div>
+            
+            <!-- Existing Payment Types Table -->
+            <div class="card">
+              <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Existing Payment Types</h5>
+                <div v-if="loadingPaymentTypes" class="spinner-border spinner-border-sm text-primary" role="status">
+                  <span class="visually-hidden">Loading...</span>
+                </div>
+              </div>
+              <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                  <thead class="table-light">
+                    <tr>
+                      <th>ID</th>
+                      <th>Type Name</th>
+                      <th>Description</th>
+                      <th class="text-end">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-if="loadingPaymentTypes && paymentTypes.length === 0">
+                      <td colspan="4" class="text-center py-4">
+                        <div class="spinner-border text-primary" role="status">
+                          <span class="visually-hidden">Loading...</span>
+                        </div>
+                      </td>
+                    </tr>
+                    <tr v-else-if="paymentTypes.length === 0">
+                      <td colspan="4" class="text-center py-4">
+                        No payment types found. Add your first payment type above.
+                      </td>
+                    </tr>
+                    <tr v-for="type in paymentTypes" :key="type.id">
+                      <td>{{ type.id }}</td>
+                      <td>{{ type.type_name }}</td>
+                      <td>{{ type.description }}</td>
+                      <td class="text-end">
+                        <button 
+                          class="btn btn-sm btn-outline-primary me-2" 
+                          @click="editPaymentType(type)"
+                        >
+                          <i class="fas fa-edit"></i>
+                        </button>
+                        <button 
+                          class="btn btn-sm btn-outline-danger" 
+                          @click="confirmDeletePaymentType(type)"
+                          :disabled="deletingPaymentTypeId === type.id"
+                        >
+                          <i v-if="deletingPaymentTypeId === type.id" class="fas fa-spinner fa-spin"></i>
+                          <i v-else class="fas fa-trash"></i>
+                        </button>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-secondary" @click="closePaymentTypesModal">
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Edit Payment Type Modal -->
+    <div v-show="isEditPaymentTypeModalOpen" class="modal-overlay">
+      <div class="modal-container">
+        <div class="modal-content">
+          <div class="modal-header">
+            <i class="fas fa-edit text-primary"></i>
+            <h3>Edit Payment Type</h3>
+            <button class="modal-close-btn" @click="closeEditPaymentTypeModal">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+          <div class="modal-body">
+            <form @submit.prevent="updatePaymentType">
+              <div class="row g-3">
+                <div class="col-md-12">
+                  <div class="form-group">
+                    <label for="editTypeName" class="form-label">Type Name <span class="text-danger">*</span></label>
+                    <input 
+                      type="text" 
+                      id="editTypeName" 
+                      v-model="editingPaymentType.type_name" 
+                      class="form-control"
+                      placeholder="E.g. School Fees, Transportation Fee, etc."
+                      required
+                    >
+                  </div>
+                </div>
+                <div class="col-md-12">
+                  <div class="form-group">
+                    <label for="editTypeDescription" class="form-label">Description</label>
+                    <input 
+                      type="text" 
+                      id="editTypeDescription" 
+                      v-model="editingPaymentType.description" 
+                      class="form-control"
+                      placeholder="Brief description of this payment type"
+                    >
+                  </div>
+                </div>
+              </div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button 
+              class="btn btn-outline-secondary" 
+              @click="closeEditPaymentTypeModal"
+              type="button"
+            >
+              Cancel
+            </button>
+            <button 
+              class="btn btn-primary ms-2" 
+              @click="updatePaymentType"
+              :disabled="updatingPaymentType"
+              type="button"
+            >
+              <span v-if="updatingPaymentType">
+                <i class="fas fa-spinner fa-spin me-2"></i>Saving...
+              </span>
+              <span v-else>
+                <i class="fas fa-save me-2"></i>Save Changes
+              </span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Delete Payment Type Confirmation Modal -->
+    <div v-show="isDeletePaymentTypeModalOpen" class="modal-overlay">
+      <div class="modal-container">
+        <div class="modal-content">
+          <div class="modal-header">
+            <i class="fas fa-exclamation-triangle text-danger"></i>
+            <h3>Delete Payment Type</h3>
+            <button class="modal-close-btn" @click="closeDeletePaymentTypeModal">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+          <div class="modal-body">
+            <p>Are you sure you want to delete the payment type "<span class="fw-bold">{{ selectedPaymentType?.type_name }}</span>"?</p>
+            <p class="text-muted">This action cannot be undone.</p>
+          </div>
+          <div class="modal-footer">
+            <button 
+              class="btn btn-outline-secondary" 
+              @click="closeDeletePaymentTypeModal"
+              type="button"
+            >
+              Cancel
+            </button>
+            <button 
+              class="btn btn-danger ms-2" 
+              @click="deletePaymentType"
+              :disabled="deletingPaymentTypeId !== null"
+              type="button"
+            >
+              <span v-if="deletingPaymentTypeId !== null">
+                <i class="fas fa-spinner fa-spin me-2"></i>Deleting...
+              </span>
+              <span v-else>
+                <i class="fas fa-trash me-2"></i>Delete Payment Type
               </span>
             </button>
           </div>
@@ -1302,27 +1929,55 @@ watch(activeTab, (newTab) => {
   saveActiveTab(newTab)
 })
 
-// Modify the onMounted function
+// Initialize on component mount
 onMounted(async () => {
-  try {
-    // Get saved tab from localStorage
-    const savedTab = localStorage.getItem('settings_active_tab')
-    if (savedTab) {
-      activeTab.value = savedTab
+  document.title = 'Settings - School Management System'
+  
+  // Restore the active tab from localStorage if it exists
+  const savedTab = localStorage.getItem('settings_active_tab')
+  if (savedTab) {
+    activeTab.value = savedTab
+  }
+  
+  // For superadmin, check if there's a selected school and load data if so
+  if (userRole.value === 'superadmin') {
+    const currentSchoolId = authStore.getSelectedSchoolId
+    if (currentSchoolId) {
+      // If a school is already selected, load all necessary data
+      try {
+        await Promise.all([
+          fetchSchoolInfo(),
+          fetchEducationalPrograms(),
+          fetchNotificationSettings(),
+          fetchAccessPackageSettings(),
+          // Load badge data
+          fetchPaymentTypes(),
+          fetchFees()
+        ])
+      } catch (error) {
+        console.error('Error loading settings for superadmin:', error)
+        toast.error('Failed to load some settings')
+      }
+    } else {
+      // For superadmin with no school selected, just fetch educational programs
+      await fetchEducationalPrograms()
     }
-    
-    // If user is admin or superadmin has selected a school, fetch all settings
-    if (userRole.value === 'admin' || (userRole.value === 'superadmin' && authStore.getSelectedSchoolId)) {
+  } else {
+    // For admin, we can load all data immediately
+    try {
+      // Fetch all settings
       await Promise.all([
         fetchSchoolInfo(),
         fetchEducationalPrograms(),
         fetchNotificationSettings(),
-        fetchAccessPackageSettings() // Add this line
+        // Preload payment types and fees counts for the badges
+        fetchPaymentTypes(),
+        fetchFees()
       ])
+    } catch (error) {
+      console.error('Error loading settings:', error)
+      toast.error('Failed to load some settings')
     }
-  } catch (error: any) {
-    console.error('Error loading settings:', error)
-    toast.error('Failed to load settings')
   }
 })
 
@@ -1582,7 +2237,9 @@ const fetchAccessPackageSettings = async () => {
       'STUDENT_CHECK': setupData.STUDENT_CHECK,
       'studentcheck': setupData.studentcheck,
       'finance': setupData.finance,
-      'student_portal': setupData.student_portal
+      'student_portal': setupData.student_portal,
+      'teacher_portal': setupData.teacher_portal,
+      'parent_portal': setupData.parent_portal
     });
 
     // Find the actual field names in the database
@@ -1613,12 +2270,26 @@ const fetchAccessPackageSettings = async () => {
       key.toLowerCase() === 'student_portal' || 
       key.toLowerCase() === 'studentportal'
     );
+    
+    // Look for teacher_portal field with different cases
+    const teacherPortalField = setupDataKeys.find(key => 
+      key.toLowerCase() === 'teacher_portal' || 
+      key.toLowerCase() === 'teacherportal'
+    );
+    
+    // Look for parent_portal field with different cases
+    const parentPortalField = setupDataKeys.find(key => 
+      key.toLowerCase() === 'parent_portal' || 
+      key.toLowerCase() === 'parentportal'
+    );
 
     console.log('Found field names:', {
       autoGenerateIdField,
       studentCheckField,
       financeField,
-      studentPortalField
+      studentPortalField,
+      teacherPortalField,
+      parentPortalField
     });
 
     // Use the correct field names if found
@@ -1626,12 +2297,16 @@ const fetchAccessPackageSettings = async () => {
     const studentCheckValue = studentCheckField ? setupData[studentCheckField] || 'No' : 'No';
     const financeValue = financeField ? setupData[financeField] || 'No' : 'No';
     const studentPortalValue = studentPortalField ? setupData[studentPortalField] || 'No' : 'No';
+    const teacherPortalValue = teacherPortalField ? setupData[teacherPortalField] || 'No' : 'No';
+    const parentPortalValue = parentPortalField ? setupData[parentPortalField] || 'No' : 'No';
 
     console.log('Using values:', { 
       autoGenerateId: autoGenerateIdValue, 
       studentCheck: studentCheckValue,
       finance: financeValue,
-      studentPortal: studentPortalValue
+      studentPortal: studentPortalValue,
+      teacherPortal: teacherPortalValue,
+      parentPortal: parentPortalValue
     });
 
     // Update the features based on the values
@@ -1655,6 +2330,16 @@ const fetchAccessPackageSettings = async () => {
     const studentPortalFeature = accessPackage.value.features.find(f => f.name === 'Student Portal');
     if (studentPortalFeature) {
       studentPortalFeature.enabled = String(studentPortalValue).toUpperCase() === 'YES';
+    }
+    
+    const teacherPortalFeature = accessPackage.value.features.find(f => f.name === 'Teacher Portal');
+    if (teacherPortalFeature) {
+      teacherPortalFeature.enabled = String(teacherPortalValue).toUpperCase() === 'YES';
+    }
+    
+    const parentPortalFeature = accessPackage.value.features.find(f => f.name === 'Parent Portal');
+    if (parentPortalFeature) {
+      parentPortalFeature.enabled = String(parentPortalValue).toUpperCase() === 'YES';
     }
   } catch (error: any) {
     console.error('Error fetching access package settings:', error);
@@ -1692,6 +2377,8 @@ const handleFeatureToggle = async (feature: any) => {
     let studentCheckField = 'student_check';
     let financeField = 'finance';
     let studentPortalField = 'student_portal';
+    let teacherPortalField = 'teacher_portal';
+    let parentPortalField = 'parent_portal';
 
     // If we found an existing record, check for field names
     if (existingSetup) {
@@ -1721,11 +2408,25 @@ const handleFeatureToggle = async (feature: any) => {
         key.toLowerCase() === 'student_portal' || 
         key.toLowerCase() === 'studentportal'
       );
+      
+      // Look for teacher_portal field with different cases
+      const foundTeacherPortalField = setupDataKeys.find(key => 
+        key.toLowerCase() === 'teacher_portal' || 
+        key.toLowerCase() === 'teacherportal'
+      );
+      
+      // Look for parent_portal field with different cases
+      const foundParentPortalField = setupDataKeys.find(key => 
+        key.toLowerCase() === 'parent_portal' || 
+        key.toLowerCase() === 'parentportal'
+      );
 
       if (foundAutoGenerateIdField) autoGenerateIdField = foundAutoGenerateIdField;
       if (foundStudentCheckField) studentCheckField = foundStudentCheckField;
       if (foundFinanceField) financeField = foundFinanceField;
       if (foundStudentPortalField) studentPortalField = foundStudentPortalField;
+      if (foundTeacherPortalField) teacherPortalField = foundTeacherPortalField;
+      if (foundParentPortalField) parentPortalField = foundParentPortalField;
     }
 
     // Check if the setup record exists
@@ -1756,6 +2457,10 @@ const handleFeatureToggle = async (feature: any) => {
       authStore.setFinanceModuleEnabled(feature.enabled);
     } else if (feature.name === 'Student Portal') {
       updateData[studentPortalField] = feature.enabled ? 'Yes' : 'No';
+    } else if (feature.name === 'Teacher Portal') {
+      updateData[teacherPortalField] = feature.enabled ? 'Yes' : 'No';
+    } else if (feature.name === 'Parent Portal') {
+      updateData[parentPortalField] = feature.enabled ? 'Yes' : 'No';
     }
 
     // Update or insert the setup record
@@ -1792,6 +2497,9 @@ const handleFeatureToggle = async (feature: any) => {
 // Add the handler function in the script section
 const handleSchoolSelected = async (schoolId: string) => {
   if (schoolId) {
+    // Use the auth store to set the selected school ID (it handles localStorage)
+    authStore.setSelectedSchoolId(schoolId)
+    
     // Reset loading states
     savingSchoolInfo.value = false
     savingAcademic.value = false
@@ -1813,7 +2521,10 @@ const handleSchoolSelected = async (schoolId: string) => {
         fetchSchoolInfo(),
         fetchEducationalPrograms(),
         fetchNotificationSettings(),
-        fetchAccessPackageSettings() // Add this line
+        fetchAccessPackageSettings(),
+        // Load the badge counts as well
+        fetchPaymentTypes(),
+        fetchFees()
       ])
     } catch (error) {
       console.error('Error fetching settings:', error)
@@ -1848,7 +2559,9 @@ watch(
           fetchSchoolInfo(),
           fetchEducationalPrograms(),
           fetchNotificationSettings(),
-          fetchAccessPackageSettings()
+          fetchAccessPackageSettings(),
+          fetchPaymentTypes(),
+          fetchFees()
         ])
       } catch (error) {
         console.error('Error fetching settings:', error)
@@ -1856,10 +2569,492 @@ watch(
       }
     }
   },
-  { immediate: true } // This will make it run immediately on component mount
+  { immediate: false } // Changed to false to prevent immediate execution on component mount
 )
 
 // Program image preview and management
+
+// Class Fees Setup Modal
+const isClassFeesModalOpen = ref(false)
+const fees = ref<any[]>([])
+const loadingFees = ref(false)
+const savingFee = ref(false)
+const newFee = ref({
+  payment_for: '',
+  amount: null as number | null,
+  currency: ''
+})
+
+// Edit Fee Modal
+const isEditFeeModalOpen = ref(false)
+const editingFee = ref({
+  id: null as number | null,
+  payment_for: '',
+  amount: null as number | null,
+  currency: ''
+})
+const updatingFee = ref(false)
+
+// Delete Fee Modal
+const isDeleteFeeModalOpen = ref(false)
+const selectedFee = ref<any>(null)
+const deletingFeeId = ref<number | null>(null)
+
+// Class Fees Modal Functions
+const openClassFeesModal = async () => {
+  isClassFeesModalOpen.value = true
+  await fetchFees()
+}
+
+const closeClassFeesModal = () => {
+  isClassFeesModalOpen.value = false
+  resetNewFeeForm()
+}
+
+const resetNewFeeForm = () => {
+  newFee.value = {
+    payment_for: '',
+    amount: null,
+    currency: ''
+  }
+}
+
+const fetchFees = async () => {
+  loadingFees.value = true
+  try {
+    const schoolId = userRole.value === 'admin' 
+      ? authStore.userRole?.school_id 
+      : authStore.getSelectedSchoolId
+    
+    if (!schoolId) {
+      console.log('No school ID found. Please select a school first.')
+      fees.value = []
+      return
+    }
+    
+    console.log('Fetching fees for school ID:', schoolId)
+
+    const { data, error } = await supabase
+      .from('payments_setup')
+      .select('*')
+      .eq('school_id', schoolId)
+      .order('id', { ascending: true })
+
+    if (error) {
+      console.error('Error fetching fees:', error)
+      throw error
+    }
+    
+    fees.value = data || []
+    console.log('Fetched fees:', fees.value)
+  } catch (error: any) {
+    console.error('Error fetching fees:', error)
+    toast.error('Failed to load fees: ' + (error.message || 'Unknown error'))
+  } finally {
+    loadingFees.value = false
+  }
+}
+
+const saveFee = async () => {
+  savingFee.value = true
+  try {
+    const schoolId = userRole.value === 'admin' 
+      ? authStore.userRole?.school_id 
+      : authStore.getSelectedSchoolId
+    
+    if (!schoolId) {
+      throw new Error('No school ID found. Please select a school first.')
+    }
+
+    // Basic validation
+    if (!newFee.value.payment_for || !newFee.value.amount || !newFee.value.currency) {
+      throw new Error('Please fill in all required fields')
+    }
+
+    // Get the current authenticated user session
+    const { data: { session } } = await supabase.auth.getSession()
+    
+    if (!session) {
+      throw new Error('You must be logged in to perform this action')
+    }
+
+    const insertData = {
+      payment_for: newFee.value.payment_for,
+      amount: newFee.value.amount,
+      currency: newFee.value.currency.toUpperCase(),
+      school_id: schoolId
+    }
+    
+    console.log('Inserting fee with data:', insertData)
+
+    const { data, error } = await supabase
+      .from('payments_setup')
+      .insert([insertData])
+      .select()
+
+    if (error) {
+      console.error('Error inserting fee:', error)
+      throw error
+    }
+
+    toast.success('Fee added successfully')
+    await fetchFees()
+    resetNewFeeForm()
+  } catch (error: any) {
+    console.error('Error saving fee:', error)
+    toast.error('Failed to save fee: ' + (error.message || 'Unknown error'))
+  } finally {
+    savingFee.value = false
+  }
+}
+
+// Edit Fee Functions
+const editFee = (fee: any) => {
+  editingFee.value = {
+    id: fee.id,
+    payment_for: fee.payment_for,
+    amount: fee.amount,
+    currency: fee.currency
+  }
+  isEditFeeModalOpen.value = true
+}
+
+const closeEditFeeModal = () => {
+  isEditFeeModalOpen.value = false
+}
+
+const updateFee = async () => {
+  updatingFee.value = true
+  try {
+    // Basic validation
+    if (!editingFee.value.payment_for || !editingFee.value.amount || !editingFee.value.currency) {
+      throw new Error('Please fill in all required fields')
+    }
+
+    // Get the current authenticated user session
+    const { data: { session } } = await supabase.auth.getSession()
+    
+    if (!session) {
+      throw new Error('You must be logged in to perform this action')
+    }
+
+    const updateData = {
+      payment_for: editingFee.value.payment_for,
+      amount: editingFee.value.amount,
+      currency: editingFee.value.currency.toUpperCase()
+    }
+    
+    console.log('Updating fee with ID:', editingFee.value.id, 'Data:', updateData)
+
+    const { error } = await supabase
+      .from('payments_setup')
+      .update(updateData)
+      .eq('id', editingFee.value.id)
+
+    if (error) {
+      console.error('Error updating fee:', error)
+      throw error
+    }
+
+    // Update the local list
+    await fetchFees()
+    
+    toast.success('Fee updated successfully')
+    closeEditFeeModal()
+  } catch (error: any) {
+    console.error('Error updating fee:', error)
+    toast.error('Failed to update fee: ' + (error.message || 'Unknown error'))
+  } finally {
+    updatingFee.value = false
+  }
+}
+
+// Delete Fee Functions
+const confirmDeleteFee = (fee: any) => {
+  selectedFee.value = fee
+  isDeleteFeeModalOpen.value = true
+}
+
+const closeDeleteFeeModal = () => {
+  isDeleteFeeModalOpen.value = false
+  selectedFee.value = null
+}
+
+const deleteFee = async () => {
+  if (!selectedFee.value) return
+  
+  deletingFeeId.value = selectedFee.value.id
+  try {
+    // Get the current authenticated user session
+    const { data: { session } } = await supabase.auth.getSession()
+    
+    if (!session) {
+      throw new Error('You must be logged in to perform this action')
+    }
+    
+    console.log('Deleting fee with ID:', selectedFee.value.id)
+
+    const { error } = await supabase
+      .from('payments_setup')
+      .delete()
+      .eq('id', selectedFee.value.id)
+
+    if (error) {
+      console.error('Error deleting fee:', error)
+      throw error
+    }
+
+    // Remove from local list
+    fees.value = fees.value.filter(f => f.id !== selectedFee.value.id)
+    toast.success('Fee deleted successfully')
+    closeDeleteFeeModal()
+  } catch (error: any) {
+    console.error('Error deleting fee:', error)
+    toast.error('Failed to delete fee: ' + (error.message || 'Unknown error'))
+  } finally {
+    deletingFeeId.value = null
+  }
+}
+
+// ... existing code ...
+
+// Payment Types Modal
+const isPaymentTypesModalOpen = ref(false)
+const paymentTypes = ref<any[]>([])
+const loadingPaymentTypes = ref(false)
+const savingPaymentType = ref(false)
+const newPaymentType = ref({
+  type_name: '',
+  description: ''
+})
+
+// Edit Payment Type Modal
+const isEditPaymentTypeModalOpen = ref(false)
+const editingPaymentType = ref({
+  id: null as number | null,
+  type_name: '',
+  description: ''
+})
+const updatingPaymentType = ref(false)
+
+// Delete Payment Type Modal
+const isDeletePaymentTypeModalOpen = ref(false)
+const selectedPaymentType = ref<any>(null)
+const deletingPaymentTypeId = ref<number | null>(null)
+
+// Payment Types Modal Functions
+const openPaymentTypesModal = async () => {
+  isPaymentTypesModalOpen.value = true
+  await fetchPaymentTypes()
+}
+
+const closePaymentTypesModal = () => {
+  isPaymentTypesModalOpen.value = false
+  resetNewPaymentTypeForm()
+}
+
+const resetNewPaymentTypeForm = () => {
+  newPaymentType.value = {
+    type_name: '',
+    description: ''
+  }
+}
+
+const fetchPaymentTypes = async () => {
+  loadingPaymentTypes.value = true
+  try {
+    const schoolId = userRole.value === 'admin' 
+      ? authStore.userRole?.school_id 
+      : authStore.getSelectedSchoolId
+    
+    if (!schoolId) {
+      console.log('No school ID found. Please select a school first.')
+      paymentTypes.value = []
+      return
+    }
+    
+    console.log('Fetching payment types for school ID:', schoolId)
+
+    const { data, error } = await supabase
+      .from('payments_type')
+      .select('*')
+      .eq('school_id', schoolId)
+      .order('id', { ascending: true })
+
+    if (error) {
+      console.error('Error fetching payment types:', error)
+      throw error
+    }
+    
+    paymentTypes.value = data || []
+    console.log('Fetched payment types:', paymentTypes.value)
+  } catch (error: any) {
+    console.error('Error fetching payment types:', error)
+    toast.error('Failed to load payment types: ' + (error.message || 'Unknown error'))
+  } finally {
+    loadingPaymentTypes.value = false
+  }
+}
+
+const savePaymentType = async () => {
+  savingPaymentType.value = true
+  try {
+    const schoolId = userRole.value === 'admin' 
+      ? authStore.userRole?.school_id 
+      : authStore.getSelectedSchoolId
+    
+    if (!schoolId) {
+      throw new Error('No school ID found. Please select a school first.')
+    }
+
+    // Basic validation
+    if (!newPaymentType.value.type_name) {
+      throw new Error('Please fill in the required field: Type Name')
+    }
+
+    // Get the current authenticated user session
+    const { data: { session } } = await supabase.auth.getSession()
+    
+    if (!session) {
+      throw new Error('You must be logged in to perform this action')
+    }
+
+    const insertData = {
+      type_name: newPaymentType.value.type_name,
+      description: newPaymentType.value.description || '',
+      school_id: schoolId
+    }
+    
+    console.log('Inserting payment type with data:', insertData)
+
+    const { data, error } = await supabase
+      .from('payments_type')
+      .insert([insertData])
+      .select()
+
+    if (error) {
+      console.error('Error inserting payment type:', error)
+      throw error
+    }
+
+    toast.success('Payment type added successfully')
+    await fetchPaymentTypes()
+    resetNewPaymentTypeForm()
+  } catch (error: any) {
+    console.error('Error saving payment type:', error)
+    toast.error('Failed to save payment type: ' + (error.message || 'Unknown error'))
+  } finally {
+    savingPaymentType.value = false
+  }
+}
+
+// Edit Payment Type Functions
+const editPaymentType = (type: any) => {
+  editingPaymentType.value = {
+    id: type.id,
+    type_name: type.type_name,
+    description: type.description || ''
+  }
+  isEditPaymentTypeModalOpen.value = true
+}
+
+const closeEditPaymentTypeModal = () => {
+  isEditPaymentTypeModalOpen.value = false
+}
+
+const updatePaymentType = async () => {
+  updatingPaymentType.value = true
+  try {
+    // Basic validation
+    if (!editingPaymentType.value.type_name) {
+      throw new Error('Please fill in the required field: Type Name')
+    }
+
+    // Get the current authenticated user session
+    const { data: { session } } = await supabase.auth.getSession()
+    
+    if (!session) {
+      throw new Error('You must be logged in to perform this action')
+    }
+
+    const updateData = {
+      type_name: editingPaymentType.value.type_name,
+      description: editingPaymentType.value.description || ''
+    }
+    
+    console.log('Updating payment type with ID:', editingPaymentType.value.id, 'Data:', updateData)
+
+    const { error } = await supabase
+      .from('payments_type')
+      .update(updateData)
+      .eq('id', editingPaymentType.value.id)
+
+    if (error) {
+      console.error('Error updating payment type:', error)
+      throw error
+    }
+
+    // Update the local list
+    await fetchPaymentTypes()
+    
+    toast.success('Payment type updated successfully')
+    closeEditPaymentTypeModal()
+  } catch (error: any) {
+    console.error('Error updating payment type:', error)
+    toast.error('Failed to update payment type: ' + (error.message || 'Unknown error'))
+  } finally {
+    updatingPaymentType.value = false
+  }
+}
+
+// Delete Payment Type Functions
+const confirmDeletePaymentType = (type: any) => {
+  selectedPaymentType.value = type
+  isDeletePaymentTypeModalOpen.value = true
+}
+
+const closeDeletePaymentTypeModal = () => {
+  isDeletePaymentTypeModalOpen.value = false
+  selectedPaymentType.value = null
+}
+
+const deletePaymentType = async () => {
+  if (!selectedPaymentType.value) return
+  
+  deletingPaymentTypeId.value = selectedPaymentType.value.id
+  try {
+    // Get the current authenticated user session
+    const { data: { session } } = await supabase.auth.getSession()
+    
+    if (!session) {
+      throw new Error('You must be logged in to perform this action')
+    }
+    
+    console.log('Deleting payment type with ID:', selectedPaymentType.value.id)
+
+    const { error } = await supabase
+      .from('payments_type')
+      .delete()
+      .eq('id', selectedPaymentType.value.id)
+
+    if (error) {
+      console.error('Error deleting payment type:', error)
+      throw error
+    }
+
+    // Remove from local list
+    paymentTypes.value = paymentTypes.value.filter(t => t.id !== selectedPaymentType.value.id)
+    toast.success('Payment type deleted successfully')
+    closeDeletePaymentTypeModal()
+  } catch (error: any) {
+    console.error('Error deleting payment type:', error)
+    toast.error('Failed to delete payment type: ' + (error.message || 'Unknown error'))
+  } finally {
+    deletingPaymentTypeId.value = null
+  }
+}
+
+// ... existing code ...
 </script>
 
 <style lang="scss" scoped>
@@ -2604,6 +3799,30 @@ watch(
       font-size: 1.25rem;
       font-weight: 600;
       color: #1e293b;
+      flex-grow: 1;
+    }
+    
+    .modal-close-btn {
+      width: 2rem;
+      height: 2rem;
+      border-radius: 50%;
+      background: none;
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #64748b;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      
+      &:hover {
+        background: #f1f5f9;
+        color: #ef4444;
+      }
+      
+      i {
+        font-size: 1rem;
+      }
     }
   }
 
@@ -2839,5 +4058,200 @@ watch(
     color: #6c757d;
     font-size: 0.9rem;
   }
+}
+
+/* Value List Card Styles */
+.value-list-card {
+  background: white;
+  border-radius: 0.75rem;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+  padding: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  transition: all 0.3s ease;
+  border: 1px solid #eee;
+  height: 100%;
+  position: relative;
+  
+  &:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 15px rgba(0, 0, 0, 0.08);
+    border-color: #42b883;
+    
+    .value-card-icon {
+      background-color: #42b883;
+      color: white;
+    }
+    
+    .btn-value-action {
+      background-color: #42b883;
+      color: white;
+    }
+  }
+  
+  .value-card-icon {
+    width: 3rem;
+    height: 3rem;
+    background-color: #f1f9f5;
+    border-radius: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #42b883;
+    font-size: 1.2rem;
+    transition: all 0.3s ease;
+    flex-shrink: 0;
+  }
+  
+  .value-card-content {
+    flex-grow: 1;
+    
+    h4 {
+      color: #1e293b;
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+    }
+    
+    p {
+      color: #64748b;
+      font-size: 0.85rem;
+      margin: 0;
+    }
+    
+    .badge-count {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background-color: #42b883;
+      color: white;
+      font-size: 0.7rem;
+      font-weight: 600;
+      height: 1.4rem;
+      min-width: 1.4rem;
+      padding: 0 0.35rem;
+      border-radius: 1rem;
+      margin-left: 0.5rem;
+    }
+  }
+  
+  .value-card-actions {
+    flex-shrink: 0;
+    
+    .btn-value-action {
+      width: 2rem;
+      height: 2rem;
+      border-radius: 50%;
+      background-color: #f1f9f5;
+      color: #42b883;
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s ease;
+      cursor: pointer;
+      
+      i {
+        font-size: 0.8rem;
+      }
+      
+      &:hover {
+        background-color: #42b883;
+        color: white;
+        transform: scale(1.1);
+      }
+    }
+  }
+
+  .value-list-badge {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    background-color: #e74c3c;
+    color: white;
+    font-size: 0.75rem;
+    font-weight: 600;
+    min-width: 22px;
+    height: 22px;
+    border-radius: 11px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 6px;
+    z-index: 5;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  }
+
+  .badge-corner {
+    position: absolute;
+    top: -0.5rem;
+    right: -0.5rem;
+    margin: 0;
+    z-index: 1;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  }
+}
+
+@media (max-width: 768px) {
+  .value-list-card {
+    margin-bottom: 1rem;
+  }
+}
+
+/* Modal styles for Class Fees Setup */
+.card-header {
+  font-weight: 500;
+  
+  h5 {
+    font-weight: 600;
+  }
+}
+
+.table-responsive {
+  min-height: 200px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.table {
+  margin-bottom: 0;
+  
+  th {
+    position: sticky;
+    top: 0;
+    background: #f8f9fa;
+    z-index: 1;
+  }
+}
+
+.spinner-border-sm {
+  width: 1rem;
+  height: 1rem;
+  border-width: 0.15em;
+}
+
+/* Currency input uppercase style */
+#currency, #editCurrency {
+  text-transform: uppercase;
+}
+
+/* Remove hover effects from Class Fees Setup cards */
+.modal-overlay .card {
+  transition: none !important;
+  transform: none !important;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05) !important;
+}
+
+.modal-overlay .card:hover {
+  transform: none !important;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05) !important;
+  border-color: #e2e8f0 !important;
+}
+
+/* Make sure table rows don't have hover animations */
+.modal-overlay .table-hover tr:hover {
+  background-color: #f8f9fa !important;
+  transform: none !important;
 }
 </style>

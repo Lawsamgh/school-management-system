@@ -76,7 +76,11 @@
                           <div class="mega-menu-icon"><i class="fas fa-users"></i></div>
                           <div class="mega-menu-content"><h6>Users</h6><p>Manage all users</p></div>
                         </router-link>
-                        <router-link to="/teachers" class="mega-menu-item">
+                        <router-link 
+                          v-if="userRole === 'superadmin' || teacherPortalEnabled"
+                          to="/teachers" 
+                          class="mega-menu-item"
+                        >
                           <div class="mega-menu-icon"><i class="fas fa-chalkboard-teacher"></i></div>
                           <div class="mega-menu-content"><h6>Teachers</h6><p>Manage teaching staff</p></div>
                         </router-link>
@@ -88,7 +92,11 @@
                           <div class="mega-menu-icon"><i class="fas fa-user-graduate"></i></div>
                           <div class="mega-menu-content"><h6>Students</h6><p>Manage student records</p></div>
                         </router-link>
-                        <router-link to="/parents" class="mega-menu-item">
+                        <router-link 
+                          v-if="userRole === 'superadmin' || parentPortalEnabled"
+                          to="/parents" 
+                          class="mega-menu-item"
+                        >
                           <div class="mega-menu-icon"><i class="fas fa-user-friends"></i></div>
                           <div class="mega-menu-content"><h6>Parents</h6><p>Manage parent accounts</p></div>
                         </router-link>
@@ -129,7 +137,7 @@
                           <div class="mega-menu-content"><h6>Accountants</h6><p>Manage accounting staff</p></div>
                         </router-link>
                       </template>
-                      <template v-else-if="userRole === 'teacher'">
+                      <template v-else-if="userRole === 'teacher' && teacherPortalEnabled">
                         <router-link to="/teachers" class="mega-menu-item">
                           <div class="mega-menu-icon"><i class="fas fa-chalkboard-teacher"></i></div>
                           <div class="mega-menu-content"><h6>Teachers</h6><p>Manage teaching staff</p></div>
@@ -141,7 +149,7 @@
                           <div class="mega-menu-content"><h6>Students</h6><p>Manage student records</p></div>
                         </router-link>
                       </template>
-                      <template v-else-if="userRole === 'parent'">
+                      <template v-else-if="userRole === 'parent' && parentPortalEnabled">
                         <router-link to="/parents" class="mega-menu-item">
                           <div class="mega-menu-icon"><i class="fas fa-user-friends"></i></div>
                           <div class="mega-menu-content"><h6>Parents</h6><p>Manage parent accounts</p></div>
@@ -181,7 +189,12 @@
                       <a class="dropdown-item" @click="(e) => handleMenuItemClick('/users', e)" :class="{ active: isRouteActive('/users') }">
                         <i class="fas fa-users me-2"></i>Users
                       </a>
-                      <a class="dropdown-item" @click="(e) => handleMenuItemClick('/teachers', e)" :class="{ active: isRouteActive('/teachers') }">
+                      <a 
+                        v-if="userRole === 'superadmin' || teacherPortalEnabled"
+                        class="dropdown-item" 
+                        @click="(e) => handleMenuItemClick('/teachers', e)" 
+                        :class="{ active: isRouteActive('/teachers') }"
+                      >
                         <i class="fas fa-chalkboard-teacher me-2"></i>Teachers
                       </a>
                       <a 
@@ -192,7 +205,12 @@
                       >
                         <i class="fas fa-user-graduate me-2"></i>Students
                       </a>
-                      <a class="dropdown-item" @click="(e) => handleMenuItemClick('/parents', e)" :class="{ active: isRouteActive('/parents') }">
+                      <a 
+                        v-if="userRole === 'superadmin' || parentPortalEnabled"
+                        class="dropdown-item" 
+                        @click="(e) => handleMenuItemClick('/parents', e)" 
+                        :class="{ active: isRouteActive('/parents') }"
+                      >
                         <i class="fas fa-user-friends me-2"></i>Parents
                       </a>
                       <a 
@@ -226,7 +244,7 @@
                         <i class="fas fa-calculator me-2"></i>Accountants
                       </a>
                     </template>
-                    <template v-else-if="userRole === 'teacher'">
+                    <template v-else-if="userRole === 'teacher' && teacherPortalEnabled">
                       <a class="dropdown-item" @click="(e) => handleMenuItemClick('/teachers', e)" :class="{ active: isRouteActive('/teachers') }">
                         <i class="fas fa-chalkboard-teacher me-2"></i>Teachers
                       </a>
@@ -236,7 +254,7 @@
                         <i class="fas fa-user-graduate me-2"></i>Students
                       </a>
                     </template>
-                    <template v-else-if="userRole === 'parent'">
+                    <template v-else-if="userRole === 'parent' && parentPortalEnabled">
                       <a class="dropdown-item" @click="(e) => handleMenuItemClick('/parents', e)" :class="{ active: isRouteActive('/parents') }">
                         <i class="fas fa-user-friends me-2"></i>Parents
                       </a>
@@ -328,6 +346,8 @@ const isAuthenticated = computed(() => authStore.isAuthenticated)
 const isLoading = ref(true)
 const userRole = computed(() => authStore.userRole?.role?.toLowerCase() || null)
 const studentPortalEnabled = ref(false)
+const teacherPortalEnabled = ref(false)
+const parentPortalEnabled = ref(false)
 
 interface SchoolInfo {
   name: string;
@@ -595,7 +615,35 @@ const fetchSchoolInfo = async (schoolId?: string) => {
           studentPortalEnabled.value = false
         }
         
+        // Look for teacher_portal field (case insensitive)
+        const teacherPortalField = setupDataKeys.find(key => 
+          key.toLowerCase() === 'teacher_portal'
+        )
+        
+        // Update the teacher portal enabled state
+        if (teacherPortalField) {
+          const value = setupData[teacherPortalField]
+          teacherPortalEnabled.value = String(value).toUpperCase() === 'YES'
+        } else {
+          teacherPortalEnabled.value = false
+        }
+        
+        // Look for parent_portal field (case insensitive)
+        const parentPortalField = setupDataKeys.find(key => 
+          key.toLowerCase() === 'parent_portal'
+        )
+        
+        // Update the parent portal enabled state
+        if (parentPortalField) {
+          const value = setupData[parentPortalField]
+          parentPortalEnabled.value = String(value).toUpperCase() === 'YES'
+        } else {
+          parentPortalEnabled.value = false
+        }
+        
         console.log('Student portal enabled:', studentPortalEnabled.value)
+        console.log('Teacher portal enabled:', teacherPortalEnabled.value)
+        console.log('Parent portal enabled:', parentPortalEnabled.value)
         
         // Extract school info from setup data
         schoolInfo.value = {
@@ -610,7 +658,7 @@ const fetchSchoolInfo = async (schoolId?: string) => {
       // For SuperAdmin, fetch from setup table without school_id filter
       const { data, error } = await supabase
         .from('setup')
-        .select('school_name, school_logo, school_email, school_contact1, school_address, student_portal')
+        .select('school_name, school_logo, school_email, school_contact1, school_address, student_portal, teacher_portal, parent_portal')
         .single()
 
       if (error) {
@@ -622,9 +670,13 @@ const fetchSchoolInfo = async (schoolId?: string) => {
       }
 
       if (data) {
-        // Update student portal enabled state for superadmin
+        // Update portal enabled states for superadmin
         studentPortalEnabled.value = String(data.student_portal || '').toUpperCase() === 'YES'
+        teacherPortalEnabled.value = String(data.teacher_portal || '').toUpperCase() === 'YES'
+        parentPortalEnabled.value = String(data.parent_portal || '').toUpperCase() === 'YES'
         console.log('Student portal enabled (superadmin):', studentPortalEnabled.value)
+        console.log('Teacher portal enabled (superadmin):', teacherPortalEnabled.value)
+        console.log('Parent portal enabled (superadmin):', parentPortalEnabled.value)
         
         schoolInfo.value = {
           name: data.school_name || 'LS System',
@@ -645,6 +697,8 @@ const fetchSchoolInfo = async (schoolId?: string) => {
       address: ''
     }
     studentPortalEnabled.value = false
+    teacherPortalEnabled.value = false
+    parentPortalEnabled.value = false
   } finally {
     isLoading.value = false
   }

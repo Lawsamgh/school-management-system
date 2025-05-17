@@ -60,7 +60,59 @@ const routes: RouteRecordRaw[] = [
     path: '/teachers',
     name: 'Teachers',
     component: () => import('@/views/TeachersView.vue'),
-    meta: { requiresAuth: true }
+    meta: { requiresAuth: true },
+    beforeEnter: async (to, from, next) => {
+      const authStore = useAuthStore()
+      const toast = useToast()
+      
+      // Always allow superadmin
+      if (authStore.userRole?.role?.toLowerCase() === 'superadmin') {
+        return next()
+      }
+      
+      // For other roles, check teacher_portal setting
+      try {
+        // Get school_id
+        const schoolId = authStore.userRole?.school_id
+        
+        if (!schoolId) {
+          toast.error('Missing school information')
+          return next('/dashboard')
+        }
+        
+        // Query setup table for teacher_portal field
+        const { data, error } = await supabase
+          .from('setup')
+          .select('*')
+          .eq('school_id', schoolId)
+          .single()
+          
+        if (error) {
+          console.error('Error checking teacher portal status:', error)
+          return next('/dashboard')
+        }
+        
+        // Look for teacher_portal field (case insensitive)
+        if (data) {
+          const setupDataKeys = Object.keys(data)
+          const teacherPortalField = setupDataKeys.find(key => 
+            key.toLowerCase() === 'teacher_portal'
+          )
+          
+          // Check if teacher portal is enabled
+          if (teacherPortalField && String(data[teacherPortalField]).toUpperCase() === 'YES') {
+            return next()
+          }
+        }
+        
+        // If we get here, teacher portal is disabled
+        toast.error('Teacher portal is disabled')
+        return next('/dashboard')
+      } catch (error) {
+        console.error('Error in teacher route guard:', error)
+        return next('/dashboard')
+      }
+    }
   },
   {
     path: '/students',
@@ -124,7 +176,59 @@ const routes: RouteRecordRaw[] = [
     path: '/parents',
     name: 'Parents',
     component: () => import('@/views/ParentsView.vue'),
-    meta: { requiresAuth: true }
+    meta: { requiresAuth: true },
+    beforeEnter: async (to, from, next) => {
+      const authStore = useAuthStore()
+      const toast = useToast()
+      
+      // Always allow superadmin
+      if (authStore.userRole?.role?.toLowerCase() === 'superadmin') {
+        return next()
+      }
+      
+      // For other roles, check parent_portal setting
+      try {
+        // Get school_id
+        const schoolId = authStore.userRole?.school_id
+        
+        if (!schoolId) {
+          toast.error('Missing school information')
+          return next('/dashboard')
+        }
+        
+        // Query setup table for parent_portal field
+        const { data, error } = await supabase
+          .from('setup')
+          .select('*')
+          .eq('school_id', schoolId)
+          .single()
+          
+        if (error) {
+          console.error('Error checking parent portal status:', error)
+          return next('/dashboard')
+        }
+        
+        // Look for parent_portal field (case insensitive)
+        if (data) {
+          const setupDataKeys = Object.keys(data)
+          const parentPortalField = setupDataKeys.find(key => 
+            key.toLowerCase() === 'parent_portal'
+          )
+          
+          // Check if parent portal is enabled
+          if (parentPortalField && String(data[parentPortalField]).toUpperCase() === 'YES') {
+            return next()
+          }
+        }
+        
+        // If we get here, parent portal is disabled
+        toast.error('Parent portal is disabled')
+        return next('/dashboard')
+      } catch (error) {
+        console.error('Error in parent route guard:', error)
+        return next('/dashboard')
+      }
+    }
   },
   {
     path: '/accountants',
