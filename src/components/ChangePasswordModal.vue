@@ -233,9 +233,51 @@ const handleSubmit = async () => {
       throw updateError
     }
 
+    // Log current user info for debugging
+    console.log('Current user:', authStore.user)
+    console.log('User role:', authStore.userRole)
+
+    // First verify the user exists and get their exact email case
+    const { data: userRole, error: fetchError } = await supabase
+      .from('user_roles')
+      .select('id, email, role, password_status')
+      .ilike('email', userEmail)
+      .single()
+
+    if (fetchError) {
+      console.error('Error fetching user role:', fetchError)
+      toast.warning('Password changed but status update failed: Could not verify user role')
+    } else {
+      console.log('Found user role:', userRole)
+
+      // Update using the exact email from the database
+      const { data: updateResult, error: updateRoleError } = await supabase
+        .from('user_roles')
+        .update({ password_status: 'changed' })
+        .eq('id', userRole.id) // Use primary key instead of email
+        .select('id, email, role, password_status')
+
+      if (updateRoleError) {
+        console.error('Error updating password status:', updateRoleError)
+        toast.warning('Password changed but status update failed. Please try again later.')
+      } else {
+        console.log('Update result:', updateResult)
+        if (!updateResult || updateResult.length === 0) {
+          console.warn('No user role updated for ID:', userRole.id)
+          toast.warning('Password changed but status update failed: Could not update status')
+        } else {
+          console.log('Successfully updated password status for user:', updateResult[0])
+        }
+      }
+    }
+
+    // Store password change status
+    localStorage.setItem('passwordChanged', 'true')
+    
     toast.success('Password changed successfully')
     closeModal()
   } catch (error: any) {
+    console.error('Error in handleSubmit:', error)
     toast.error(error.message || 'Failed to change password')
   } finally {
     isSubmitting.value = false

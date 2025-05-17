@@ -2,6 +2,24 @@
   <div class="dashboard">
     <div class="container py-5">
       <div class="row g-3">
+        <!-- Password Change Alert -->
+        <div class="col-12" v-if="showPasswordChangeAlert">
+          <div class="password-change-alert" v-motion-slide-visible-once-bottom>
+            <div class="alert alert-warning d-flex align-items-center gap-3" role="alert">
+              <div class="alert-icon">
+                <i class="fas fa-exclamation-triangle"></i>
+              </div>
+              <div class="alert-content">
+                <h4 class="alert-heading mb-1">Important Security Notice</h4>
+                <p class="mb-0">For your security, please change your password by clicking the "Change Password" button.</p>
+              </div>
+              <button class="btn btn-warning ms-auto" @click="handleChangePassword">
+                <i class="fas fa-key me-2"></i>
+                Change Password
+              </button>
+            </div>
+          </div>
+        </div>
         <!-- Welcome Card -->
         <div class="col-12" v-motion-slide-visible-once-bottom>
           <div class="welcome-card" :class="{ 'skeleton-loading': loading }">
@@ -495,6 +513,7 @@ const authStore = useAuthStore()
 const loading = ref(true)
 const showAddUserModal = ref(false)
 const showChangePasswordModal = ref(false)
+const hasChangedPassword = ref(false)
 const recentPayments = ref<any[]>([])
 const teacherCount = ref(0)
 const studentCount = ref(0)
@@ -508,13 +527,36 @@ const initChart = ref(false)
 const chartInitialized = ref(false)
 const hasPaymentData = ref(false)
 const teacherPortalEnabled = ref(false)
-const hasSchoolSelected = computed(() => {
-  return !!authStore.getSelectedSchoolId
+
+// Add new ref for password status
+const passwordStatus = ref<string | null>(null)
+
+// Update the computed property for showing password change alert
+const showPasswordChangeAlert = computed(() => {
+  const role = userRole.value?.toLowerCase()
+  return ['student', 'parent'].includes(role) && passwordStatus.value !== 'changed'
 })
-const isValidRole = computed(() => {
-  const roleValue = userRole.value?.toLowerCase() || ''
-  return ['accountant', 'admin', 'superadmin'].includes(roleValue)
-})
+
+// Function to fetch user's password status
+const fetchPasswordStatus = async () => {
+  try {
+    const { data: userRole, error } = await supabase
+      .from('user_roles')
+      .select('password_status')
+      .eq('email', authStore.user?.email)
+      .single()
+
+    if (error) {
+      console.error('Error fetching password status:', error)
+      return
+    }
+
+    passwordStatus.value = userRole?.password_status
+    console.log('Password status:', passwordStatus.value)
+  } catch (error) {
+    console.error('Error in fetchPasswordStatus:', error)
+  }
+}
 
 // Computed property to control chart visibility
 const showChart = computed(() => {
@@ -914,6 +956,9 @@ watch(
 onMounted(async () => {
   console.log('Component mounted')
   try {
+    // Fetch password status instead of checking localStorage
+    await fetchPasswordStatus()
+    
     initializeYears()
     if (showChart.value) {
       console.log('Initializing chart data...')
@@ -1013,6 +1058,14 @@ const handleChangePassword = () => {
     showChangePasswordModal.value = true
   })
 }
+
+// Update the watcher for change password modal
+watch(showChangePasswordModal, async (newVal, oldVal) => {
+  if (oldVal && !newVal) {
+    // Modal was closed, refresh the password status
+    await fetchPasswordStatus()
+  }
+})
 
 // Now, update the fetchSchoolInfo function to check for teacher_portal field
 const fetchSchoolInfo = async () => {
@@ -1920,6 +1973,51 @@ const fetchSchoolInfo = async () => {
   }
   100% {
     opacity: 0.6;
+  }
+}
+
+.password-change-alert {
+  .alert {
+    background: rgba(255, 193, 7, 0.1);
+    border: 1px solid rgba(255, 193, 7, 0.2);
+    border-radius: 1rem;
+    padding: 1.25rem;
+    margin: 0;
+    
+    .alert-icon {
+      font-size: 1.5rem;
+      color: #ffc107;
+      filter: drop-shadow(0 2px 4px rgba(255, 193, 7, 0.2));
+    }
+    
+    .alert-heading {
+      color: #856404;
+      font-size: 1.1rem;
+      font-weight: 600;
+    }
+    
+    p {
+      color: #856404;
+    }
+    
+    .btn-warning {
+      background: #ffc107;
+      border: none;
+      color: #856404;
+      font-weight: 500;
+      padding: 0.5rem 1rem;
+      border-radius: 0.5rem;
+      transition: all 0.3s ease;
+      
+      &:hover {
+        background: #ffca2c;
+        transform: translateY(-1px);
+      }
+      
+      i {
+        filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1));
+      }
+    }
   }
 }
 </style> 

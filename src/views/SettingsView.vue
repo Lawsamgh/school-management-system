@@ -505,7 +505,7 @@
                   </div>
 
                   <!-- Payment Types Card -->
-                  <div class="col-md-6 col-lg-4">
+                  <div v-if="authStore.financeModuleEnabled" class="col-md-6 col-lg-4">
                     <div class="value-list-card">
                       <div class="value-card-icon">
                         <i class="fas fa-money-bill-wave"></i>
@@ -523,8 +523,8 @@
                     </div>
                   </div>
 
-                  <!-- Class Fees Setup Card (previously Departments) -->
-                  <div class="col-md-6 col-lg-4">
+                  <!-- Class Fees Setup Card -->
+                  <div v-if="authStore.financeModuleEnabled" class="col-md-6 col-lg-4">
                     <div class="value-list-card">
                       <div class="value-card-icon">
                         <i class="fas fa-money-check-alt"></i>
@@ -2052,7 +2052,7 @@ const accessPackage = ref({
     { name: 'Student Portal', description: 'Tools for teachers to manage classes and assignments', enabled: true },
     { name: 'Parent Portal', description: 'Dedicated access for parents to view student information', enabled: true },
     { name: 'Teacher Portal', description: 'Tools for teachers to manage classes and assignments', enabled: true },
-    { name: 'Attendance System', description: 'Track student and staff attendance', enabled: true },
+    { name: 'Attendance System', description: 'Track student and staff attendance', enabled: false },
     { name: 'Auto Generate ID', description: 'Automatically generate identification numbers for users', enabled: false },
     { name: 'Auto Validate Student ID', description: 'Validate student IDs against payment records', enabled: false }
   ]

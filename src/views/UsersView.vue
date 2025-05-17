@@ -1577,7 +1577,21 @@ const confirmResetPassword = async () => {
   if (!resetPasswordTarget.value) return
   resetPasswordLoading.value = true
   try {
+    // Reset the password
     await resetUserPassword(resetPasswordTarget.value.id)
+
+    // Clear the password_status in user_roles table
+    const { error: updateError } = await supabase
+      .from('user_roles')
+      .update({ password_status: '' })
+      .eq('email', resetPasswordTarget.value.email)
+
+    if (updateError) {
+      console.error('Error updating password status:', updateError)
+      // Don't throw error here as password was reset successfully
+      toast.warning('Password reset successful but status update failed')
+    }
+
     toast.success('Password reset successfully! New password is: 12345678')
     closeResetPasswordModal()
   } catch (error: any) {
