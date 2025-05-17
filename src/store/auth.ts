@@ -96,26 +96,32 @@ export const useAuthStore = defineStore('auth', {
           return
         }
 
+        if (!userRoles) {
+          console.error('No user role found for email:', userEmail)
+          this.userRole = null
+          return
+        }
+
+        if (!userRoles.school_id && userRoles.role !== 'superadmin') {
+          console.error('No school ID found for non-superadmin user:', {
+            email: userEmail,
+            role: userRoles.role
+          })
+          this.userRole = null
+          return
+        }
+
         console.log('User role data:', {
+          email: userRoles.email,
           role: userRoles.role,
           school_id: userRoles.school_id,
           username: userRoles.username
         })
 
-        // Debug: Check if school exists
-        if (userRoles.school_id) {
-          const { data: schoolCheck, error: schoolCheckError } = await supabase
-            .from('schools')
-            .select('id, name')
-            .order('created_at', { ascending: false })
-            .limit(5)
-
-          console.log('Recent schools in database:', schoolCheck)
-        }
-
+        // Set the user role first
         this.userRole = userRoles
         
-        // For superadmin, we don't need a school_id, they can select any school
+        // For superadmin, handle school selection
         if (userRoles.role === 'superadmin') {
           const storedSchoolId = localStorage.getItem('selectedSchoolId')
           if (storedSchoolId) {
@@ -123,21 +129,25 @@ export const useAuthStore = defineStore('auth', {
             await this.fetchSchoolDetails(storedSchoolId)
           }
         } 
-        // For other roles, use their assigned school_id
+        // For other roles, fetch their assigned school details
         else if (userRoles.school_id) {
           await this.fetchSchoolDetails(userRoles.school_id)
         }
 
         console.log('Final user state:', {
+          email: this.user.email,
           role: this.userRole?.role,
           hasSchool: !!this.school,
           schoolName: this.school?.name,
           selectedSchoolId: this.selectedSchoolId,
-          schoolId: userRoles.school_id // Add this to debug
+          schoolId: userRoles.school_id
         })
+
+        return this.userRole
       } catch (error) {
         console.error('Error fetching user role:', error)
         this.userRole = null
+        return null
       }
     },
 
@@ -155,15 +165,13 @@ export const useAuthStore = defineStore('auth', {
         const { data: { session }, error: sessionError } = await supabase.auth.getSession()
         if (sessionError) {
           console.error('Error getting session:', sessionError.message)
-          return
+          throw sessionError
         }
 
         if (!session) {
           console.error('No active session')
-          return
+          throw new Error('No active session')
         }
-
-        console.log('Fetching with auth token for user:', session.user.email)
 
         // Then try to fetch the specific school
         const { data: schoolData, error: schoolError } = await supabase
@@ -174,14 +182,12 @@ export const useAuthStore = defineStore('auth', {
 
         if (schoolError) {
           console.error('Error fetching school details:', schoolError.message)
-          this.school = null
-          return
+          throw schoolError
         }
 
         if (!schoolData) {
           console.error('No school found with id:', schoolId)
-          this.school = null
-          return
+          throw new Error('School not found')
         }
 
         console.log('Successfully fetched school details:', {
@@ -193,8 +199,9 @@ export const useAuthStore = defineStore('auth', {
 
         this.school = schoolData
       } catch (error) {
-        console.error('Error fetching school details:', error)
+        console.error('Error in fetchSchoolDetails:', error)
         this.school = null
+        throw error
       }
     },
 
@@ -204,23 +211,50 @@ export const useAuthStore = defineStore('auth', {
         return true
       }
 
-      if (!this.school) {
-        console.error('Cannot validate dates: No school details available')
+      try {
+        // Get the school_id from userRole
+        const schoolId = this.userRole?.school_id
+
+        if (!schoolId) {
+          console.error('Cannot validate dates: No school ID available')
+          return false
+        }
+
+        // If school details are not available, fetch them
+        if (!this.school) {
+          await this.fetchSchoolDetails(schoolId)
+        }
+
+        // After fetching, if still no school details, return false
+        if (!this.school) {
+          console.error('Cannot validate dates: Failed to fetch school details')
+          return false
+        }
+
+        const currentDate = new Date().toISOString().split('T')[0]
+        const startDate = this.school.start_date
+        const endDate = this.school.end_date
+
+        // If no dates are set, consider it valid
+        if (!startDate || !endDate) {
+          console.log('School dates not set, considering valid')
+          return true
+        }
+
+        const isValid = currentDate >= startDate && currentDate <= endDate
+
+        console.log('Validating school dates:', {
+          currentDate,
+          startDate,
+          endDate,
+          isValid
+        })
+
+        return isValid
+      } catch (error) {
+        console.error('Error validating school dates:', error)
         return false
       }
-
-      const currentDate = new Date().toISOString().split('T')[0]
-      const startDate = this.school.start_date
-      const endDate = this.school.end_date
-
-      console.log('Validating school dates:', {
-        currentDate,
-        startDate,
-        endDate,
-        isValid: currentDate >= startDate && currentDate <= endDate
-      })
-
-      return currentDate >= startDate && currentDate <= endDate
     },
 
     async checkUser() {

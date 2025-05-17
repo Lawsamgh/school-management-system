@@ -2183,11 +2183,11 @@ const generateReport = async () => {
     isGeneratingReport.value = true;
     
     // Get the appropriate school_id based on user role
-    const schoolId = userRole.value?.toLowerCase() === 'admin' 
+    const schoolId = ['admin', 'registrar'].includes(userRole.value?.toLowerCase() || '') 
       ? authStore.userRole?.school_id 
       : userRole.value?.toLowerCase() === 'superadmin' && selectedSchoolId.value 
         ? selectedSchoolId.value 
-        : userRole.value?.toLowerCase() === 'admin' ? authStore.userRole?.school_id : null;
+        : null;
     
     const payments = await getPaymentsByDateRange(
       reportFilters.value.startDate,

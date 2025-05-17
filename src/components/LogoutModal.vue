@@ -66,6 +66,8 @@ defineEmits<{
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
   transform: translateY(0);
   transition: transform 0.3s ease-out;
+  max-height: 90vh;
+  overflow-y: auto;
 }
 
 .modal-content {

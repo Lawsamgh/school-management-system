@@ -2,6 +2,7 @@ import { ref } from 'vue'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/store/auth'
 import { useToast } from 'vue-toastification'
+import { logActivity } from '@/lib/auditLogger'
 
 export function useAuth() {
   const loading = ref(false)
@@ -35,6 +36,20 @@ export function useAuth() {
           await authStore.signOut()
           throw new Error('School session has expired')
         }
+      }
+
+      // Log the login activity
+      try {
+        await logActivity(
+          'login',
+          'auth',
+          data.user.id,
+          null,
+          { timestamp: new Date().toISOString() }
+        )
+      } catch (logError) {
+        console.error('Error logging login activity:', logError)
+        // Don't throw error - audit logging should not break main functionality
       }
 
       // Only show welcome message if everything is valid

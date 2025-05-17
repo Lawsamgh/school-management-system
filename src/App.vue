@@ -128,6 +128,14 @@
                           <div class="mega-menu-icon"><i class="fas fa-cog"></i></div>
                           <div class="mega-menu-content"><h6>Settings</h6><p>School configuration</p></div>
                         </router-link>
+                        <router-link 
+                          v-if="userRole === 'superadmin' || userRole === 'admin'"
+                          to="/audit-logs" 
+                          class="mega-menu-item"
+                        >
+                          <div class="mega-menu-icon"><i class="fas fa-history"></i></div>
+                          <div class="mega-menu-content"><h6>Audit Logs</h6><p>System activity tracking</p></div>
+                        </router-link>
                       </template>
                       
                       <!-- Other Role-Specific Menu Items -->
@@ -333,6 +341,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/store/auth'
 import { useToast } from 'vue-toastification'
 import { supabase } from '@/lib/supabase'
+import { logActivity } from '@/lib/auditLogger'
 import AppFooter from '@/components/AppFooter.vue'
 import 'bootstrap/dist/css/bootstrap.min.css'
 import * as bootstrap from 'bootstrap'
@@ -405,7 +414,42 @@ const handleLogout = () => {
 const confirmLogout = async () => {
   logoutLoading.value = true
   try {
+    // Get user information before signing out for audit logging
+    const { data: { user } } = await supabase.auth.getUser()
+    const userId = user?.id
+    
+    // Get school ID before signing out
+    const schoolId = authStore.userRole?.school_id || authStore.getSelectedSchoolId
+    const userRoleId = authStore.userRole?.id
+    
+    // Log the logout action if we have a user ID - BEFORE signing out
+    if (userId) {
+      try {
+        // Create the audit log entry directly with supabase to ensure all data is available
+        const { error } = await supabase.from('audit_logs').insert({
+          user_id: userId,
+          user_role_id: userRoleId,
+          school_id: schoolId || '00000000-0000-0000-0000-000000000000',
+          action: 'logout',
+          table_name: 'auth',
+          record_id: String(userId),
+          old_values: { timestamp: new Date().toISOString() },
+          new_values: null,
+          ip_address: 'client-side',
+          user_agent: navigator.userAgent
+        })
+        
+        if (error) {
+          console.error('Error logging logout activity:', error)
+        }
+      } catch (logError) {
+        console.error('Failed to log logout activity:', logError)
+      }
+    }
+    
+    // Now sign out after logging
     await authStore.signOut()
+    
     // Reset school info to default values
     schoolInfo.value = {
       name: 'LS System',

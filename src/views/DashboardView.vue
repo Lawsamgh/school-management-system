@@ -578,7 +578,7 @@ const fetchRecentPayments = async () => {
       console.log('Fetching payments...')
       
       // Get the school_id based on user role
-      const schoolId = userRole.value?.toLowerCase() === 'admin' 
+      const schoolId = ['admin', 'registrar'].includes(userRole.value?.toLowerCase() || '') 
         ? authStore.userRole?.school_id 
         : userRole.value?.toLowerCase() === 'superadmin' ? authStore.getSelectedSchoolId : authStore.userRole?.school_id;
       
@@ -615,7 +615,7 @@ const fetchRecentPayments = async () => {
 const fetchTeacherCount = async () => {
   try {
     // Get the school_id based on user role
-    const schoolId = userRole.value?.toLowerCase() === 'admin' 
+    const schoolId = ['admin', 'registrar'].includes(userRole.value?.toLowerCase() || '') 
       ? authStore.userRole?.school_id 
       : userRole.value?.toLowerCase() === 'superadmin' ? authStore.getSelectedSchoolId : authStore.userRole?.school_id;
 
@@ -648,7 +648,7 @@ const fetchTeacherCount = async () => {
 const fetchStudentCount = async () => {
   try {
     // Get the school_id based on user role
-    const schoolId = userRole.value?.toLowerCase() === 'admin' 
+    const schoolId = ['admin', 'registrar'].includes(userRole.value?.toLowerCase() || '') 
       ? authStore.userRole?.school_id 
       : userRole.value?.toLowerCase() === 'superadmin' ? authStore.getSelectedSchoolId : authStore.userRole?.school_id;
 
@@ -842,7 +842,7 @@ const fetchPaymentStats = async () => {
     const endDate = `${selectedYear.value}-12-31`
     
     // Get the school_id based on user role
-    const schoolId = userRole.value?.toLowerCase() === 'admin' 
+    const schoolId = ['admin', 'registrar'].includes(userRole.value?.toLowerCase() || '') 
       ? authStore.userRole?.school_id 
       : userRole.value?.toLowerCase() === 'superadmin' ? authStore.getSelectedSchoolId : authStore.userRole?.school_id;
     
@@ -1018,7 +1018,7 @@ const handleChangePassword = () => {
 const fetchSchoolInfo = async () => {
   try {
     // Get the school_id based on user role
-    const schoolId = userRole.value?.toLowerCase() === 'admin' 
+    const schoolId = ['admin', 'registrar'].includes(userRole.value?.toLowerCase() || '') 
       ? authStore.userRole?.school_id 
       : userRole.value?.toLowerCase() === 'superadmin' ? authStore.getSelectedSchoolId : authStore.userRole?.school_id;
     

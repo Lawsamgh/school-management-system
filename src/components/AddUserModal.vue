@@ -224,23 +224,6 @@
                   <h6 class="section-title">ACADEMIC INFORMATION</h6>
                   <div class="row g-3">
                     <!-- Academic Information -->
-                    <div v-if="addUserForm.role === 'student'" class="col-md-12">
-                      <select 
-                        class="form-select" 
-                        v-model="addUserForm.gradeLevel" 
-                        required
-                        :disabled="isLoadingGrades"
-                      >
-                        <option value="" disabled>Select grade level</option>
-                        <option 
-                          v-for="grade in grades" 
-                          :key="grade.id" 
-                          :value="grade.grade_level"
-                        >
-                          {{ grade.grade_level }}
-                        </option>
-                      </select>
-                    </div>
                     <div class="col-md-12">
                       <select 
                         class="form-select" 
@@ -349,11 +332,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import { useToast } from 'vue-toastification'
 import { useAuthStore } from '@/store/auth'
-import { addUserWithRole, getGrades, getClasses } from '@/api/users'
+import { addUserWithRole, getClasses } from '@/api/users'
 import { supabase, supabaseAdmin } from '@/lib/supabase'
+import { logActivity } from '@/lib/auditLogger'
 
 const props = defineProps<{
   modelValue: boolean
@@ -366,14 +350,17 @@ const emit = defineEmits<{
 
 const toast = useToast()
 const authStore = useAuthStore()
-const currentUserRole = computed(() => authStore.userRole?.role?.toLowerCase() || null)
+const currentUserRole = computed(() => {
+  const role = authStore.userRole?.role?.toLowerCase() || null
+  console.log('Computed currentUserRole:', role)
+  return role
+})
 
 const addUserForm = ref({
   email: '',
   username: '',
   role: '',
   identification: '',
-  gradeLevel: '',
   dob: '',
   age: undefined as number | undefined,
   gender: '',
@@ -388,8 +375,6 @@ const addUserForm = ref({
 })
 
 const addUserLoading = ref(false)
-const grades = ref<{ id: number; grade_level: string }[]>([])
-const isLoadingGrades = ref(false)
 const classes = ref<{ class_id: string; class_name: string }[]>([])
 const isLoadingClasses = ref(false)
 const isGeneratingId = ref(false)
@@ -424,7 +409,7 @@ const validateStudentId = async () => {
     
     // First check if validation is enabled for this school
     // Get the school_id
-    const schoolId = currentUserRole.value === 'admin' 
+    const schoolId = ['admin', 'registrar'].includes(currentUserRole.value || '') 
       ? authStore.userRole?.school_id 
       : authStore.getSelectedSchoolId;
 
@@ -979,7 +964,6 @@ const closeModal = () => {
     username: '', 
     role: '',
     identification: '',
-    gradeLevel: '',
     dob: '',
     age: undefined,
     gender: '',
@@ -1020,7 +1004,7 @@ const handleAddUser = async () => {
       addUserLoading.value = true;
       
       // Get the school_id
-      const schoolId = currentUserRole.value === 'admin' 
+      const schoolId = ['admin', 'registrar'].includes(currentUserRole.value || '') 
         ? authStore.userRole?.school_id 
         : authStore.getSelectedSchoolId;
 
@@ -1151,7 +1135,7 @@ const handleAddUser = async () => {
     }
 
     // Get the school_id based on user role
-    const schoolId = currentUserRole.value === 'admin' 
+    const schoolId = ['admin', 'registrar'].includes(currentUserRole.value || '') 
       ? authStore.userRole?.school_id 
       : authStore.getSelectedSchoolId;
 
@@ -1167,7 +1151,6 @@ const handleAddUser = async () => {
       username: addUserForm.value.username,
       role: addUserForm.value.role,
       identification: addUserForm.value.identification.trim(), // Ensure ID is trimmed
-      gradeLevel: addUserForm.value.gradeLevel,
       dob: addUserForm.value.dob,
       age: addUserForm.value.age || undefined,
       gender: addUserForm.value.gender,
@@ -1181,6 +1164,26 @@ const handleAddUser = async () => {
       emergency_contact: addUserForm.value.emergency_contact,
       address: addUserForm.value.address
     })
+    
+    // Log the activity to audit_logs
+    try {
+      await logActivity(
+        'create',
+        'users',
+        userData.user.id,
+        null,
+        {
+          email: addUserForm.value.email,
+          username: addUserForm.value.username,
+          role: addUserForm.value.role,
+          identification: addUserForm.value.identification.trim(),
+          school_id: schoolIdToAdd
+        }
+      )
+    } catch (logError) {
+      console.error('Error logging user creation:', logError)
+      // Don't fail the operation if logging fails
+    }
 
     toast.success('User added successfully! Default password is: 12345678')
     emit('user-added')
@@ -1194,22 +1197,29 @@ const handleAddUser = async () => {
 }
 
 // Fetch initial data
-const fetchGrades = async () => {
-  isLoadingGrades.value = true
-  try {
-    grades.value = await getGrades()
-  } catch (error: any) {
-    console.error('Error fetching grades:', error)
-    toast.error('Failed to fetch grade levels')
-  } finally {
-    isLoadingGrades.value = false
-  }
-}
-
 const fetchClasses = async () => {
   isLoadingClasses.value = true
   try {
-    classes.value = await getClasses()
+    // Get the school_id based on user role
+    const schoolId = ['admin', 'registrar'].includes(currentUserRole.value || '')
+      ? authStore.userRole?.school_id // Use registrar's assigned school_id
+      : currentUserRole.value === 'admin'
+        ? authStore.userRole?.school_id
+        : authStore.getSelectedSchoolId;
+    
+    console.log('Current user role:', currentUserRole.value);
+    console.log('School ID for fetching classes:', schoolId);
+    
+    // Only fetch classes if we have a valid school ID
+    if (!schoolId) {
+      classes.value = []
+      console.error('No school ID available for fetching classes')
+      return
+    }
+
+    // Pass the schoolId to getClasses
+    classes.value = await getClasses(schoolId)
+    console.log('Fetched classes:', classes.value)
   } catch (error) {
     console.error('Error fetching classes:', error)
     toast.error('Failed to fetch classes')
@@ -1217,6 +1227,20 @@ const fetchClasses = async () => {
     isLoadingClasses.value = false
   }
 }
+
+// Add watch for role changes to fetch classes
+watch(() => addUserForm.value.role, (newRole) => {
+  if (newRole === 'student' || newRole === 'teacher') {
+    fetchClasses()
+  }
+})
+
+// Add watch for currentUserRole changes
+watch(() => currentUserRole.value, (newRole) => {
+  if (newRole) {
+    fetchClasses()
+  }
+})
 
 // Add the calculateAge function
 const calculateAge = () => {
@@ -1335,7 +1359,7 @@ const generateRoleBasedId = async (role: string) => {
 const checkAutoGenerateSettings = async () => {
   try {
     // Get the school_id based on user role
-    const schoolId = currentUserRole.value === 'admin' 
+    const schoolId = ['admin', 'registrar'].includes(currentUserRole.value || '') 
       ? authStore.userRole?.school_id 
       : authStore.getSelectedSchoolId;
 
@@ -1383,7 +1407,7 @@ watch(() => addUserForm.value.role, async (newRole) => {
     fetchAvailableStudentIds();
     
     // Check if student_check is enabled
-    const schoolId = currentUserRole.value === 'admin' 
+    const schoolId = ['admin', 'registrar'].includes(currentUserRole.value || '') 
       ? authStore.userRole?.school_id 
       : authStore.getSelectedSchoolId;
       
@@ -1430,33 +1454,28 @@ watch(() => addUserForm.value.role, async (newRole) => {
   }
 });
 
-onMounted(async () => {
-  await checkAutoGenerateSettings();
-  fetchGrades();
+onMounted(() => {
+  // Fetch classes when component mounts
   fetchClasses();
-  document.addEventListener('click', (e: MouseEvent) => {
-    const target = e.target as HTMLElement
-    const containers = document.querySelectorAll('.custom-select-container')
-    
-    containers.forEach(container => {
-      if (!container.contains(target)) {
-        if (container.querySelector('input')?.placeholder.includes('nationality')) {
-          showNationalityDropdown.value = false
-        } else if (container.querySelector('input')?.placeholder.includes('religion')) {
-          showReligionDropdown.value = false
-        } else if (container.querySelector('input')?.placeholder.includes('gender')) {
-          showGenderDropdown.value = false
-        } else if (container.querySelector('input')?.placeholder.includes('relationship')) {
-          showRelationshipDropdown.value = false
-        }
-      }
-    })
-  })
+  
+  // Listen for clicks outside dropdowns
+  document.addEventListener('click', (e) => {
+    if (!e.target) return;
+    const target = e.target as HTMLElement;
+    if (!target.closest('.custom-select-container')) {
+      showGenderDropdown.value = false;
+      showNationalityDropdown.value = false;
+      showReligionDropdown.value = false;
+      showRelationshipDropdown.value = false;
+    }
+  });
 })
 
 // Watch for school changes to recheck settings
 watch(() => authStore.getSelectedSchoolId, async () => {
   await checkAutoGenerateSettings();
+  // Reload classes when school changes
+  fetchClasses();
 });
 
 // Add a function to fetch available student IDs
@@ -1475,7 +1494,7 @@ const fetchAvailableStudentIds = async () => {
   
   try {
     // Get the school_id
-    const schoolId = currentUserRole.value === 'admin' 
+    const schoolId = ['admin', 'registrar'].includes(currentUserRole.value || '') 
       ? authStore.userRole?.school_id 
       : authStore.getSelectedSchoolId;
 
@@ -1542,6 +1561,7 @@ const fetchAvailableStudentIds = async () => {
   align-items: center;
   justify-content: center;
   transition: background 0.3s;
+  overflow: hidden; // Prevent body scroll
 }
 
 .modern-modal-card {
@@ -1556,10 +1576,13 @@ const fetchAvailableStudentIds = async () => {
   transition: all 0.65s cubic-bezier(0.34, 1.56, 0.64, 1);
   transform-origin: center;
   will-change: transform, max-width;
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;
+  overflow: visible; // Changed from auto to visible to allow dropdowns to show
 
   &.expanded {
     max-width: 1200px;
-    transform: scale(1.01);
   }
 }
 
@@ -1607,11 +1630,12 @@ const fetchAvailableStudentIds = async () => {
 
 .modern-modal-form {
   .form-section {
-    background: #f8f9fa;
-    border-radius: 0.75rem;
-    padding: 2rem;
-    margin-bottom: 1.5rem;
-    height: 100%;
+    background: #f8fafc;
+    border-radius: 1rem;
+    padding: 1.5rem;
+    height: auto;
+    margin-bottom: 1rem;
+    overflow: visible; // Added to ensure dropdowns are visible
     transition: all 0.3s ease;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
 
@@ -1759,16 +1783,15 @@ const fetchAvailableStudentIds = async () => {
 
 .custom-select-dropdown {
   position: absolute;
-  top: 100%;
+  top: calc(100% + 5px);
   left: 0;
   right: 0;
   background: white;
   border: 1px solid #e2e8f0;
   border-radius: 0.5rem;
-  margin-top: 0.25rem;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  z-index: 50;
-  max-height: 250px;
+  z-index: 1060; // Increased z-index to appear above modal
+  max-height: 200px;
   overflow-y: auto;
   animation: dropdown-fade-in 0.2s ease;
 }

@@ -19,6 +19,7 @@
     "bootstrap": "^5.3.6",
     "bootstrap-icons": "^1.13.1",
     "chart.js": "^4.4.9",
+    "date-fns": "^4.1.0",
     "gsap": "^3.12.2",
     "html2canvas": "^1.4.1",
     "jspdf": "^3.0.1",

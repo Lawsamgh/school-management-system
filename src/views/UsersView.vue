@@ -36,7 +36,7 @@
     <!-- Edit User Modal -->
     <transition name="modern-modal-fade">
       <div v-if="showEditUserModal" class="modern-modal-overlay">
-        <div class="modern-modal-card">
+        <div class="modern-modal-card" :class="{ 'expanded': editUserForm.role === 'student' || editUserForm.role === 'teacher' }">
           <button class="modern-modal-close" @click="closeEditUserModal" aria-label="Close">
             <i class="fas fa-times"></i>
           </button>
@@ -45,147 +45,256 @@
             <p class="text-muted mb-0">Update user details and role</p>
           </div>
           <form class="modern-modal-form" @submit.prevent="handleEditUser">
-            <!-- Basic Information Section -->
-            <div class="form-section">
-              <h6 class="section-title">Basic Information</h6>
-              <div class="row g-3">
-                <div class="col-md-6">
-                  <input 
-                    type="email" 
-                    class="form-control" 
-                    v-model="editUserForm.email" 
-                    placeholder="Email address"
-                    disabled
-                  >
-                </div>
-                <div class="col-md-6">
-                  <input 
-                    type="text" 
-                    class="form-control" 
-                    v-model="editUserForm.username" 
-                    placeholder="Enter username"
-                    required
-                  >
-                </div>
-                <div class="col-md-12">
-                  <select 
-                    class="form-select" 
-                    v-model="editUserForm.role" 
-                    required 
-                    @change="handleRoleChange"
-                  >
-                    <option value="" disabled>Select role</option>
-                    <option v-for="role in roleOptions" :key="role.value" :value="role.value">{{ role.label }}</option>
-                  </select>
-                </div>
-                <div class="col-md-6">
-                  <input type="date" class="form-control" v-model="editUserForm.dob" placeholder="Date of Birth" required>
-                </div>
-                <div class="col-md-6">
-                  <input type="number" class="form-control" v-model="editUserForm.age" placeholder="Age" min="0" required>
-                </div>
-                <div class="col-md-6">
-                  <select class="form-select" v-model="editUserForm.gender" required>
-                    <option v-for="g in genderOptions" :key="g.value" :value="g.value">{{ g.label }}</option>
-                  </select>
-                </div>
-                <div class="col-md-6">
-                  <select class="form-select" v-model="editUserForm.nationality" required>
-                    <option v-for="n in nationalityOptions" :key="n.value" :value="n.value">{{ n.label }}</option>
-                  </select>
-                </div>
-                <div class="col-md-12">
-                  <select class="form-select" v-model="editUserForm.religion" required>
-                    <option v-for="r in religionOptions" :key="r.value" :value="r.value">{{ r.label }}</option>
-                  </select>
-                </div>
-                <div v-if="editUserForm.role === 'student'" class="col-md-12">
-                  <select class="form-select" v-model="editUserForm.class_id" :disabled="isLoadingClasses" required>
-                    <option value="" disabled>Select class</option>
-                    <option v-for="c in classes" :key="c.class_id" :value="c.class_id">{{ c.class_name }}</option>
-                  </select>
+            <div class="row" :class="{ 'expanded': editUserForm.role === 'student' || editUserForm.role === 'teacher' }">
+              <!-- Basic Information Section -->
+              <div :class="[
+                'transition-width',
+                (editUserForm.role === 'student' || editUserForm.role === 'teacher') ? 'col-md-6' : 'col-md-12'
+              ]">
+                <div class="form-section h-100">
+                  <h6 class="section-title">Basic Information</h6>
+                  <div class="row g-3">
+                    <div class="col-md-12">
+                      <select 
+                        class="form-select" 
+                        v-model="editUserForm.role" 
+                        required 
+                        @change="handleRoleChange"
+                      >
+                        <option value="" disabled>Select role</option>
+                        <option v-for="role in roleOptions" :key="role.value" :value="role.value">{{ role.label }}</option>
+                      </select>
+                    </div>
+                    <div class="col-md-12">
+                      <input 
+                        type="text" 
+                        class="form-control" 
+                        v-model="editUserForm.identification" 
+                        placeholder="Enter identification number"
+                        required
+                      >
+                    </div>
+                    <div class="col-md-12">
+                      <input 
+                        type="email" 
+                        class="form-control" 
+                        v-model="editUserForm.email" 
+                        placeholder="Email address"
+                        disabled
+                      >
+                    </div>
+                    <div class="col-md-12">
+                      <input 
+                        type="text" 
+                        class="form-control" 
+                        v-model="editUserForm.username" 
+                        placeholder="Enter username"
+                        required
+                      >
+                    </div>
+                    <div class="col-md-6">
+                      <input 
+                        type="date" 
+                        class="form-control" 
+                        v-model="editUserForm.dob" 
+                        placeholder="Date of Birth" 
+                        required
+                        @change="calculateAgeForEdit"
+                      >
+                    </div>
+                    <div class="col-md-6">
+                      <input 
+                        type="number" 
+                        class="form-control" 
+                        v-model="editUserForm.age" 
+                        placeholder="Age" 
+                        min="0" 
+                        required
+                        readonly
+                        :style="{ backgroundColor: '#f8f9fa' }"
+                      >
+                    </div>
+                    <div class="col-md-12">
+                      <div class="custom-select-container">
+                        <input 
+                          type="text" 
+                          class="form-control" 
+                          v-model="genderSearch"
+                          @focus="showGenderDropdown = true"
+                          @input="handleGenderSearch"
+                          :placeholder="editUserForm.gender ? genderOptions.find(g => g.value === editUserForm.gender)?.label : 'Search gender'"
+                        >
+                        <div v-if="showGenderDropdown" class="custom-select-dropdown">
+                          <div class="custom-select-options">
+                            <div 
+                              v-for="option in filteredGenders" 
+                              :key="option.value"
+                              class="custom-select-option"
+                              @click="selectGender(option)"
+                              :class="{ 'selected': option.value === editUserForm.gender }"
+                            >
+                              {{ option.label }}
+                            </div>
+                            <div v-if="filteredGenders.length === 0" class="no-results">
+                              No results found
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-md-12">
+                      <div class="custom-select-container">
+                        <input 
+                          type="text" 
+                          class="form-control" 
+                          v-model="nationalitySearch"
+                          @focus="showNationalityDropdown = true"
+                          @input="handleNationalitySearch"
+                          :placeholder="editUserForm.nationality ? nationalityOptions.find(n => n.value === editUserForm.nationality)?.label : 'Search nationality'"
+                        >
+                        <div v-if="showNationalityDropdown" class="custom-select-dropdown">
+                          <div class="custom-select-options">
+                            <div 
+                              v-for="option in filteredNationalities" 
+                              :key="option.value"
+                              class="custom-select-option"
+                              @click="selectNationality(option)"
+                              :class="{ 'selected': option.value === editUserForm.nationality }"
+                            >
+                              {{ option.label }}
+                            </div>
+                            <div v-if="filteredNationalities.length === 0" class="no-results">
+                              No results found
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-md-12">
+                      <div class="custom-select-container">
+                        <input 
+                          type="text" 
+                          class="form-control" 
+                          v-model="religionSearch"
+                          @focus="showReligionDropdown = true"
+                          @input="handleReligionSearch"
+                          :placeholder="editUserForm.religion ? religionOptions.find(r => r.value === editUserForm.religion)?.label : 'Search religion'"
+                        >
+                        <div v-if="showReligionDropdown" class="custom-select-dropdown">
+                          <div class="custom-select-options">
+                            <div 
+                              v-for="option in filteredReligions" 
+                              :key="option.value"
+                              class="custom-select-option"
+                              @click="selectReligion(option)"
+                              :class="{ 'selected': option.value === editUserForm.religion }"
+                            >
+                              {{ option.label }}
+                            </div>
+                            <div v-if="filteredReligions.length === 0" class="no-results">
+                              No results found
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <!-- Role-specific Information Section -->
-            <div v-if="['teacher', 'student', 'parent', 'accountant', 'registrar', 'admin'].includes(editUserForm.role)" class="form-section">
-              <h6 class="section-title">Additional Information</h6>
-              <div class="row g-3">
-                <div class="col-md-12">
-                  <input 
-                    type="text" 
-                    class="form-control" 
-                    v-model="editUserForm.identification" 
-                    placeholder="Enter identification number"
-                    required
-                  >
-                </div>
-                <div v-if="editUserForm.role === 'student'" class="col-md-12">
-                  <select 
-                    class="form-select" 
-                    v-model="editUserForm.gradeLevel" 
-                    required
-                    :disabled="isLoadingGrades"
-                  >
-                    <option value="" disabled>Select grade level</option>
-                    <option 
-                      v-for="grade in grades" 
-                      :key="grade.id" 
-                      :value="grade.grade_level"
-                    >
-                      {{ grade.grade_level }}
-                    </option>
-                  </select>
-                </div>
-              </div>
-            </div>
+              <!-- Role-specific Information Section -->
+              <transition name="slide-fade">
+                <div v-if="editUserForm.role === 'student' || editUserForm.role === 'teacher'" class="col-md-6 fade-enter">
+                  <div class="form-section h-100">
+                    <h6 class="section-title">ACADEMIC INFORMATION</h6>
+                    <div class="row g-3">
+                      <!-- Academic Information -->
+                      <div class="col-md-12">
+                        <select 
+                          class="form-select" 
+                          v-model="editUserForm.class_id" 
+                          :disabled="isLoadingClasses" 
+                          required
+                        >
+                          <option value="" disabled>{{ editUserForm.role === 'student' ? 'Select class' : 'Select teaching class' }}</option>
+                          <option v-for="c in classes" :key="c.class_id" :value="c.class_id">{{ c.class_name }}</option>
+                        </select>
+                      </div>
 
-            <!-- Family & Contact Information Section -->
-            <div class="form-section">
-              <h6 class="section-title">Family & Contact Information</h6>
-              <div class="row g-3">
-                <div class="col-md-6">
-                  <input 
-                    type="text" 
-                    class="form-control" 
-                    v-model="editUserForm.family_name" 
-                    placeholder="Family name"
-                  >
+                      <!-- PARENT INFORMATION - Only for Students -->
+                      <template v-if="editUserForm.role === 'student'">
+                        <div class="col-12">
+                          <h6 class="section-subtitle">PARENT INFORMATION</h6>
+                        </div>
+                        <div class="col-md-12">
+                          <input 
+                            type="text" 
+                            class="form-control" 
+                            v-model="editUserForm.family_name" 
+                            placeholder="Parent/Guardian Name" 
+                            required
+                          >
+                        </div>
+                        <div class="col-md-12">
+                          <div class="custom-select-container">
+                            <input 
+                              type="text" 
+                              class="form-control" 
+                              v-model="relationshipSearch"
+                              @focus="showRelationshipDropdown = true"
+                              @input="handleRelationshipSearch"
+                              :placeholder="editUserForm.family_relationship ? relationshipOptions.find(r => r.value === editUserForm.family_relationship)?.label : 'Select relationship'"
+                            >
+                            <div v-if="showRelationshipDropdown" class="custom-select-dropdown">
+                              <div class="custom-select-options">
+                                <div 
+                                  v-for="option in filteredRelationships" 
+                                  :key="option.value"
+                                  class="custom-select-option"
+                                  @click="selectRelationship(option)"
+                                  :class="{ 'selected': option.value === editUserForm.family_relationship }"
+                                >
+                                  {{ option.label }}
+                                </div>
+                                <div v-if="filteredRelationships.length === 0" class="no-results">
+                                  No results found
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        <div class="col-md-12">
+                          <input 
+                            type="email" 
+                            class="form-control" 
+                            v-model="editUserForm.family_email" 
+                            placeholder="Parent/Guardian Email" 
+                            required
+                          >
+                        </div>
+                        <div class="col-md-12">
+                          <input 
+                            type="tel" 
+                            class="form-control" 
+                            v-model="editUserForm.emergency_contact" 
+                            placeholder="Emergency Contact Number" 
+                            required
+                          >
+                        </div>
+                        <div class="col-md-12">
+                          <textarea 
+                            class="form-control" 
+                            v-model="editUserForm.address" 
+                            placeholder="Home Address"
+                            rows="3"
+                            required
+                          ></textarea>
+                        </div>
+                      </template>
+                    </div>
+                  </div>
                 </div>
-                <div class="col-md-6">
-                  <input 
-                    type="text" 
-                    class="form-control" 
-                    v-model="editUserForm.family_relationship" 
-                    placeholder="Relationship to family"
-                  >
-                </div>
-                <div class="col-md-6">
-                  <input 
-                    type="email" 
-                    class="form-control" 
-                    v-model="editUserForm.family_email" 
-                    placeholder="Family email address"
-                  >
-                </div>
-                <div class="col-md-6">
-                  <input 
-                    type="text" 
-                    class="form-control" 
-                    v-model="editUserForm.emergency_contact" 
-                    placeholder="Emergency contact number"
-                  >
-                </div>
-                <div class="col-md-12">
-                  <textarea 
-                    class="form-control" 
-                    v-model="editUserForm.address" 
-                    rows="3"
-                    placeholder="Enter complete address"
-                  ></textarea>
-                </div>
-              </div>
+              </transition>
             </div>
 
             <div class="d-flex justify-content-end gap-2 mt-4">
@@ -203,22 +312,33 @@
     <!-- Delete User Modal -->
     <transition name="modern-modal-fade">
       <div v-if="showDeleteUserModal" class="modern-modal-overlay">
-        <div class="modern-modal-card">
+        <div class="modern-modal-card modal-sm">
           <button class="modern-modal-close" @click="closeDeleteUserModal" aria-label="Close">
             <i class="fas fa-times"></i>
           </button>
-          <div class="modern-modal-header">
+          <div class="modern-modal-header text-center">
+            <div class="modal-icon modal-icon-danger mb-3">
+              <i class="fas fa-trash-alt"></i>
+            </div>
             <h2>Delete User</h2>
-            <p class="text-muted mb-0">Are you sure you want to delete this user?</p>
+            <p class="text-muted mb-0">This action cannot be undone</p>
           </div>
-          <div class="mb-4">
-            <div class="delete-user-email"><strong>{{ deleteUserTarget?.email }}</strong></div>
+          <div class="modal-body text-center">
+            <div class="user-info-box">
+              <div class="user-email">{{ deleteUserTarget?.email }}</div>
+              <div class="user-role" :class="getRoleBadgeClass(deleteUserTarget?.role || '')">
+                {{ deleteUserTarget?.role }}
+              </div>
+            </div>
           </div>
-          <div class="d-flex justify-content-end gap-2">
-            <button type="button" class="btn btn-outline-secondary" @click="closeDeleteUserModal">Cancel</button>
+          <div class="modal-footer d-flex justify-content-center gap-2">
+            <button type="button" class="btn btn-light" @click="closeDeleteUserModal">
+              Cancel
+            </button>
             <button type="button" class="btn btn-danger" @click="confirmDeleteUser" :disabled="deleteUserLoading">
               <span v-if="deleteUserLoading" class="spinner-border spinner-border-sm me-2"></span>
-              Delete
+              <i v-else class="fas fa-trash-alt me-2"></i>
+              Delete User
             </button>
           </div>
         </div>
@@ -411,15 +531,6 @@
                 <div class="form-section user-details-section">
                   <h6 class="section-title">Additional Information</h6>
                   <div class="row g-4">
-                    <div v-if="viewUserTarget?.role === 'student'" class="col-md-6 user-details-field">
-                      <div class="info-card">
-                        <div class="info-icon"><i class="fas fa-graduation-cap"></i></div>
-                        <div class="info-content">
-                          <span class="user-details-label">Grade Level</span>
-                          <span class="user-details-value">{{ viewUserTarget?.grade_level || '—' }}</span>
-                        </div>
-                      </div>
-                    </div>
                     <div v-if="['student', 'teacher'].includes(viewUserTarget?.role ?? '')" class="col-md-12 user-details-field">
                       <div class="info-card">
                         <div class="info-icon"><i class="fas fa-chalkboard"></i></div>
@@ -493,7 +604,7 @@
                 <th>Email</th>
                 <th>Status</th>
                 <th>Last Login</th>
-                <th>Actions</th>
+                <th style="min-width: 200px;">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -527,7 +638,7 @@
                     </span>
                   </td>
                   <td>
-                    <div class="d-flex gap-2">
+                    <div class="actions-container d-flex flex-wrap gap-2">
                       <button 
                         class="btn btn-sm btn-outline-info" 
                         @click="openViewUserModal(user)"
@@ -543,11 +654,20 @@
                         <i class="fas fa-edit"></i>
                       </button>
                       <button 
+                        v-if="currentUserRole !== 'registrar'"
                         class="btn btn-sm btn-outline-danger" 
                         @click="openDeleteUserModal(user)"
                         title="Delete User"
                       >
                         <i class="fas fa-trash"></i>
+                      </button>
+                      <button 
+                        v-if="currentUserRole !== 'registrar'"
+                        class="btn btn-sm btn-outline-warning" 
+                        @click="openResetPasswordModal(user)"
+                        title="Reset Password"
+                      >
+                        <i class="fas fa-key"></i>
                       </button>
                     </div>
                   </td>
@@ -584,16 +704,56 @@
       </div>
     </div>
 
-  
+    <!-- Reset Password Modal -->
+    <transition name="modern-modal-fade">
+      <div v-if="showResetPasswordModal" class="modern-modal-overlay">
+        <div class="modern-modal-card modal-sm">
+          <button class="modern-modal-close" @click="closeResetPasswordModal" aria-label="Close">
+            <i class="fas fa-times"></i>
+          </button>
+          <div class="modern-modal-header text-center">
+            <div class="modal-icon modal-icon-warning mb-3">
+              <i class="fas fa-key"></i>
+            </div>
+            <h2>Reset Password</h2>
+            <p class="text-muted mb-0">Are you sure you want to reset the password?</p>
+          </div>
+          <div class="modal-body text-center">
+            <div class="user-info-box">
+              <div class="user-email">{{ resetPasswordTarget?.email }}</div>
+              <div class="user-role" :class="getRoleBadgeClass(resetPasswordTarget?.role || '')">
+                {{ resetPasswordTarget?.role }}
+              </div>
+            </div>
+            <div class="password-info mt-3">
+              <div class="password-label text-muted">New password will be:</div>
+              <div class="password-value">12345678</div>
+            </div>
+          </div>
+          <div class="modal-footer d-flex justify-content-center gap-2">
+            <button type="button" class="btn btn-light" @click="closeResetPasswordModal">
+              Cancel
+            </button>
+            <button type="button" class="btn btn-warning" @click="confirmResetPassword" :disabled="resetPasswordLoading">
+              <span v-if="resetPasswordLoading" class="spinner-border spinner-border-sm me-2"></span>
+              <i v-else class="fas fa-key me-2"></i>
+              Reset Password
+            </button>
+          </div>
+        </div>
+      </div>
+    </transition>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
-import { supabase } from '@/lib/supabase'
-import { getUsersWithRoles, deleteUser as deleteUserApi, addUserWithRole, updateUserWithRole, getGrades, getClasses } from '@/api/users'
 import { useAuthStore } from '@/store/auth'
+import { supabase } from '@/lib/supabase'
+import { logActivity } from '@/lib/auditLogger'
+import { getUsersWithRoles, deleteUser as deleteUserApi, addUserWithRole, updateUserWithRole, getClasses, resetUserPassword } from '@/api/users'
 import AddUserModal from '@/components/AddUserModal.vue'
 import SchoolSelector from '@/components/SchoolSelector.vue'
 
@@ -608,7 +768,6 @@ interface User {
   avatar_url?: string
   username: string
   identification?: string | null
-  grade_level?: string | null
   dob?: string | null
   age?: number | null
   gender?: string | null
@@ -621,6 +780,7 @@ interface User {
   family_email?: string | null
   address?: string | null
   emergency_contact?: string | null
+  school_id?: string | null
 }
 
 interface Grade {
@@ -634,7 +794,6 @@ interface CreateUserData {
   username: string
   role: string
   identification?: string
-  gradeLevel?: string
   dob?: string
   age?: number
   gender?: string
@@ -661,7 +820,6 @@ const addUserForm = ref({
   username: '',
   role: '',
   identification: '',
-  gradeLevel: '',
   dob: '',
   age: '',
   gender: '',
@@ -676,7 +834,6 @@ const editUserForm = ref({
   username: '', 
   role: '',
   identification: '',
-  gradeLevel: '',
   dob: '',
   age: '',
   gender: '',
@@ -701,6 +858,11 @@ const authStore = useAuthStore()
 const currentUserRole = computed(() => authStore.userRole?.role?.toLowerCase() || null)
 const activeUserDetailsTab = ref('basic')
 
+// Reset password state
+const showResetPasswordModal = ref(false)
+const resetPasswordTarget = ref<User | null>(null)
+const resetPasswordLoading = ref(false)
+
 // Add computed property for current user's role
 const userRole = computed(() => authStore.userRole?.role?.toLowerCase() || null)
 
@@ -714,21 +876,27 @@ const paginationEnd = computed(() => Math.min(currentPage.value * itemsPerPage, 
 const filteredUsers = computed(() => {
   let filtered = users.value;
   
+  // Filter by school_id for registrar and non-superadmin roles
+  if (currentUserRole.value === 'registrar' || (currentUserRole.value !== 'superadmin' && authStore.userRole?.school_id)) {
+    const schoolId = authStore.userRole?.school_id;
+    filtered = filtered.filter(user => user.school_id === schoolId);
+  }
+  
   // If user is registrar, only show students and parents
   if (currentUserRole.value === 'registrar') {
-    filtered = filtered.filter(user => ['student', 'parent'].includes(user.role.toLowerCase()))
+    filtered = filtered.filter(user => ['student', 'parent'].includes(user.role.toLowerCase()));
   }
   
   return filtered.filter(user => {
     const matchesSearch = !searchQuery.value || 
       (user.email?.toLowerCase().includes(searchQuery.value.toLowerCase())) ||
-      (user.name?.toLowerCase().includes(searchQuery.value.toLowerCase()))
+      (user.username?.toLowerCase().includes(searchQuery.value.toLowerCase()));
     
-    const matchesRole = !roleFilter.value || user.role === roleFilter.value
-    const matchesStatus = !statusFilter.value || user.status === statusFilter.value
+    const matchesRole = !roleFilter.value || user.role === roleFilter.value;
+    const matchesStatus = !statusFilter.value || user.status === statusFilter.value;
     
-    return matchesSearch && matchesRole && matchesStatus
-  })
+    return matchesSearch && matchesRole && matchesStatus;
+  });
 })
 
 // Add a computed property for role options
@@ -977,12 +1145,24 @@ const religionOptions = [
 const classes = ref<{ class_id: string, class_name: string }[]>([])
 const isLoadingClasses = ref(false)
 
+// Add relationshipOptions after genderOptions
+const relationshipOptions = [
+  { value: 'parent', label: 'Parent' },
+  { value: 'guardian', label: 'Guardian' },
+  { value: 'mother', label: 'Mother' },
+  { value: 'father', label: 'Father' },
+  { value: 'aunt', label: 'Aunt' },
+  { value: 'uncle', label: 'Uncle' },
+  { value: 'grandparent', label: 'Grandparent' },
+  { value: 'other', label: 'Other' }
+]
+
 // Fetch users from Supabase
 const fetchUsers = async () => {
   isLoading.value = true
   try {
     // Get the school_id based on user role
-    const schoolId = userRole.value === 'admin' 
+    const schoolId = ['admin', 'registrar'].includes(userRole.value || '') 
       ? authStore.userRole?.school_id 
       : authStore.getSelectedSchoolId;
 
@@ -993,9 +1173,14 @@ const fetchUsers = async () => {
       return
     }
 
+    // For registrar, always use their assigned school_id
+    const effectiveSchoolId = ['admin', 'registrar'].includes(currentUserRole.value || '')
+      ? authStore.userRole?.school_id
+      : schoolId;
+
     const { users: authUsers } = await getUsersWithRoles(
       currentUserRole.value ?? undefined,
-      schoolId // Always pass schoolId for filtering
+      effectiveSchoolId // Always pass schoolId for filtering
     )
 
     // Transform the auth users into our User interface format
@@ -1006,11 +1191,8 @@ const fetchUsers = async () => {
       last_sign_in_at: user.last_sign_in_at || null,
       role: user.custom_role || 'user',
       status: user.confirmed_at ? 'active' : 'pending',
-      name: user.user_metadata?.full_name || undefined,
-      avatar_url: user.user_metadata?.avatar_url || undefined,
       username: user.username || '',
       identification: user.identification || null,
-      grade_level: user.grade_level || null,
       dob: user.dob || null,
       age: typeof user.age === 'number' ? user.age : null,
       gender: user.gender || null,
@@ -1022,7 +1204,8 @@ const fetchUsers = async () => {
       family_relationship: user.family_relationship || null,
       family_email: user.family_email || null,
       address: user.address || null,
-      emergency_contact: user.emergency_contact || null
+      emergency_contact: user.emergency_contact || null,
+      school_id: user.school_id || null
     }))
   } catch (error: any) {
     console.error('Error fetching users:', error)
@@ -1036,24 +1219,17 @@ const fetchUsers = async () => {
   }
 }
 
-// Fetch grades from Supabase
-const fetchGrades = async () => {
-  isLoadingGrades.value = true
-  try {
-    grades.value = await getGrades()
-  } catch (error: any) {
-    console.error('Error fetching grades:', error)
-    toast.error('Failed to fetch grade levels')
-  } finally {
-    isLoadingGrades.value = false
-  }
-}
-
 // Fetch classes for class_id dropdown
 const fetchClasses = async () => {
   isLoadingClasses.value = true
   try {
-    classes.value = await getClasses()
+    // Get the school_id based on user role
+    const schoolId = userRole.value === 'admin'
+      ? authStore.userRole?.school_id
+      : authStore.getSelectedSchoolId;
+    
+    // Fetch classes with the school ID
+    classes.value = await getClasses(schoolId || undefined)
     console.log('Fetched classes:', classes.value)
   } catch (error) {
     console.error('Error fetching classes:', error)
@@ -1147,7 +1323,6 @@ const closeAddUserModal = () => {
     username: '', 
     role: '',
     identification: '',
-    gradeLevel: '',
     dob: '',
     age: '',
     gender: '',
@@ -1177,7 +1352,6 @@ const handleAddUser = async () => {
       username: addUserForm.value.username,
       role: addUserForm.value.role,
       identification: addUserForm.value.identification,
-      gradeLevel: addUserForm.value.gradeLevel,
       dob: addUserForm.value.dob,
       age: addUserForm.value.age ? Number(addUserForm.value.age) : undefined,
       gender: addUserForm.value.gender,
@@ -1217,7 +1391,6 @@ const openEditUserModal = (user: User) => {
     username: user.username || '',
     role: user.role,
     identification: user.identification || '',
-    gradeLevel: user.grade_level || '',
     dob: user.dob || '',
     age: user.age?.toString() || '',
     gender: user.gender || '',
@@ -1241,7 +1414,6 @@ const closeEditUserModal = () => {
     username: '', 
     role: '',
     identification: '',
-    gradeLevel: '',
     dob: '',
     age: '',
     gender: '',
@@ -1254,47 +1426,68 @@ const closeEditUserModal = () => {
     address: '',
     emergency_contact: ''
   }
+  
+  // Reset search values
+  genderSearch.value = ''
+  nationalitySearch.value = ''
+  religionSearch.value = ''
+  relationshipSearch.value = ''
+  
+  // Close all dropdowns
+  showGenderDropdown.value = false
+  showNationalityDropdown.value = false
+  showReligionDropdown.value = false
+  showRelationshipDropdown.value = false
 }
 
 const handleEditUser = async () => {
   editUserLoading.value = true
   try {
-    // Validate required fields based on role
-    if (['teacher', 'student', 'parent', 'accountant', 'registrar', 'admin'].includes(editUserForm.value.role) && !editUserForm.value.identification) {
-      throw new Error('Identification is required for this role')
+    // Get the current user being edited from the editUserForm
+    const email = editUserForm.value.email
+    const user = users.value.find(u => u.email === email)
+    
+    if (!user) {
+      throw new Error('User not found')
     }
-    if (editUserForm.value.role === 'student' && !editUserForm.value.gradeLevel) {
-      throw new Error('Grade level is required for students')
-    }
-
-    // Prepare the data to send
+    
+    // Store original user data for audit logging
+    const originalUserData = { ...user }
+    
+    // Prepare update data
     const updateData = {
       email: editUserForm.value.email,
       username: editUserForm.value.username,
       role: editUserForm.value.role,
-      identification: editUserForm.value.identification || undefined,
-      gradeLevel: editUserForm.value.gradeLevel || undefined,
-      dob: editUserForm.value.dob || undefined,
+      identification: editUserForm.value.identification,
+      dob: editUserForm.value.dob,
       age: editUserForm.value.age ? Number(editUserForm.value.age) : undefined,
-      gender: editUserForm.value.gender || undefined,
-      class_id: editUserForm.value.class_id || undefined,
-      nationality: editUserForm.value.nationality || undefined,
-      religion: editUserForm.value.religion || undefined,
-      family_name: editUserForm.value.family_name || undefined,
-      family_relationship: editUserForm.value.family_relationship || undefined,
-      family_email: editUserForm.value.family_email || undefined,
-      address: editUserForm.value.address || undefined,
-      emergency_contact: editUserForm.value.emergency_contact || undefined
+      gender: editUserForm.value.gender,
+      class_id: editUserForm.value.class_id,
+      nationality: editUserForm.value.nationality,
+      religion: editUserForm.value.religion,
+      family_name: editUserForm.value.family_name,
+      family_relationship: editUserForm.value.family_relationship,
+      family_email: editUserForm.value.family_email,
+      address: editUserForm.value.address,
+      emergency_contact: editUserForm.value.emergency_contact
     }
-
-    console.log('Updating user with data:', updateData) // Debug log
-
+    
     await updateUserWithRole(updateData)
+    
+    // Log the activity to audit_logs
+    await logActivity(
+      'update',
+      'users',
+      originalUserData.id,
+      originalUserData,
+      { ...originalUserData, ...updateData }
+    )
+    
     toast.success('User updated successfully!')
     closeEditUserModal()
-    await fetchUsers() // Refresh the users list to show updated data
+    fetchUsers()
   } catch (error: any) {
-    console.error('Error updating user:', error)
     toast.error(error.message || 'Failed to update user')
   } finally {
     editUserLoading.value = false
@@ -1315,10 +1508,23 @@ const confirmDeleteUser = async () => {
   if (!deleteUserTarget.value) return
   deleteUserLoading.value = true
   try {
+    // Store user data before deletion for audit logging
+    const userData = { ...deleteUserTarget.value }
+    
     await deleteUserApi(deleteUserTarget.value.id)
+    
+    // Log the activity to audit_logs
+    await logActivity(
+      'delete',
+      'users',
+      userData.id,
+      userData,
+      null
+    )
+    
     toast.success('User deleted successfully!')
     closeDeleteUserModal()
-    await fetchUsers()
+    fetchUsers()
   } catch (error: any) {
     toast.error(error.message || 'Failed to delete user')
   } finally {
@@ -1327,9 +1533,9 @@ const confirmDeleteUser = async () => {
 }
 
 const handleRoleChange = () => {
-  // Clear grade level if role is not student
-  if (editUserForm.value.role !== 'student') {
-    editUserForm.value.gradeLevel = ''
+  // Fetch classes when role is changed to teacher or student
+  if (editUserForm.value.role === 'teacher' || editUserForm.value.role === 'student') {
+    fetchClasses()
   }
 }
 
@@ -1356,10 +1562,36 @@ const closeViewUserModal = () => {
   viewUserTarget.value = null
 }
 
+// Reset password modal functions
+const openResetPasswordModal = (user: User) => {
+  resetPasswordTarget.value = user
+  showResetPasswordModal.value = true
+}
+
+const closeResetPasswordModal = () => {
+  showResetPasswordModal.value = false
+  resetPasswordTarget.value = null
+}
+
+const confirmResetPassword = async () => {
+  if (!resetPasswordTarget.value) return
+  resetPasswordLoading.value = true
+  try {
+    await resetUserPassword(resetPasswordTarget.value.id)
+    toast.success('Password reset successfully! New password is: 12345678')
+    closeResetPasswordModal()
+  } catch (error: any) {
+    toast.error(error.message || 'Failed to reset password')
+  } finally {
+    resetPasswordLoading.value = false
+  }
+}
+
 // Add the handler function for school selection
 const handleSchoolSelected = async (schoolId: string) => {
   if (userRole.value === 'superadmin') {
     await fetchUsers() // Refetch users when school is selected
+    await fetchClasses() // Also fetch classes for the selected school
   }
 }
 
@@ -1369,6 +1601,7 @@ watch(
   async (newSchoolId) => {
     if (userRole.value === 'superadmin') {
       await fetchUsers() // Refetch users when selected school changes
+      await fetchClasses() // Also refetch classes when school changes
     }
   }
 )
@@ -1376,9 +1609,141 @@ watch(
 // Initialize
 onMounted(() => {
   fetchUsers()
-  fetchGrades()
   fetchClasses()
+  
+  // Close dropdowns when clicking outside
+  document.addEventListener('click', (e) => {
+    const target = e.target as HTMLElement
+    if (!target.closest('.custom-select-container')) {
+      showGenderDropdown.value = false
+      showNationalityDropdown.value = false
+      showReligionDropdown.value = false
+      showRelationshipDropdown.value = false
+    }
+  })
 })
+
+// Add the calculateAgeForEdit function
+const calculateAgeForEdit = () => {
+  if (editUserForm.value.dob) {
+    const birthDate = new Date(editUserForm.value.dob);
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    
+    editUserForm.value.age = String(age);
+  }
+}
+
+const genderSearch = ref('')
+const showGenderDropdown = ref(false)
+const filteredGenders = computed(() => {
+  if (!genderSearch.value) return genderOptions.slice(1) // Skip the "Select gender" option
+  const search = genderSearch.value.toLowerCase()
+  return genderOptions
+    .filter(option => option.value && option.label.toLowerCase().includes(search))
+})
+
+const handleGenderSearch = () => {
+  showGenderDropdown.value = true
+}
+
+const selectGender = (option: { value: string, label: string }) => {
+  editUserForm.value.gender = option.value
+  genderSearch.value = option.label
+  showGenderDropdown.value = false
+}
+
+const nationalitySearch = ref('')
+const showNationalityDropdown = ref(false)
+const filteredNationalities = computed(() => {
+  if (!nationalitySearch.value) return nationalityOptions.slice(1) // Skip the "Select nationality" option
+  const search = nationalitySearch.value.toLowerCase()
+  return nationalityOptions
+    .filter(option => option.value && option.label.toLowerCase().includes(search))
+})
+
+const handleNationalitySearch = () => {
+  showNationalityDropdown.value = true
+}
+
+const selectNationality = (option: { value: string, label: string }) => {
+  editUserForm.value.nationality = option.value
+  nationalitySearch.value = option.label
+  showNationalityDropdown.value = false
+}
+
+const religionSearch = ref('')
+const showReligionDropdown = ref(false)
+const filteredReligions = computed(() => {
+  if (!religionSearch.value) return religionOptions.slice(1) // Skip the "Select religion" option
+  const search = religionSearch.value.toLowerCase()
+  return religionOptions
+    .filter(option => option.value && option.label.toLowerCase().includes(search))
+})
+
+const handleReligionSearch = () => {
+  showReligionDropdown.value = true
+}
+
+const selectReligion = (option: { value: string, label: string }) => {
+  editUserForm.value.religion = option.value
+  religionSearch.value = option.label
+  showReligionDropdown.value = false
+}
+
+// Update search values when edit form is populated
+watch(() => showEditUserModal.value, (isVisible) => {
+  if (isVisible) {
+    if (editUserForm.value.gender) {
+      genderSearch.value = genderOptions.find(g => g.value === editUserForm.value.gender)?.label || ''
+    }
+    if (editUserForm.value.nationality) {
+      nationalitySearch.value = nationalityOptions.find(n => n.value === editUserForm.value.nationality)?.label || ''
+    }
+    if (editUserForm.value.religion) {
+      religionSearch.value = religionOptions.find(r => r.value === editUserForm.value.religion)?.label || ''
+    }
+    if (editUserForm.value.family_relationship) {
+      relationshipSearch.value = relationshipOptions.find(r => r.value === editUserForm.value.family_relationship)?.label || ''
+    }
+  } else {
+    // Reset search values when modal is closed
+    genderSearch.value = ''
+    nationalitySearch.value = ''
+    religionSearch.value = ''
+    relationshipSearch.value = ''
+    
+    // Reset dropdowns
+    showGenderDropdown.value = false
+    showNationalityDropdown.value = false
+    showReligionDropdown.value = false
+    showRelationshipDropdown.value = false
+  }
+})
+
+const relationshipSearch = ref('')
+const showRelationshipDropdown = ref(false)
+const filteredRelationships = computed(() => {
+  if (!relationshipSearch.value) return relationshipOptions.slice(1) // Skip the "Select relationship" option
+  const search = relationshipSearch.value.toLowerCase()
+  return relationshipOptions
+    .filter(option => option.value && option.label.toLowerCase().includes(search))
+})
+
+const handleRelationshipSearch = () => {
+  showRelationshipDropdown.value = true
+}
+
+const selectRelationship = (option: { value: string, label: string }) => {
+  editUserForm.value.family_relationship = option.value
+  relationshipSearch.value = option.label
+  showRelationshipDropdown.value = false
+}
 </script>
 
 <style scoped lang="scss">
@@ -1535,26 +1900,125 @@ onMounted(() => {
   position: fixed;
   top: 0;
   left: 0;
-  width: 100vw;
-  height: 100vh;
-  background: rgba(30, 41, 59, 0.45);
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
   backdrop-filter: blur(4px);
-  z-index: 2000;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.3s;
+  z-index: 1050;
+  padding: 2rem; // Increased padding for better spacing
+  overflow-y: auto; // Added to handle very tall modals
 }
 
 .modern-modal-card {
-  background: #fff;
-  border-radius: 1.25rem;
-  box-shadow: 0 8px 40px rgba(30, 41, 59, 0.18);
-  max-width: 800px;
-  width: 100%;
-  padding: 2.5rem 3rem 2rem 3rem;
+  background: white;
+  border-radius: 1rem;
+  padding: 2.5rem;
   position: relative;
-  animation: modal-pop-in 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  width: 100%;
+  max-width: 800px;
+  height: auto;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1),
+              0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  transition: all 0.3s ease;
+  overflow: visible;
+
+  &.expanded {
+    max-width: 1200px;
+  }
+
+  &.modal-sm {
+    max-width: 360px;
+    padding: 1.75rem;
+    
+    .modern-modal-header {
+      margin-bottom: 1.25rem;
+      
+      h2 {
+        font-size: 1.2rem;
+      }
+      
+      p {
+        font-size: 0.9rem;
+        margin-top: 0.25rem;
+      }
+    }
+    
+    .delete-user-email {
+      font-size: 1rem;
+      margin: 0.75rem 0;
+      word-break: break-all;
+    }
+    
+    .text-muted.small {
+      font-size: 0.85rem;
+      margin-bottom: 0.5rem;
+    }
+    
+    .btn {
+      padding: 0.4rem 0.75rem;
+      font-size: 0.875rem;
+    }
+    
+    .modern-modal-close {
+      top: 1rem;
+      right: 1rem;
+      font-size: 1.1rem;
+    }
+  }
+
+  .modern-modal-close {
+    position: absolute;
+    top: 1.5rem;
+    right: 1.5rem;
+    background: none;
+    border: none;
+    color: #64748b;
+    font-size: 1.25rem;
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 0.5rem;
+    transition: all 0.2s ease;
+
+    &:hover {
+      background: #f1f5f9;
+      color: #1e293b;
+    }
+  }
+
+  .modern-modal-header {
+    margin-bottom: 2rem;
+
+    h2 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: #1e293b;
+      margin: 0;
+    }
+
+    p {
+      color: #64748b;
+      margin-top: 0.5rem;
+    }
+  }
+}
+
+.modern-modal-form {
+  .form-section {
+    background: #f8fafc;
+    border-radius: 1rem;
+    padding: 1.5rem;
+    height: auto;
+    margin-bottom: 1rem;
+    overflow: visible; // Added to ensure dropdowns are visible
+  }
+}
+
+// Add smooth transition for width changes
+.transition-width {
+  transition: width 0.3s ease-in-out;
 }
 
 @keyframes modal-pop-in {
@@ -1605,6 +2069,13 @@ onMounted(() => {
     border-radius: 0.75rem;
     padding: 2rem;
     margin-bottom: 1.5rem;
+    height: 100%;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+
+    &:hover {
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+    }
 
     &:last-child {
       margin-bottom: 0;
@@ -1618,6 +2089,19 @@ onMounted(() => {
     font-size: 0.95rem;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    position: relative;
+    padding-bottom: 0.75rem;
+    
+    &:after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 40px;
+      height: 3px;
+      background: #42b883;
+      border-radius: 3px;
+    }
   }
 
   .form-control,
@@ -1689,11 +2173,12 @@ onMounted(() => {
 // Modal fade/scale animation
 .modern-modal-fade-enter-active,
 .modern-modal-fade-leave-active {
-  transition: opacity 0.2s;
+  transition: opacity 0.3s, transform 0.3s;
 }
 .modern-modal-fade-enter-from,
 .modern-modal-fade-leave-to {
   opacity: 0;
+  transform: scale(0.95);
 }
 
 .skeleton {
@@ -1971,6 +2456,393 @@ onMounted(() => {
   
   .info-card {
     padding: 0.75rem;
+  }
+}
+
+.row.expanded {
+  animation: row-expand 0.65s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes row-expand {
+  from {
+    opacity: 0.95;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+// Actions container for better display of action buttons
+.actions-container {
+  min-width: 200px;
+  justify-content: flex-start;
+  align-items: center;
+  flex-wrap: nowrap; // Prevent wrapping of buttons
+}
+
+// Button in actions container should have fixed width for consistency
+.actions-container .btn {
+  width: 38px;
+  height: 32px;
+  padding: 0.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+// Fix for actions column in the table
+td:last-child {
+  min-width: 220px;
+}
+
+// Slide fade transition for the right panel
+.slide-fade-enter-active {
+  transition: all 0.65s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.slide-fade-leave-active {
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.slide-fade-enter-from,
+.slide-fade-leave-to {
+  transform: translateX(40px);
+  opacity: 0;
+}
+
+// Row animation
+.row.expanded {
+  animation: row-expand 0.65s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes row-expand {
+  from {
+    opacity: 0.95;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+// Modern modal media queries
+@media (max-width: 1200px) {
+  .modern-modal-card {
+    max-width: 95%;
+    width: 95%;
+    
+    &.expanded {
+      max-width: 95%;
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  .modern-modal-card {
+    padding: 2rem 1.5rem 1.5rem 1.5rem;
+  }
+  
+  .row > [class*="col-"] {
+    margin-bottom: 1rem;
+  }
+  
+  .transition-width {
+    width: 100% !important;
+  }
+}
+
+.transition-width {
+  transition: all 0.65s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.custom-select-container {
+  position: relative;
+}
+
+.custom-select-dropdown {
+  position: absolute;
+  top: calc(100% + 5px); // Added a small gap
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  z-index: 1060; // Increased z-index to appear above modal
+  max-height: 200px; // Reduced max-height
+  overflow-y: auto;
+  animation: dropdown-fade-in 0.2s ease;
+}
+
+@keyframes dropdown-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.custom-select-options {
+  padding: 0.5rem 0;
+}
+
+.custom-select-option {
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background: #f8f9fa;
+    color: #42b883;
+  }
+  
+  &.selected {
+    background: #42b883;
+    color: white;
+    
+    &:hover {
+      background: #3aa876;
+    }
+  }
+}
+
+.no-results {
+  padding: 0.75rem 1rem;
+  color: #64748b;
+  text-align: center;
+  font-style: italic;
+}
+
+/* Custom scrollbar for the dropdown */
+.custom-select-dropdown {
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 4px;
+    
+    &:hover {
+      background: #a8a8a8;
+    }
+  }
+}
+
+.changes-summary-cell {
+  max-width: 300px;
+  
+  .changes-summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    color: #4b5563;
+    align-items: center;
+  }
+  
+  .changed-field {
+    background: #f3f4f6;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.375rem;
+    font-size: 0.75rem;
+    color: #6b7280;
+    border: 1px solid #e5e7eb;
+    white-space: nowrap;
+  }
+  
+  .show-more-btn {
+    background: #e5e7eb;
+    color: #4b5563;
+    border: none;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.375rem;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    
+    &:hover {
+      background: #d1d5db;
+      color: #374151;
+    }
+  }
+}
+
+.modern-modal-card {
+  &.modal-sm {
+    max-width: 360px;
+    padding: 1.75rem;
+    
+    .modern-modal-header {
+      margin-bottom: 1.5rem;
+      
+      h2 {
+        font-size: 1.3rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+      }
+      
+      p {
+        font-size: 0.9rem;
+        color: #64748b;
+      }
+    }
+  }
+}
+
+.modal-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+  font-size: 1.5rem;
+  
+  &.modal-icon-danger {
+    background-color: #fee2e2;
+    color: #dc2626;
+  }
+  
+  &.modal-icon-warning {
+    background-color: #fef3c7;
+    color: #d97706;
+  }
+}
+
+.modal-body {
+  padding: 1rem 0;
+}
+
+.user-info-box {
+  background: #f8fafc;
+  border-radius: 0.75rem;
+  padding: 1rem;
+  margin: 0.5rem 0;
+  border: 1px solid #e2e8f0;
+  
+  .user-email {
+    font-weight: 500;
+    color: #1e293b;
+    word-break: break-all;
+    margin-bottom: 0.5rem;
+  }
+  
+  .user-role {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border-radius: 1rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+  }
+}
+
+.password-info {
+  background: #fffbeb;
+  border-radius: 0.75rem;
+  padding: 1rem;
+  border: 1px dashed #fbbf24;
+  
+  .password-label {
+    font-size: 0.875rem;
+    margin-bottom: 0.25rem;
+  }
+  
+  .password-value {
+    font-family: monospace;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #b45309;
+  }
+}
+
+.modal-footer {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #e2e8f0;
+  
+  .btn {
+    padding: 0.5rem 1.25rem;
+    font-weight: 500;
+    border-radius: 0.5rem;
+    
+    &.btn-light {
+      background: #f1f5f9;
+      border: 1px solid #e2e8f0;
+      color: #64748b;
+      
+      &:hover {
+        background: #e2e8f0;
+        color: #475569;
+      }
+    }
+    
+    &.btn-danger {
+      background: #dc2626;
+      border: none;
+      color: white;
+      
+      &:hover {
+        background: #b91c1c;
+      }
+      
+      &:disabled {
+        background: #fca5a5;
+      }
+    }
+    
+    &.btn-warning {
+      background: #d97706;
+      border: none;
+      color: white;
+      
+      &:hover {
+        background: #b45309;
+      }
+      
+      &:disabled {
+        background: #fcd34d;
+      }
+    }
+  }
+}
+
+// Animation for modal appearance
+.modern-modal-fade-enter-active,
+.modern-modal-fade-leave-active {
+  transition: all 0.3s ease;
+  
+  .modern-modal-card {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+}
+
+.modern-modal-fade-enter-from,
+.modern-modal-fade-leave-to {
+  opacity: 0;
+  
+  .modern-modal-card {
+    transform: scale(0.95) translateY(10px);
+  }
+}
+
+.modern-modal-fade-enter-to,
+.modern-modal-fade-leave-from {
+  opacity: 1;
+  
+  .modern-modal-card {
+    transform: scale(1) translateY(0);
   }
 }
 </style> 

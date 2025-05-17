@@ -125,7 +125,6 @@ export const addUserWithRole = async ({
   username, 
   role,
   identification,
-  gradeLevel,
   dob,
   age,
   gender,
@@ -143,7 +142,6 @@ export const addUserWithRole = async ({
   username: string
   role: string
   identification?: string
-  gradeLevel?: string
   dob?: string
   age?: number
   gender?: string
@@ -177,7 +175,7 @@ export const addUserWithRole = async ({
         username, 
         role,
         identification: identification || null,
-        grade_level: gradeLevel || null,
+        grade_level: null,
         dob: dob || null,
         age: age || null,
         gender: gender || null,
@@ -204,7 +202,6 @@ export const updateUserWithRole = async ({
   username, 
   role,
   identification,
-  gradeLevel,
   dob,
   age,
   gender,
@@ -221,7 +218,6 @@ export const updateUserWithRole = async ({
   username: string, 
   role: string,
   identification?: string,
-  gradeLevel?: string,
   dob?: string,
   age?: number,
   gender?: string,
@@ -254,7 +250,7 @@ export const updateUserWithRole = async ({
         username, 
         role,
         identification: identification || null,
-        grade_level: gradeLevel || null,
+        grade_level: null,
         dob: dob || null,
         age: age || null,
         gender: gender || null,
@@ -276,33 +272,35 @@ export const updateUserWithRole = async ({
   }
 }
 
-// Add interface for Grade
-interface Grade {
-  id: number
-  grade_level: string
-}
-
-// Add function to fetch grades
-export const getGrades = async (): Promise<Grade[]> => {
-  try {
-    const { data, error } = await admin
-      .from('grade')
-      .select('id, grade_level')
-      .order('grade_level', { ascending: true })
-
-    if (error) throw error
-    return data || []
-  } catch (error) {
-    console.error('Error fetching grades:', error)
-    throw error
-  }
-}
-
-export const getClasses = async () => {
-  const { data, error } = await admin
+export const getClasses = async (schoolId?: string) => {
+  let query = admin
     .from('classes')
     .select('class_id, class_name')
-    .order('class_name', { ascending: true })
-  if (error) throw error
-  return data || []
+    .order('class_name', { ascending: true });
+    
+  // Filter by school_id if provided
+  if (schoolId) {
+    query = query.eq('school_id', schoolId);
+  }
+    
+  const { data, error } = await query;
+  if (error) throw error;
+  return data || [];
+}
+
+// Add function to reset user password to default
+export const resetUserPassword = async (userId: string) => {
+  try {
+    const DEFAULT_PASSWORD = '12345678'
+    
+    const { error } = await admin.auth.admin.updateUserById(userId, {
+      password: DEFAULT_PASSWORD
+    })
+    
+    if (error) throw error
+    return true
+  } catch (error) {
+    console.error('Error resetting user password:', error)
+    throw error
+  }
 } 

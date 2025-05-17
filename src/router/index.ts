@@ -6,6 +6,7 @@ import { validateSchoolSession } from './middleware'
 import { supabase } from '@/lib/supabase'
 // @ts-ignore - Bootstrap types are not available
 import 'bootstrap'
+import AuditLogs from '@/components/AuditLogs.vue'
 
 // Type declaration for Bootstrap Dropdown instance
 declare global {
@@ -29,7 +30,7 @@ const routes: RouteRecordRaw[] = [
     path: '/activities',
     name: 'Activities',
     component: () => import('@/views/ActivitiesView.vue'),
-    meta: { requiresAuth: true, allowedRoles: ['superadmin', 'admin', 'teacher', 'student', 'parent', 'accountant'] }
+    meta: { requiresAuth: true, allowedRoles: ['superadmin', 'admin', 'teacher', 'student', 'parent', 'accountant', 'registrar'] }
   },
   {
     path: '/contact',
@@ -335,6 +336,15 @@ const routes: RouteRecordRaw[] = [
     name: 'OnboardSchool',
     component: () => import('@/views/OnboardSchool.vue'),
     meta: { requiresAuth: true, allowedRoles: ['superadmin'] }
+  },
+  {
+    path: '/audit-logs',
+    name: 'audit-logs',
+    component: AuditLogs,
+    meta: {
+      requiresAuth: true,
+      allowedRoles: ['superadmin', 'admin']
+    }
   }
 ]
 
