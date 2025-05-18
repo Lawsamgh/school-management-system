@@ -683,6 +683,8 @@
 <script setup lang="ts">
 import { onMounted, onBeforeUnmount } from 'vue'
 import { useDashboard } from '@/composables/useDashboard'
+import ChangePasswordModal from '@/components/ChangePasswordModal.vue'
+import AddUserModal from '@/components/AddUserModal.vue'
 
 // Use the dashboard composable
 const {
@@ -981,7 +983,7 @@ onBeforeUnmount(() => {
       }
 
       .stat-number {
-        font-size: 2.5rem;
+        font-size: 1.5rem;
         margin: 0.5rem 0;
         background: linear-gradient(135deg, #42b883, #3aa876);
         -webkit-background-clip: text;

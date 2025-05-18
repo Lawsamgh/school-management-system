@@ -182,8 +182,8 @@ export function useDashboard() {
     
     const role = userRole.value?.toLowerCase() || '';
     
-    // Superadmin always sees finance content
-    if (role === 'superadmin') return true;
+    // Superadmin should not see finance content
+    if (role === 'superadmin') return false;
     
     // Admin/registrar sees finance content if the module is enabled
     if (['admin', 'registrar'].includes(role)) {
