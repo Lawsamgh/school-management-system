@@ -314,7 +314,7 @@
                     <div class="card-header d-flex justify-content-between align-items-center">
                       <h5 class="mb-0">Recent Assignments</h5>
                       <div>
-                        <button class="btn btn-primary btn-sm">
+                        <button class="btn btn-primary btn-sm" @click="openCreateAssignmentModal">
                           <i class="fas fa-plus me-2"></i>
                           Create Assignment
                         </button>
@@ -334,26 +334,34 @@
                               </tr>
                             </thead>
                             <tbody>
-                              <tr>
+                              <tr v-for="assignment in assignments" :key="assignment.id">
                                 <td>
                                 <div>
-                                  <h6 class="mb-0">Mathematics Assignment #4</h6>
-                                      <small class="text-muted">Class X-A</small>
+                                  <h6 class="mb-0">{{ assignment.title }}</h6>
+                                      <small class="text-muted">{{ selectedClassName }}</small>
                                   </div>
                                 </td>
-                              <td>Mathematics</td>
-                              <td>Oct 15, 2023</td>
-                              <td><span class="status-badge pending">Pending</span></td>
-                              <td>24/48</td>
+                              <td>{{ assignment.subject }}</td>
+                              <td>{{ formatDate(assignment.due_date) }}</td>
+                              <td><span class="status-badge" :class="assignment.status">{{ assignment.status }}</span></td>
+                              <td>{{ assignment.submission_count || 0 }}/{{ totalStudents }}</td>
                                 <td>
                                 <div class="actions">
-                                  <button class="action-btn edit">
+                                  <button class="action-btn edit" @click="editAssignment(assignment)">
                                     <i class="fas fa-edit"></i>
                                   </button>
-                                  <button class="action-btn delete">
+                                  <button class="action-btn delete" @click="deleteAssignment(assignment.id)">
                                     <i class="fas fa-trash"></i>
                                   </button>
                                 </div>
+                                </td>
+                              </tr>
+                              <tr v-if="assignments.length === 0">
+                                <td colspan="6">
+                                  <div class="text-center py-4">
+                                    <i class="fas fa-book fa-2x text-muted mb-3"></i>
+                                    <p class="text-muted mb-0">No assignments found</p>
+                                  </div>
                                 </td>
                               </tr>
                             </tbody>
@@ -815,12 +823,303 @@
         </div>
       </div>
     </div>
+
+    <!-- Create Assignment Modal -->
+    <div class="modal fade" id="createAssignmentModal" tabindex="-1" data-bs-backdrop="static">
+      <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+          <div class="modal-header border-0">
+            <h5 class="modal-title d-flex align-items-center">
+              <i class="fas fa-book text-primary me-2"></i>
+              Create Assignment
+            </h5>
+            <button type="button" class="btn-close" @click="closeCreateAssignmentModal"></button>
+          </div>
+          <div class="modal-body p-0">
+            <div class="create-assignment-card">
+              <!-- Step Progress -->
+              <div v-if="newAssignment.type === 'mcq'" class="step-progress">
+                <div class="step" :class="{ active: currentStep === 1 }">
+                  <div class="step-number">1</div>
+                  <div class="step-label">Basic Details</div>
+                </div>
+                <div class="step-line"></div>
+                <div class="step" :class="{ active: currentStep === 2 }">
+                  <div class="step-number">2</div>
+                  <div class="step-label">Questions</div>
+                </div>
+              </div>
+
+              <!-- Assignment Form -->
+              <form @submit.prevent="saveAssignment">
+                <div class="form-section">
+                  <!-- Step 1: Basic Details -->
+                  <div v-show="currentStep === 1">
+                    <div class="basic-details mb-4">
+                      <label class="section-label">Basic Details</label>
+                      <div class="row g-3">
+                        <div class="col-md-6">
+                          <!-- Title -->
+                          <div class="form-group">
+                            <label class="form-label">Title <span class="text-danger">*</span></label>
+                            <input 
+                              type="text" 
+                              class="form-control" 
+                              v-model="newAssignment.title"
+                              placeholder="Enter assignment title"
+                              required
+                            >
+                          </div>
+                        </div>
+                        <div class="col-md-6">
+                          <!-- Subject -->
+                          <div class="form-group">
+                            <label class="form-label">Subject <span class="text-danger">*</span></label>
+                            <input 
+                              type="text" 
+                              class="form-control" 
+                              v-model="newAssignment.subject"
+                              placeholder="Enter subject"
+                              required
+                            >
+                          </div>
+                        </div>
+                        <div class="col-md-12">
+                          <!-- Description -->
+                          <div class="form-group">
+                            <label class="form-label">Description <span class="text-danger">*</span></label>
+                            <textarea 
+                              class="form-control" 
+                              v-model="newAssignment.description"
+                              rows="2"
+                              placeholder="Enter assignment description"
+                              required
+                            ></textarea>
+                          </div>
+                        </div>
+                        <div class="col-md-6">
+                          <!-- Due Date -->
+                          <div class="form-group">
+                            <label class="form-label">Due Date <span class="text-danger">*</span></label>
+                            <input 
+                              type="date" 
+                              class="form-control" 
+                              v-model="newAssignment.due_date"
+                              :min="today"
+                              required
+                            >
+                          </div>
+                        </div>
+                        <div class="col-md-6">
+                          <!-- Assignment Type -->
+                          <div class="form-group">
+                            <label class="form-label">Assignment Type <span class="text-danger">*</span></label>
+                            <select 
+                              class="form-select" 
+                              v-model="newAssignment.type"
+                              @change="handleAssignmentTypeChange"
+                              required
+                            >
+                              <option value="" disabled>Select assignment type</option>
+                              <option value="mcq">Multiple Choice Questions</option>
+                              <option value="file">File Upload</option>
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Step 2: MCQ Questions -->
+                  <div v-show="currentStep === 2">
+                    <div class="mcq-section" ref="mcqSection">
+                      <div class="d-flex justify-content-between align-items-center mb-4">
+                        <div>
+                          <label class="section-label mb-1">Questions</label>
+                          <p class="text-muted small mb-0">Add multiple choice questions for your assignment</p>
+                        </div>
+                        <button 
+                          type="button" 
+                          class="btn btn-outline-primary btn-sm"
+                          @click="addQuestion"
+                        >
+                          <i class="fas fa-plus me-2"></i>
+                          Add Question
+                        </button>
+                      </div>
+
+                      <!-- Questions List -->
+                      <div class="questions-list">
+                        <div 
+                          v-for="(question, index) in newAssignment.questions" 
+                          :key="index"
+                          class="question-card mb-4"
+                        >
+                          <div class="question-header">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                              <div class="d-flex align-items-center">
+                                <span class="question-number me-3">{{ index + 1 }}</span>
+                                <h6 class="mb-0">Question {{ index + 1 }}</h6>
+                              </div>
+                              <div class="d-flex gap-2">
+                                <div class="points-badge">
+                                  {{ question.points }} points
+                                </div>
+                                <button 
+                                  type="button" 
+                                  class="btn btn-outline-danger btn-sm"
+                                  @click="removeQuestion(index)"
+                                >
+                                  <i class="fas fa-trash"></i>
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div class="question-content">
+                            <!-- Question Text -->
+                            <div class="form-group mb-3">
+                              <label class="form-label">Question Text <span class="text-danger">*</span></label>
+                              <textarea 
+                                class="form-control" 
+                                v-model="question.text"
+                                rows="2"
+                                placeholder="Enter your question"
+                                required
+                              ></textarea>
+                            </div>
+
+                            <div class="row g-3">
+                              <div class="col-md-6">
+                                <!-- Points -->
+                                <div class="form-group">
+                                  <label class="form-label">Points <span class="text-danger">*</span></label>
+                                  <input 
+                                    type="number" 
+                                    class="form-control" 
+                                    v-model="question.points"
+                                    min="1"
+                                    required
+                                  >
+                                </div>
+                              </div>
+                            </div>
+
+                            <!-- Options -->
+                            <div class="options-section mt-3">
+                              <label class="form-label d-flex justify-content-between align-items-center">
+                                <span>Options <span class="text-danger">*</span></span>
+                                <button 
+                                  type="button" 
+                                  class="btn btn-outline-primary btn-sm"
+                                  @click="addOption(index)"
+                                  v-if="question.options.length < 6"
+                                >
+                                  <i class="fas fa-plus me-1"></i>
+                                  Add Option
+                                </button>
+                              </label>
+
+                              <div class="options-grid">
+                                <div 
+                                  v-for="(option, optIndex) in question.options" 
+                                  :key="optIndex"
+                                  class="option-item"
+                                >
+                                  <div class="input-group">
+                                    <div class="input-group-text">
+                                      <input 
+                                        type="radio" 
+                                        :name="'correct_' + index"
+                                        :value="optIndex"
+                                        v-model="question.correctOption"
+                                        required
+                                      >
+                                    </div>
+                                    <input 
+                                      type="text" 
+                                      class="form-control" 
+                                      v-model="option.text"
+                                      :placeholder="'Option ' + (optIndex + 1)"
+                                      required
+                                    >
+                                    <button 
+                                      type="button" 
+                                      class="btn btn-outline-danger"
+                                      @click="removeOption(index, optIndex)"
+                                      v-if="question.options.length > 2"
+                                    >
+                                      <i class="fas fa-times"></i>
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </div>
+          <div class="modal-footer border-0">
+            <div class="d-flex justify-content-between w-100">
+              <button 
+                v-if="currentStep === 2" 
+                type="button" 
+                class="btn btn-outline-secondary" 
+                @click="currentStep = 1"
+              >
+                <i class="fas fa-arrow-left me-2"></i>
+                Back
+              </button>
+              <div v-else></div>
+              
+              <div>
+                <button 
+                  type="button" 
+                  class="btn btn-outline-secondary me-2" 
+                  @click="closeCreateAssignmentModal"
+                >
+                  Cancel
+                </button>
+                
+                <button 
+                  v-if="currentStep === 1 && newAssignment.type === 'mcq'"
+                  type="button" 
+                  class="btn btn-primary"
+                  @click="goToQuestions"
+                  :disabled="!isBasicDetailsValid"
+                >
+                  Next
+                  <i class="fas fa-arrow-right ms-2"></i>
+                </button>
+                
+                <button 
+                  v-else
+                  type="button" 
+                  class="btn btn-primary" 
+                  @click="saveAssignment"
+                  :disabled="!isAssignmentFormValid || savingAssignment"
+                >
+                  <i class="fas fa-save me-2"></i>
+                  {{ savingAssignment ? 'Saving...' : 'Create Assignment' }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div>
 </template>
 
 <script setup lang="ts">
 // Add imports at the top of the script section
-import { ref, onMounted, computed, watch } from 'vue'
+import { ref, onMounted, computed, watch, nextTick } from 'vue'
 import * as bootstrap from 'bootstrap'
 import { useAuthStore } from '@/store/auth'
 import { supabase } from '@/lib/supabase'
@@ -1024,6 +1323,12 @@ onMounted(async () => {
     const editAttendanceModalElement = document.getElementById('editAttendanceModal')
     if (editAttendanceModalElement) {
       editAttendanceModal = new bootstrap.Modal(editAttendanceModalElement)
+    }
+
+    // Initialize create assignment modal
+    const createAssignmentModalElement = document.getElementById('createAssignmentModal')
+    if (createAssignmentModalElement) {
+      createAssignmentModal = new bootstrap.Modal(createAssignmentModalElement)
     }
 
     // For superadmin, check if a school is already selected
@@ -1943,8 +2248,18 @@ const promoteSelectedStudents = async () => {
     selectAllStudents.value = false
     studentPromotions.value = {}
     
-    // Refresh student list
-    await fetchClassStudents(authStore.getSelectedSchoolId || '')
+    // Refresh student list and other data
+    const schoolId = isSuperAdmin.value ? authStore.getSelectedSchoolId : authStore.userRole?.school_id
+    if (schoolId) {
+      await Promise.all([
+        fetchClassStudents(schoolId),
+        fetchAttendanceRecords(),
+        fetchAvailableClasses()
+      ])
+    }
+
+    // Update analytics
+    totalStudents.value = classStudents.value.length
   } catch (error) {
     console.error('Error promoting students:', error)
     toast.error('Failed to promote students')
@@ -1953,6 +2268,342 @@ const promoteSelectedStudents = async () => {
 
 // Add loading state
 const loading = ref(true)
+
+// Add these refs for assignment functionality
+let createAssignmentModal: bootstrap.Modal | null = null
+const newAssignment = ref({
+  title: '',
+  subject: '',
+  description: '',
+  due_date: '',
+  max_score: 100,
+  class_id: '',
+  school_id: '',
+  type: '',
+  questions: [] as Array<{
+    text: string;
+    points: number;
+    options: Array<{ text: string }>;
+    correctOption: number;
+  }>
+})
+const savingAssignment = ref(false)
+
+// Add computed property for form validation
+const isAssignmentFormValid = computed(() => {
+  const baseValidation = newAssignment.value.title &&
+    newAssignment.value.subject &&
+    newAssignment.value.description &&
+    newAssignment.value.due_date &&
+    newAssignment.value.type
+
+  if (newAssignment.value.type === 'mcq') {
+    // Validate MCQ specific fields
+    return baseValidation && newAssignment.value.questions.every(question => 
+      question.text && // Question text is not empty
+      question.points > 0 && // Points are positive
+      question.options.every(opt => opt.text.trim() !== '') && // All options have text
+      question.correctOption >= 0 && // Has a correct option selected
+      question.correctOption < question.options.length // Correct option is valid
+    )
+  }
+
+  // For file upload type
+  return baseValidation && newAssignment.value.max_score > 0
+})
+
+// Add to your onMounted function
+onMounted(async () => {
+  // ... existing code ...
+
+  // Initialize create assignment modal
+  const createAssignmentModalElement = document.getElementById('createAssignmentModal')
+  if (createAssignmentModalElement) {
+    createAssignmentModal = new bootstrap.Modal(createAssignmentModalElement)
+  }
+
+  // Fetch assignments on mount
+  await fetchAssignments()
+})
+
+// Add these functions for assignment management
+const openCreateAssignmentModal = async () => {
+  try {
+    // Get user's role and school info
+    const { data: userData, error: userError } = await supabase
+      .from('user_roles')
+      .select('role, school_id, class_id')
+      .eq('id', authStore.userRole?.id)
+      .single()
+
+    if (userError) {
+      console.error('Error fetching user data:', userError)
+      toast.error('Failed to fetch user information')
+      return
+    }
+
+    // For superadmin, use the selected school ID from auth store
+    const effectiveSchoolId = isSuperAdmin.value 
+      ? authStore.getSelectedSchoolId 
+      : userData.school_id
+
+    if (!effectiveSchoolId) {
+      toast.error('No school selected')
+      return
+    }
+
+    // Determine which class ID to use based on role
+    const classIdToUse = userData.role.toLowerCase() === 'admin' || userData.role.toLowerCase() === 'superadmin'
+      ? selectedClassId.value
+      : userData.class_id
+
+    if (!classIdToUse) {
+      toast.error('Please select a class first')
+      return
+    }
+
+    // Reset form and set initial values
+    newAssignment.value = {
+      title: '',
+      subject: '',
+      description: '',
+      due_date: '',
+      max_score: 100,
+      class_id: classIdToUse,
+      school_id: effectiveSchoolId,
+      type: '',
+      questions: []
+    }
+
+    // Show modal
+    createAssignmentModal?.show()
+  } catch (error) {
+    console.error('Error preparing assignment creation:', error)
+    toast.error('Failed to prepare assignment creation')
+  }
+}
+
+const closeCreateAssignmentModal = () => {
+  currentStep.value = 1
+  createAssignmentModal?.hide()
+}
+
+const saveAssignment = async () => {
+  if (!isAssignmentFormValid.value) {
+    toast.error('Please fill in all required fields')
+    return
+  }
+
+  savingAssignment.value = true
+  try {
+    // First create the assignment
+    const { data: assignmentData, error: assignmentError } = await supabase
+      .from('assignments')
+      .insert([{
+        title: newAssignment.value.title,
+        subject: newAssignment.value.subject,
+        description: newAssignment.value.description,
+        due_date: newAssignment.value.due_date,
+        max_score: newAssignment.value.type === 'mcq' 
+          ? newAssignment.value.questions.reduce((sum, q) => sum + q.points, 0)
+          : newAssignment.value.max_score,
+        class_id: newAssignment.value.class_id,
+        school_id: newAssignment.value.school_id,
+        type: newAssignment.value.type,
+        status: 'active'
+      }])
+      .select()
+
+    if (assignmentError) throw assignmentError
+
+    // If it's an MCQ assignment, save the questions
+    if (newAssignment.value.type === 'mcq' && assignmentData?.[0]?.id) {
+      const assignmentId = assignmentData[0].id
+
+      // Prepare questions data
+      const questionsData = newAssignment.value.questions.map((question, index) => ({
+        assignment_id: assignmentId,
+        question_text: question.text,
+        points: question.points,
+        question_order: index + 1,
+        options: question.options.map(opt => opt.text),
+        correct_option: question.correctOption
+      }))
+
+      // Save questions
+      const { error: questionsError } = await supabase
+        .from('assignment_questions')
+        .insert(questionsData)
+
+      if (questionsError) throw questionsError
+    }
+
+    // Log activity
+    await logActivity(
+      'create',
+      'assignments',
+      newAssignment.value.class_id.toString(),
+      null,
+      { 
+        title: newAssignment.value.title,
+        type: newAssignment.value.type
+      }
+    )
+
+    toast.success('Assignment created successfully')
+    createAssignmentModal?.hide()
+    
+    // Refresh assignments list
+    await fetchAssignments()
+  } catch (error) {
+    console.error('Error creating assignment:', error)
+    toast.error('Failed to create assignment')
+  } finally {
+    savingAssignment.value = false
+  }
+}
+
+// Add function to fetch assignments
+const fetchAssignments = async () => {
+  try {
+    const { data: userData, error: userError } = await supabase
+      .from('user_roles')
+      .select('role, school_id, class_id')
+      .eq('id', authStore.userRole?.id)
+      .single()
+
+    if (userError) throw userError
+
+    const effectiveSchoolId = isSuperAdmin.value 
+      ? authStore.getSelectedSchoolId 
+      : userData.school_id
+
+    if (!effectiveSchoolId) return
+
+    const classIdToUse = userData.role.toLowerCase() === 'admin' || userData.role.toLowerCase() === 'superadmin'
+      ? selectedClassId.value
+      : userData.class_id
+
+    if (!classIdToUse) return
+
+    const { data, error } = await supabase
+      .from('assignments')
+      .select('*')
+      .eq('class_id', classIdToUse)
+      .eq('school_id', effectiveSchoolId)
+      .order('created_at', { ascending: false })
+
+    if (error) throw error
+
+    assignments.value = data || []
+  } catch (error) {
+    console.error('Error fetching assignments:', error)
+    toast.error('Failed to fetch assignments')
+  }
+}
+
+// Add this ref for assignments list
+const assignments = ref<any[]>([])
+
+// Add these functions for assignment management
+const deleteAssignment = async (id: string) => {
+  if (confirm('Are you sure you want to delete this assignment?')) {
+    try {
+      const { error } = await supabase
+        .from('assignments')
+        .delete()
+        .eq('id', id)
+
+      if (error) throw error
+
+      // Log activity
+      await logActivity(
+        'delete',
+        'assignments',
+        id,
+        null,
+        null
+      )
+
+      toast.success('Assignment deleted successfully')
+      await fetchAssignments()
+    } catch (error) {
+      console.error('Error deleting assignment:', error)
+      toast.error('Failed to delete assignment')
+    }
+  }
+}
+
+const editAssignment = (assignment: any) => {
+  // For now, we'll just show a toast message
+  toast.info('Assignment editing will be implemented soon')
+}
+
+// Add this watch to fetch assignments when class changes
+watch(selectedClassId, async () => {
+  await fetchAssignments()
+})
+
+const addQuestion = () => {
+  newAssignment.value.questions.push({
+    text: '',
+    points: 1,
+    options: [{ text: '' }, { text: '' }, { text: '' }, { text: '' }],
+    correctOption: 0
+  })
+}
+
+const removeQuestion = (index: number) => {
+  newAssignment.value.questions.splice(index, 1)
+}
+
+const addOption = (index: number) => {
+  newAssignment.value.questions[index].options.push({ text: '' })
+}
+
+const removeOption = (index: number, optIndex: number) => {
+  newAssignment.value.questions[index].options.splice(optIndex, 1)
+}
+
+// Add this to the script section
+const mcqSection = ref<HTMLElement | null>(null)
+
+const handleAssignmentTypeChange = () => {
+  if (newAssignment.value.type === 'mcq') {
+    // Wait for the MCQ section to be rendered
+    nextTick(() => {
+      if (mcqSection.value) {
+        const formSection = mcqSection.value.closest('.form-section')
+        if (formSection) {
+          formSection.scrollTo({
+            top: mcqSection.value.offsetTop - 20,
+            behavior: 'smooth'
+          })
+        }
+      }
+    })
+  }
+}
+
+// Add these refs and computed properties
+const currentStep = ref(1)
+
+// Add this computed property
+const isBasicDetailsValid = computed(() => {
+  return newAssignment.value.title &&
+    newAssignment.value.subject &&
+    newAssignment.value.description &&
+    newAssignment.value.due_date &&
+    newAssignment.value.type
+})
+
+// Add this method
+const goToQuestions = () => {
+  if (isBasicDetailsValid.value) {
+    currentStep.value = 2
+  }
+}
+
 </script>
 
 <style lang="scss" scoped>
@@ -3301,4 +3952,369 @@ $white: #ffffff;
     }
   }
 }
+
+// Add these styles for the create assignment modal
+.create-assignment-card {
+  height: calc(90vh - 180px);
+  display: flex;
+  flex-direction: column;
+  
+  .form-section {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1.5rem;
+    
+    > div {
+      height: 100%;
+      
+      .mcq-section {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        margin-top: 0;
+        padding-top: 0;
+        border-top: none;
+        
+        .questions-list {
+          flex: 1;
+          overflow-y: auto;
+          padding-right: 1rem;
+          margin: 0 -1rem 0 0;
+        }
+      }
+    }
+  }
+}
+
+.mcq-section {
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 1px solid $light-gray;
+  animation: slideDown 0.3s ease-out;
+
+  .questions-list {
+    max-height: 60vh;
+    overflow-y: auto;
+    padding-right: 1rem;
+    margin-right: -1rem;
+    
+    &::-webkit-scrollbar {
+      width: 6px;
+    }
+    
+    &::-webkit-scrollbar-track {
+      background: $light-gray;
+      border-radius: 3px;
+    }
+    
+    &::-webkit-scrollbar-thumb {
+      background: darken($light-gray, 15%);
+      border-radius: 3px;
+      
+      &:hover {
+        background: darken($light-gray, 20%);
+      }
+    }
+  }
+
+  .question-card {
+    background: $white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    border: 1px solid $light-gray;
+    transition: all 0.2s ease;
+    margin-bottom: 1.5rem;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+
+    &:hover {
+      border-color: $primary;
+      box-shadow: 0 4px 12px rgba($primary, 0.1);
+    }
+
+    .question-number {
+      width: 28px;
+      height: 28px;
+      background: $primary;
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.875rem;
+      font-weight: 600;
+    }
+
+    .points-badge {
+      padding: 0.25rem 0.75rem;
+      background: rgba($primary, 0.1);
+      color: $primary;
+      border-radius: 20px;
+      font-size: 0.875rem;
+      font-weight: 500;
+    }
+
+    .question-content {
+      padding: 1rem;
+      background: $background;
+      border-radius: 8px;
+      margin-top: 1rem;
+    }
+
+    .options-section {
+      .options-grid {
+        display: grid;
+        gap: 0.75rem;
+        
+        .option-item {
+          .input-group {
+            background: $white;
+            border-radius: 8px;
+            overflow: hidden;
+            
+            .input-group-text {
+              background: none;
+              border: 1px solid $light-gray;
+              border-right: none;
+              padding: 0.5rem 0.75rem;
+            }
+            
+            .form-control {
+              border-left: none;
+              border-right: none;
+              
+              &:focus {
+                border-color: $light-gray;
+                box-shadow: none;
+              }
+            }
+            
+            .btn-outline-danger {
+              border: 1px solid $light-gray;
+              border-left: none;
+              padding: 0 1rem;
+              
+              &:hover {
+                background: $danger;
+                border-color: $danger;
+                color: white;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+// Update modal styles
+#createAssignmentModal {
+  .modal-dialog {
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .modal-content {
+    max-height: calc(90vh - 2rem);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .modal-body {
+    flex: 1;
+    overflow: hidden;
+    padding: 0;
+  }
+
+  .modal-header,
+  .modal-footer {
+    flex-shrink: 0;
+  }
+}
+
+.mcq-section {
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 1px solid $light-gray;
+
+  .section-label {
+    font-size: 1rem;
+    font-weight: 600;
+    color: $dark;
+  }
+}
+
+.question-card {
+  background-color: $background;
+  border-radius: 12px;
+  padding: 1.5rem;
+  border: 1px solid $light-gray;
+  transition: all 0.2s ease;
+
+  &:hover {
+    border-color: $primary;
+    box-shadow: 0 4px 12px rgba($primary, 0.1);
+  }
+
+  .question-header {
+    h6 {
+      font-weight: 600;
+      color: $dark;
+    }
+  }
+
+  .options-section {
+    background: $white;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-top: 1rem;
+
+    .form-label {
+      margin-bottom: 1rem;
+    }
+
+    .option-item {
+      margin-bottom: 0.75rem;
+
+      &:last-child {
+        margin-bottom: 0;
+      }
+
+      .input-group {
+        .input-group-text {
+          background: none;
+          border-color: $light-gray;
+          padding: 0.5rem;
+
+          input[type="radio"] {
+            cursor: pointer;
+          }
+        }
+
+        .form-control {
+          border-radius: 8px;
+          margin-left: 0.5rem;
+        }
+
+        .btn-outline-danger {
+          margin-left: 0.5rem;
+          padding: 0.375rem 0.75rem;
+          border-radius: 8px;
+
+          i {
+            font-size: 0.875rem;
+          }
+        }
+      }
+    }
+  }
+}
+
+// Add these styles for the assignment type selector
+.form-select {
+  border-radius: 8px;
+  border: 1px solid $light-gray;
+  padding: 0.75rem 1rem;
+  font-size: 0.9rem;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 16px 12px;
+  
+  &:focus {
+    border-color: $primary;
+    box-shadow: 0 0 0 0.25rem rgba($primary, 0.1);
+  }
+}
+
+// Add styles for the add/remove question buttons
+.btn-outline-primary, .btn-outline-danger {
+  &.btn-sm {
+    padding: 0.375rem 0.75rem;
+    font-size: 0.875rem;
+    border-radius: 6px;
+    
+    i {
+      font-size: 0.75rem;
+    }
+  }
+}
+
+.step-progress {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background: $white;
+  border-bottom: 1px solid $light-gray;
+  
+  .step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    z-index: 1;
+    
+    .step-number {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: $light-gray;
+      color: $gray;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      transition: all 0.3s ease;
+    }
+    
+    .step-label {
+      font-size: 0.875rem;
+      color: $gray;
+      font-weight: 500;
+      transition: all 0.3s ease;
+    }
+    
+    &.active {
+      .step-number {
+        background: $primary;
+        color: $white;
+      }
+      
+      .step-label {
+        color: $primary;
+        font-weight: 600;
+      }
+    }
+  }
+  
+  .step-line {
+    flex: 1;
+    height: 2px;
+    background: $light-gray;
+    margin: 0 1rem;
+    margin-bottom: 2rem;
+    position: relative;
+    
+    &::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 100%;
+      background: $primary;
+      transition: width 0.3s ease;
+      width: 0;
+    }
+  }
+  
+  .step:nth-child(2).active ~ .step-line::after {
+    width: 100%;
+  }
+}
+
 </style> 
