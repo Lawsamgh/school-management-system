@@ -1,78 +1,817 @@
 <template>
-  <div class="container py-4 mt-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-      <div>
-        <h1 class="h3 mb-0 text-gray-800">My Classroom</h1>
-        <p class="mb-0">Manage all Attendance, Assignments, and Students</p>
-      </div>
-    </div>
+  <div class="teachers-container">
+    <!-- Loading Spinner for Teacher Role -->
+    <LoadingSpinner 
+      :visible="loading && !isAdmin" 
+      message="Loading your classroom..."
+    />
 
-    <!-- Modern Tab Navigation -->
-    <div class="tab-menu mb-4">
-      <button
-        v-for="tab in tabs"
-        :key="tab.key"
-        :class="['tab-btn', { active: activeTab === tab.key }]"
-        @click="activeTab = tab.key"
-      >
-        <i :class="tab.icon" class="me-2"></i>{{ tab.label }}
-      </button>
-    </div>
+    <!-- Class Selection Modal for Admins -->
+    <div class="modal fade" id="classSelectionModal" data-bs-backdrop="static" tabindex="-1">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header border-0">
+            <h5 class="modal-title">
+              <i class="fas fa-chalkboard-teacher text-primary me-2"></i>
+              {{ isSuperAdmin ? 'Select School & Class' : 'Select Class' }}
+            </h5>
+          </div>
+          <div class="modal-body p-0">
+            <div class="class-selection-card">
+              <!-- Info Section -->
+              <div class="info-section mb-4">
+                <div class="icon">
+                  <i class="fas fa-info-circle"></i>
+                </div>
+                <p>{{ isSuperAdmin ? 'Please select a school and then a class to proceed.' : 'Please select a class to proceed.' }}</p>
+              </div>
+              
+              <!-- Selection Container -->
+              <div class="selection-container">
+                <!-- School Selection for Superadmin -->
+                <div v-if="isSuperAdmin" class="selection-section mb-4">
+                  <label class="form-label">School</label>
+                  <SchoolSelector @school-selected="handleSchoolChange" />
+                </div>
 
-    <!-- Tab Content -->
-    <div class="tab-content-area">
-      <div v-if="activeTab === 'attendance'">
-        <div class="tab-card">
-          <h4 class="mb-2"><i class="fas fa-user-check text-success me-2"></i>Attendance Tracking</h4>
-          <p class="text-muted mb-3">Monitor and record student attendance efficiently for every class session.</p>
-          <div class="row mb-3 align-items-end">
-            <div class="col-md-4">
-              <label for="attendanceDate" class="form-label fw-semibold">Session Date</label>
-              <input type="date" id="attendanceDate" v-model="attendanceDate" class="form-control" />
+                <!-- Class Selection -->
+                <div class="selection-section" v-if="!isSuperAdmin || (isSuperAdmin && authStore.getSelectedSchoolId)">
+                  <label class="form-label">Class</label>
+                  <div class="class-select-wrapper">
+                    <select 
+                      class="form-select"
+                      v-model="selectedClassId"
+                      :disabled="loadingClasses"
+                    >
+                      <option value="" disabled selected>Choose a class...</option>
+                      <option 
+                        v-for="cls in teacherClasses" 
+                        :key="cls.class_id" 
+                        :value="cls.class_id"
+                      >
+                        {{ cls.class_name }}
+                      </option>
+                    </select>
+                    <div v-if="loadingClasses" class="spinner-wrapper">
+                      <div class="spinner-border spinner-border-sm text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
-          <div class="table-responsive mb-3">
-            <table class="table align-middle attendance-table">
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>ID</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="student in students" :key="student.id">
-                  <td>{{ student.name }}</td>
-                  <td>{{ student.id }}</td>
-                  <td>
-                    <select v-model="attendanceRecords[student.id]" class="form-select attendance-select">
-                      <option value="present">Present</option>
-                      <option value="absent">Absent</option>
-                      <option value="late">Late</option>
-                    </select>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <div class="d-flex justify-content-end">
-            <button class="btn btn-primary" @click="saveAttendance" :disabled="saveLoading">
-              <span v-if="saveLoading" class="spinner-border spinner-border-sm me-2"></span>
-              Save Attendance
+          <div class="modal-footer border-0">
+            <button 
+              type="button" 
+              class="btn btn-primary"
+              :disabled="!selectedClassId || (isSuperAdmin && !authStore.getSelectedSchoolId)"
+              @click="proceedToTeacherView"
+            >
+              <i class="fas fa-arrow-right me-2"></i>
+              Continue
             </button>
           </div>
         </div>
       </div>
-      <div v-else-if="activeTab === 'assignments'">
-        <div class="tab-card">
-          <h4 class="mb-2"><i class="fas fa-tasks text-info me-2"></i>Assignment Management</h4>
-          <p class="text-muted">Create, assign, and review assignments to keep students engaged and on track. (Feature coming soon!)</p>
+    </div>
+
+    <div v-if="isPageReady" class="teachers-view">
+  <div class="container-lg py-4">
+    <div class="row justify-content-center">
+      <div class="col-12" style="max-width: 1400px;">
+            <!-- Main content -->
+            <div v-if="!isSuperAdmin || (isSuperAdmin && authStore.getSelectedSchoolId && selectedClassId)">
+              <!-- Modern Header Card -->
+              <div class="header-card mb-4">
+                <div class="d-flex justify-content-between align-items-center">
+                  <div>
+                    <h2 class="mb-1">{{ isAdmin ? 'Class Management' : 'Teacher Dashboard' }}</h2>
+                    <p class="text-muted mb-0">
+                      {{ isAdmin ? 'Monitor and manage all class activities' : `Managing ${selectedClassName}` }}
+                    </p>
+                    <div v-if="!isAdmin" class="class-info mt-2">
+                      <span class="badge bg-primary">
+                        <i class="fas fa-chalkboard me-1"></i>
+                        {{ selectedClassName }}
+                      </span>
+                    </div>
+                  </div>
+                  <div class="d-flex align-items-center gap-3">
+                    <!-- Class Change Button -->
+                    <button 
+                      v-if="isAdmin || isSuperAdmin"
+                      class="btn btn-outline-primary btn-sm"
+                      @click="openClassSelectionModal"
+                    >
+                      <i class="fas fa-exchange-alt me-2"></i>
+                      Change {{ isSuperAdmin ? 'School/Class' : 'Class' }}
+                    </button>
+                    <button 
+                      class="btn btn-outline-primary btn-sm d-flex align-items-center" 
+                      @click="openTakeAttendanceModal"
+                    >
+                      <i class="fas fa-clipboard-check me-2"></i>
+                      Take Attendance
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Content Tabs -->
+              <div class="content-tabs mb-4">
+                <ul class="nav nav-pills" id="teacherTabs" role="tablist">
+                  <li class="nav-item" role="presentation">
+                    <button 
+                      class="nav-link active" 
+                      id="attendance-tab" 
+                      data-bs-toggle="tab" 
+                      data-bs-target="#attendance" 
+                      type="button" 
+                      role="tab"
+                    >
+                      <i class="fas fa-clipboard-check me-2"></i>
+                      Attendance
+                    </button>
+                  </li>
+                  <li class="nav-item" role="presentation">
+                    <button 
+                      class="nav-link" 
+                      id="assignments-tab" 
+                      data-bs-toggle="tab" 
+                      data-bs-target="#assignments" 
+                      type="button" 
+                      role="tab"
+                    >
+                      <i class="fas fa-book me-2"></i>
+                      Assignments
+                    </button>
+                  </li>
+                  <li class="nav-item" role="presentation">
+                    <button 
+                      class="nav-link" 
+                      id="promote-tab" 
+                      data-bs-toggle="tab" 
+                      data-bs-target="#promote" 
+                      type="button" 
+                      role="tab"
+                    >
+                      <i class="fas fa-graduation-cap me-2"></i>
+                      Promote Student
+                    </button>
+                  </li>
+                </ul>
+              </div>
+
+              <!-- Tab Content -->
+              <div class="tab-content" id="teacherTabsContent">
+              <!-- Attendance Tab -->
+              <div 
+                class="tab-pane fade show active" 
+                id="attendance" 
+                role="tabpanel"
+              >
+                <!-- Analytics Summary Cards -->
+                <div class="row g-4 mb-4">
+                  <div class="col-md-3">
+                    <div class="analytics-card">
+                      <div class="analytics-icon students">
+                        <i class="fas fa-users"></i>
+                      </div>
+                      <div class="analytics-data">
+                        <h4>{{ totalStudents }}</h4>
+                        <p>Total Students</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col-md-3">
+                    <div class="analytics-card">
+                      <div class="analytics-icon present">
+                        <i class="fas fa-check-circle"></i>
+                      </div>
+                      <div class="analytics-data">
+                        <h4>{{ presentCount }}</h4>
+                        <p>Present Today</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col-md-3">
+                    <div class="analytics-card">
+                      <div class="analytics-icon absent">
+                        <i class="fas fa-times-circle"></i>
+                      </div>
+                      <div class="analytics-data">
+                        <h4>{{ absentCount }}</h4>
+                        <p>Absent Today</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col-md-3">
+                    <div class="analytics-card">
+                      <div class="analytics-icon late">
+                        <i class="fas fa-clock"></i>
+                      </div>
+                      <div class="analytics-data">
+                        <h4>{{ lateCount }}</h4>
+                        <p>Late Today</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Attendance Table Card -->
+                <div class="content-card attendance-table-card">
+                  <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Recent Attendance</h5>
+                    <div>
+                      <div class="d-flex align-items-center gap-2">
+                        <div class="modern-date-display">
+                          <i class="far fa-calendar me-2"></i>
+                          {{ formatDateModern(selectedDate) }}
+                            </div>
+                        <button class="btn btn-outline-light btn-date-change" @click="openDatePickerModal">
+                          Change Date
+                        </button>
+                        <button 
+                          v-if="selectedDate !== today" 
+                          class="btn-today"
+                          @click="resetToToday"
+                        >
+                          Today
+                        </button>
+                            </div>
+                          </div>
+                        </div>
+                  <div class="card-body p-0">
+                    <div v-if="todayAttendance.length > 0" class="table-responsive">
+                      <table class="table custom-table">
+                        <thead>
+                          <tr>
+                            <th>Student</th>
+                            <th>ID</th>
+                            <th>Status</th>
+                            <th>Remarks</th>
+                            <th>Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr v-for="record in todayAttendance" :key="record.id">
+                            <td>
+                          <div class="d-flex align-items-center">
+                                <div class="avatar-circle">
+                                  {{ getInitials(record.student_name) }}
+                            </div>
+                            <div class="ms-3">
+                                  <h6 class="mb-0">{{ record.student_name }}</h6>
+                                  <small class="text-muted">{{ record.class_name || 'Class not assigned' }}</small>
+                            </div>
+                          </div>
+                            </td>
+                            <td>{{ record.identification }}</td>
+                            <td>
+                              <span :class="['status-badge', record.status]">
+                                {{ record.status }}
+                              </span>
+                            </td>
+                            <td>{{ record.remarks || '—' }}</td>
+                            <td>
+                              <div class="actions">
+                                <button class="action-btn edit" @click="editAttendance(record)">
+                                  <i class="fas fa-edit"></i>
+                                </button>
+                                <button 
+                                  v-if="isAdmin"
+                                  class="action-btn delete" 
+                                  @click="deleteAttendance(record.id)"
+                                >
+                                  <i class="fas fa-trash"></i>
+                                </button>
+                        </div>
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                      </div>
+                    <div v-else class="empty-state-container">
+                      <div class="text-center empty-state">
+                        <i class="fas fa-clipboard-list fa-3x mb-4 text-muted"></i>
+                        <h5 class="mb-3">No attendance records for today</h5>
+                        <p class="text-muted mb-4">Click "Take Attendance" to record student attendance</p>
+                    </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Assignments Tab -->
+                <div 
+                  class="tab-pane fade" 
+                  id="assignments" 
+                  role="tabpanel"
+                >
+                  <div class="content-card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                      <h5 class="mb-0">Recent Assignments</h5>
+                      <div>
+                        <button class="btn btn-primary btn-sm">
+                          <i class="fas fa-plus me-2"></i>
+                          Create Assignment
+                        </button>
+                      </div>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                        <table class="table custom-table">
+                            <thead>
+                              <tr>
+                              <th>Title</th>
+                              <th>Subject</th>
+                              <th>Due Date</th>
+                                <th>Status</th>
+                              <th>Submissions</th>
+                                <th>Actions</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              <tr>
+                                <td>
+                                <div>
+                                  <h6 class="mb-0">Mathematics Assignment #4</h6>
+                                      <small class="text-muted">Class X-A</small>
+                                  </div>
+                                </td>
+                              <td>Mathematics</td>
+                              <td>Oct 15, 2023</td>
+                              <td><span class="status-badge pending">Pending</span></td>
+                              <td>24/48</td>
+                                <td>
+                                <div class="actions">
+                                  <button class="action-btn edit">
+                                    <i class="fas fa-edit"></i>
+                                  </button>
+                                  <button class="action-btn delete">
+                                    <i class="fas fa-trash"></i>
+                                  </button>
+                                </div>
+                                </td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Promote Student Tab -->
+                <div 
+                  class="tab-pane fade" 
+                  id="promote" 
+                  role="tabpanel"
+                >
+                  <div class="content-card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                      <h5 class="mb-0">Student Promotion</h5>
+                      <button class="btn btn-primary btn-sm" @click="promoteSelectedStudents" :disabled="!hasSelectedStudents">
+                        <i class="fas fa-level-up-alt me-2"></i>
+                        Promote Selected Students
+                      </button>
+                    </div>
+                    <div class="card-body p-0">
+                      <div class="table-responsive">
+                        <table class="table custom-table">
+                          <thead>
+                            <tr>
+                              <th style="width: 40px;">
+                                <div class="form-check">
+                                  <input 
+                                    type="checkbox" 
+                                    class="form-check-input" 
+                                    v-model="selectAllStudents"
+                                    @change="toggleAllStudents"
+                                  >
+                                </div>
+                              </th>
+                              <th>Student</th>
+                              <th>Current Class</th>
+                              <th>Promote To</th>
+                              <th>Status</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <tr v-for="student in classStudents" :key="student.id">
+                              <td>
+                                <div class="form-check">
+                                  <input 
+                                    type="checkbox" 
+                                    class="form-check-input" 
+                                    v-model="selectedStudents"
+                                    :value="student.id"
+                                  >
+                                </div>
+                              </td>
+                              <td>
+                                <div class="d-flex align-items-center">
+                                  <div class="avatar-circle">
+                                    {{ getInitials(student.name) }}
+                                  </div>
+                                  <div class="ms-3">
+                                    <h6 class="mb-0">{{ student.name }}</h6>
+                                    <small class="text-muted">ID: {{ student.identification }}</small>
+                                  </div>
+                                </div>
+                              </td>
+                              <td>{{ selectedClassName }}</td>
+                              <td>
+                                <select 
+                                  class="form-select form-select-sm" 
+                                  v-model="studentPromotions[student.id]"
+                                >
+                                  <option value="" disabled selected>Select class...</option>
+                                  <option 
+                                    v-for="cls in availableClasses" 
+                                    :key="cls.class_id" 
+                                    :value="cls.class_id"
+                                  >
+                                    {{ cls.class_name }}
+                                  </option>
+                                </select>
+                              </td>
+                              <td>
+                                <span class="status-badge pending">Pending</span>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            <!-- Initial selection prompt -->
+            <div v-else class="text-center py-5">
+              <div class="empty-state">
+                <i class="fas fa-school fa-3x mb-4 text-muted"></i>
+                <h4 class="mb-3">Welcome to Teacher Dashboard</h4>
+                <p class="text-muted mb-4">
+                  {{ isSuperAdmin ? 'Please select a school and class to get started.' : 'Please select a class to get started.' }}
+                </p>
+                <button 
+                  class="btn btn-primary btn-lg"
+                  @click="openClassSelectionModal"
+                >
+                  <i class="fas fa-arrow-right me-2"></i>
+                  {{ isSuperAdmin ? 'Select School & Class' : 'Select Class' }}
+                </button>
+                              </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+    <!-- Redesigned Take Attendance Modal -->
+    <div class="modal fade" id="takeAttendanceModal" tabindex="-1" data-bs-backdrop="static">
+      <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title d-flex align-items-center">
+              <i class="fas fa-clipboard-check text-primary me-2"></i>
+              Take Attendance
+            </h5>
+            <button 
+              type="button" 
+              class="btn-close" 
+              @click="closeModal"
+            ></button>
+                              </div>
+          <div class="modal-body p-0">
+            <!-- Header Actions -->
+            <div class="attendance-header">
+              <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+                <div class="date-picker" style="min-width: 300px;">
+                  <div class="input-icon">
+                    <i class="fas fa-calendar-alt"></i>
+                    <input 
+                      type="date" 
+                      class="form-control" 
+                      id="attendanceDate"
+                      v-model="attendanceDate"
+                      :max="today"
+                      style="width: 100%;"
+                    >
+                              </div>
+                            </div>
+                <div class="quick-actions d-flex gap-2">
+                  <button 
+                    class="btn btn-sm btn-outline-success" 
+                    @click="markAllPresent"
+                  >
+                    <i class="fas fa-check-circle me-1"></i>
+                    All Present
+                  </button>
+                  <button 
+                    class="btn btn-sm btn-outline-danger" 
+                    @click="markAllAbsent"
+                  >
+                    <i class="fas fa-times-circle me-1"></i>
+                    All Absent
+                  </button>
+                          </div>
+                        </div>
+                      </div>
+
+            <!-- Students List -->
+            <div class="attendance-list-container">
+              <div v-if="loadingStudents" class="loading-state">
+                <div class="spinner"></div>
+                <p>Loading students...</p>
+                              </div>
+              <div v-else-if="classStudents.length === 0" class="empty-state">
+                <i class="fas fa-users text-muted"></i>
+                <h5>No Students Found</h5>
+                <p>There are no students assigned to this class</p>
+                              </div>
+              <div v-else class="attendance-list">
+                <div v-for="student in classStudents" :key="student.id" class="student-attendance-row">
+                  <div class="student-info">
+                    <div class="avatar">{{ getInitials(student.name) }}</div>
+                    <div class="details">
+                      <h6 class="mb-0">{{ student.name }}</h6>
+                      <p>ID: {{ student.identification }}</p>
+                            </div>
+                          </div>
+                  <div class="attendance-options">
+                    <div class="status-options">
+                      <span 
+                        v-for="status in statusOptions" 
+                        :key="status"
+                        class="status-option"
+                        :class="[status, { active: studentAttendance[student.identification] === status }]"
+                        @click="studentAttendance[student.identification] = status"
+                      >
+                        <i :class="{
+                          'fas fa-check': status === 'present',
+                          'fas fa-times': status === 'absent',
+                          'fas fa-clock': status === 'late',
+                          'fas fa-calendar': status === 'excused'
+                        }"></i>
+                      </span>
+                    </div>
+                    <div class="remarks-field">
+                      <input 
+                        type="text" 
+                        class="form-control form-control-sm" 
+                        v-model="studentRemarks[student.identification]"
+                        placeholder="Add remarks (optional)"
+                      >
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button 
+              type="button" 
+              class="btn btn-outline-secondary" 
+              @click="closeModal"
+            >
+              Cancel
+            </button>
+            <button 
+              type="button" 
+              class="btn btn-primary"
+              @click="saveAttendance"
+              :disabled="saving || classStudents.length === 0"
+            >
+              <i class="fas fa-save me-2"></i>
+              <span v-if="saving">Saving...</span>
+              <span v-else>Save Attendance</span>
+            </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+    <!-- Date Picker Modal -->
+    <div class="modal fade" id="datePickerModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title d-flex align-items-center">
+              <i class="fas fa-calendar-alt text-primary me-2"></i>
+              Select Date
+            </h5>
+            <button type="button" class="btn-close" @click="closeDatePickerModal"></button>
+          </div>
+          <div class="modal-body">
+            <div class="date-picker-card">
+              <div class="current-date-display">
+                <div class="date-preview">
+                  <div class="month-year">
+                    {{ formatDateSegment(tempSelectedDate || today, 'month') }} {{ formatDateSegment(tempSelectedDate || today, 'year') }}
+                  </div>
+                  <div class="day-number">
+                    {{ formatDateSegment(tempSelectedDate || today, 'day') }}
+                  </div>
+                  <div class="day-name">
+                    {{ formatDateSegment(tempSelectedDate || today, 'weekday') }}
+                  </div>
+                </div>
+              </div>
+
+              <div class="date-selection">
+                <label class="form-label">Choose a date</label>
+                <div class="date-input-wrapper">
+                  <div class="date-display" @click="focusDateInput">
+                    <i class="fas fa-calendar-day text-primary"></i>
+                    <input 
+                      type="date" 
+                      class="date-input" 
+                      ref="dateInput"
+                      v-model="tempSelectedDate"
+                      :max="today"
+                    >
+                  </div>
+                </div>
+
+                <div class="quick-actions">
+                  <button 
+                    class="action-btn today-btn" 
+                    @click="setTempDateToToday"
+                    :disabled="tempSelectedDate === today"
+                  >
+                    <i class="fas fa-calendar-day me-2"></i>
+                    Today
+                  </button>
+                  <button 
+                    class="action-btn prev-btn" 
+                    @click="navigateDate(-1)"
+                    :disabled="isYesterdayDisabled"
+                  >
+                    <i class="fas fa-chevron-left me-2"></i>
+                    Previous Day
+                  </button>
+                  <button 
+                    class="action-btn next-btn" 
+                    @click="navigateDate(1)"
+                    :disabled="isTomorrowDisabled"
+                  >
+                    Next Day
+                    <i class="fas fa-chevron-right ms-2"></i>
+                        </button>
+                      </div>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" @click="closeDatePickerModal">
+              Cancel
+                                  </button>
+            <button 
+              type="button" 
+              class="btn btn-primary" 
+              @click="applyDateSelection"
+              :disabled="!tempSelectedDate"
+            >
+              Apply Changes
+                                  </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+    <!-- Attendance Already Taken Modal -->
+    <div class="modal fade" id="attendanceExistsModal" tabindex="-1" data-bs-backdrop="static">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-body p-0">
+            <div class="attendance-exists-card">
+              <div class="warning-icon">
+                <i class="fas fa-exclamation-circle"></i>
+                </div>
+              <div class="warning-content">
+                <h4>Attendance Already Recorded</h4>
+                <p>Attendance records already exist for today. To make changes, please use the edit button in the attendance table.</p>
+              </div>
+              <div class="attendance-summary">
+                <div class="summary-item">
+                  <span class="label">Present</span>
+                  <span class="value text-success">{{ existingAttendanceSummary.present }}</span>
+            </div>
+                <div class="summary-item">
+                  <span class="label">Absent</span>
+                  <span class="value text-danger">{{ existingAttendanceSummary.absent }}</span>
+          </div>
+                <div class="summary-item">
+                  <span class="label">Late</span>
+                  <span class="value text-warning">{{ existingAttendanceSummary.late }}</span>
         </div>
       </div>
-      <div v-else-if="activeTab === 'students'">
-        <div class="tab-card">
-          <h4 class="mb-2"><i class="fas fa-users text-warning me-2"></i>Student Management</h4>
-          <p class="text-muted">View and manage student profiles, progress, and classroom participation. (Feature coming soon!)</p>
+              <div class="edit-instruction">
+                <div class="instruction-icon">
+                  <i class="fas fa-info-circle"></i>
+                </div>
+                <p>To edit attendance, locate the student in the table below and click the <i class="fas fa-edit text-primary"></i> edit button.</p>
+              </div>
+              <div class="action-buttons">
+                <button 
+                  type="button" 
+                  class="btn btn-primary" 
+                  @click="closeAttendanceExistsModal"
+                >
+                  Got it
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Edit Attendance Modal -->
+    <div class="modal fade" id="editAttendanceModal" tabindex="-1" data-bs-backdrop="static">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header border-0">
+            <h5 class="modal-title d-flex align-items-center">
+              <i class="fas fa-user-edit text-primary me-2"></i>
+              Edit Attendance
+            </h5>
+            <button type="button" class="btn-close" @click="closeEditModal"></button>
+          </div>
+          <div class="modal-body p-0">
+            <div class="edit-attendance-card">
+              <!-- Student Info -->
+              <div class="student-info-section">
+                <div class="avatar">{{ getInitials(editingStudent.name || '') }}</div>
+                <div class="info">
+                  <h4>{{ editingStudent.name }}</h4>
+                  <p class="text-white">ID: {{ editingStudent.identification }}</p>
+                </div>
+              </div>
+
+              <!-- Status Selection -->
+              <div class="status-section">
+                <label class="section-label">Attendance Status</label>
+                <div class="status-options">
+                  <button 
+                    v-for="status in statusOptions" 
+                    :key="status"
+                    class="status-btn"
+                    :class="[status, { active: editingStudent.status === status }]"
+                    @click="editingStudent.status = status"
+                  >
+                    <i :class="{
+                      'fas fa-check': status === 'present',
+                      'fas fa-times': status === 'absent',
+                      'fas fa-clock': status === 'late',
+                      'fas fa-calendar': status === 'excused'
+                    }"></i>
+                    <span>{{ status.charAt(0).toUpperCase() + status.slice(1) }}</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Remarks -->
+              <div class="remarks-section">
+                <label class="section-label">Remarks</label>
+                <textarea 
+                  v-model="editingStudent.remarks"
+                  class="form-control"
+                  rows="3"
+                  placeholder="Add any additional notes or remarks..."
+                ></textarea>
+              </div>
+
+              <!-- Last Updated Info -->
+              <div class="last-updated" v-if="editingStudent.updated_at">
+                <i class="fas fa-history text-muted me-2"></i>
+                Last updated: {{ formatDateTime(editingStudent.updated_at) }}
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer border-0">
+            <button 
+              type="button" 
+              class="btn btn-outline-secondary" 
+              @click="closeEditModal"
+            >
+              Cancel
+            </button>
+            <button 
+              type="button" 
+              class="btn btn-primary" 
+              @click="saveAttendanceEdit"
+              :disabled="!hasAttendanceChanged"
+            >
+              <i class="fas fa-save me-2"></i>
+              Save Changes
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -80,98 +819,2486 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+// Add imports at the top of the script section
+import { ref, onMounted, computed, watch } from 'vue'
+import * as bootstrap from 'bootstrap'
+import { useAuthStore } from '@/store/auth'
+import { supabase } from '@/lib/supabase'
 import { useToast } from 'vue-toastification'
+import { logActivity } from '@/lib/auditLogger'
+import SchoolSelector from '@/components/SchoolSelector.vue'
+import LoadingSpinner from '@/components/LoadingSpinner.vue'
 
-const tabs = [
-  { key: 'attendance', label: 'Attendance', icon: 'fas fa-user-check' },
-  { key: 'assignments', label: 'Assignments', icon: 'fas fa-tasks' },
-  { key: 'students', label: 'Students', icon: 'fas fa-users' },
-]
-const activeTab = ref('attendance')
+// Initialize Bootstrap tabs
+onMounted(() => {
+  const tabElements = document.querySelectorAll('[data-bs-toggle="tab"]')
+  tabElements.forEach(tabElement => {
+    new bootstrap.Tab(tabElement)
+  })
+})
 
-// Mock student data
-const students = [
-  { id: 'S001', name: 'Alice Johnson' },
-  { id: 'S002', name: 'Brian Smith' },
-  { id: 'S003', name: 'Carla Lee' },
-  { id: 'S004', name: 'David Kim' },
-]
-
-const attendanceDate = ref(new Date().toISOString().slice(0, 10))
-const attendanceRecords = ref<Record<string, string>>({})
-students.forEach(s => attendanceRecords.value[s.id] = 'present')
-
-const saveLoading = ref(false)
+// Store and toast instances
+const authStore = useAuthStore()
 const toast = useToast()
 
-const saveAttendance = async () => {
-  saveLoading.value = true
-  setTimeout(() => {
-    saveLoading.value = false
-    toast.success('Attendance saved!')
-  }, 1000)
+// Modal reference
+let attendanceModal: bootstrap.Modal | null = null
+let attendanceExistsModal: bootstrap.Modal | null = null
+let editAttendanceModal: bootstrap.Modal | null = null
+let datePickerModal: bootstrap.Modal | null = null
+
+// Define status options first
+const statusOptions = ['present', 'absent', 'late', 'excused'] as const
+type AttendanceStatus = typeof statusOptions[number]
+
+// State
+const loadingStudents = ref(false)
+const saving = ref(false)
+const teacherClasses = ref<any[]>([])
+const selectedClassId = ref('')
+const classStudents = ref<any[]>([])
+const studentAttendance = ref<Record<string, AttendanceStatus>>({})
+const studentRemarks = ref<Record<string, string>>({})
+const attendanceDate = ref(new Date().toISOString().slice(0, 10))
+const todayAttendance = ref<any[]>([])
+const totalStudents = ref(0)
+const hasUnsavedChanges = ref(false)
+const selectedDate = ref(new Date().toISOString().slice(0, 10))
+const showDatePicker = ref(false)
+const tempSelectedDate = ref('')
+
+// Add these refs
+const existingAttendanceSummary = ref({
+  present: 0,
+  absent: 0,
+  late: 0
+})
+
+const editingStudent = ref({
+  id: '',
+  name: '',
+  identification: '',
+  status: '',
+  remarks: '',
+  updated_at: null as string | null
+})
+
+const originalEditState = ref({
+  status: '',
+  remarks: ''
+})
+
+// Add this with other refs
+const loadingClasses = ref(false)
+
+// Computed properties
+const today = computed(() => new Date().toISOString().slice(0, 10))
+const selectedClassName = computed(() => {
+  const selectedClass = teacherClasses.value.find(c => c.class_id === selectedClassId.value)
+  return selectedClass?.class_name || ''
+})
+
+const absentCount = computed(() => {
+  return todayAttendance.value.filter(record => record.status === 'absent').length
+})
+
+const presentCount = computed(() => {
+  return todayAttendance.value.filter(record => record.status === 'present').length
+})
+
+const lateCount = computed(() => {
+  return todayAttendance.value.filter(record => record.status === 'late').length
+})
+
+const isAdmin = computed(() => {
+  const role = authStore.userRole?.role?.toLowerCase() || ''
+  return role === 'admin' || role === 'superadmin'
+})
+
+const hasAttendanceChanged = computed(() => {
+  return editingStudent.value.status !== originalEditState.value.status ||
+         editingStudent.value.remarks !== originalEditState.value.remarks
+})
+
+// Update the interfaces to correctly match Supabase response structure
+interface AttendanceRecord {
+  id: string
+  student_id: string
+  class_id: bigint
+  date: string
+  status: 'present' | 'absent' | 'late' | 'excused'
+  remarks: string | null
+  created_at: string
+  updated_at: string
+  school_id: string
+  user_roles: {
+    username: string
+    identification: string
+    class_id: bigint
+  }
+  classes: {
+    class_name: string
+  } | null
 }
+
+// A separate interface for the Supabase response format
+interface AttendanceResponse {
+  id: string
+  student_id: string
+  class_id: bigint
+  date: string
+  status: 'present' | 'absent' | 'late' | 'excused'
+  remarks: string | null
+  created_at: string
+  updated_at: string
+  school_id?: string // May be missing in the response
+  user_roles: {
+    username: string
+    identification: string
+    class_id: bigint
+  }
+  classes: {
+    class_name: string
+  } | null
+}
+
+// Update the interfaces at the top of the script section
+interface TeacherRole {
+  id: bigint
+  class_id: bigint
+  school_id: string
+  username: string
+}
+
+interface Class {
+  class_id: bigint
+  class_name: string
+}
+
+interface Student {
+  id: bigint
+  username: string
+  identification: string
+  class_id: bigint
+}
+
+// Helper functions
+const getInitials = (name: string) => {
+  return name
+    .split(' ')
+    .map(n => n[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2)
+}
+
+const getStatusBadgeClass = (status: string) => {
+  return `badge ${status === 'present' ? 'bg-success' : 'bg-danger'}`
+}
+
+// Initialize modal and fetch data
+onMounted(async () => {
+  try {
+    // Initialize modals
+    const classSelectionModalElement = document.getElementById('classSelectionModal')
+    if (classSelectionModalElement) {
+      classSelectionModal = new bootstrap.Modal(classSelectionModalElement)
+    }
+
+    // Initialize other modals
+    const attendanceModalElement = document.getElementById('takeAttendanceModal')
+    if (attendanceModalElement) {
+      attendanceModal = new bootstrap.Modal(attendanceModalElement)
+    }
+    
+    const datePickerModalElement = document.getElementById('datePickerModal')
+    if (datePickerModalElement) {
+      datePickerModal = new bootstrap.Modal(datePickerModalElement)
+    }
+
+    const attendanceExistsModalElement = document.getElementById('attendanceExistsModal')
+    if (attendanceExistsModalElement) {
+      attendanceExistsModal = new bootstrap.Modal(attendanceExistsModalElement)
+    }
+
+    const editAttendanceModalElement = document.getElementById('editAttendanceModal')
+    if (editAttendanceModalElement) {
+      editAttendanceModal = new bootstrap.Modal(editAttendanceModalElement)
+    }
+
+    // For superadmin, check if a school is already selected
+    if (isSuperAdmin.value && !authStore.getSelectedSchoolId) {
+      isPageReady.value = true // Show the school selector
+      loading.value = false
+    } else {
+      // For other roles or if superadmin has school selected
+      await fetchTeacherClasses()
+      
+      // Show class selection for admin/superadmin or show page directly for teachers
+      if (shouldShowClassSelection.value && !selectedClassId.value) {
+        classSelectionModal?.show()
+      } else {
+        isPageReady.value = true
+        await fetchAttendanceRecords()
+      }
+      loading.value = false
+    }
+
+    // Fetch available classes
+    await fetchAvailableClasses()
+  } catch (error) {
+    console.error('Error in initialization:', error)
+    loading.value = false
+  }
+})
+
+// Fetch teacher's classes
+const fetchTeacherClasses = async () => {
+  loadingClasses.value = true
+  try {
+    // Get the user's role and school_id
+    const { data: userData, error: userError } = await supabase
+      .from('user_roles')
+      .select('role, school_id, class_id')
+      .eq('id', authStore.userRole?.id)
+      .single()
+
+    if (userError) throw userError
+
+    // For superadmin, use the selected school ID from auth store
+    const effectiveSchoolId = isSuperAdmin.value 
+      ? authStore.getSelectedSchoolId 
+      : userData.school_id
+
+    if (!effectiveSchoolId) {
+      if (!isSuperAdmin.value) {
+        toast.error('No school assigned')
+      }
+      return
+    }
+
+    console.log('Fetching classes for school:', effectiveSchoolId)
+
+    // Handle differently based on role
+    if (userData.role.toLowerCase() === 'admin' || userData.role.toLowerCase() === 'superadmin') {
+      // For admin/superadmin, fetch all classes in their school
+      const { data: classData, error: classError } = await supabase
+        .from('classes')
+        .select('class_id, class_name')
+        .eq('school_id', effectiveSchoolId)
+        .order('class_name', { ascending: true })
+
+      if (classError) throw classError
+
+      if (!classData || classData.length === 0) {
+        toast.info('No classes found in this school')
+        return
+      }
+
+      teacherClasses.value = classData
+      if (!selectedClassId.value) {
+        selectedClassId.value = classData[0].class_id // Select first class by default
+      }
+      
+      // Now fetch the students for the selected class
+      await fetchClassStudents(effectiveSchoolId)
+    } else {
+      // For teachers, fetch their assigned class
+      if (!userData?.class_id) {
+        toast.error('No class assigned to this teacher')
+        return
+      }
+
+      // Get the class details
+      const { data: classData, error: classError } = await supabase
+        .from('classes')
+        .select('class_id, class_name')
+        .eq('class_id', userData.class_id)
+        .single()
+
+      if (classError) throw classError
+
+      if (!classData) {
+        toast.error('Class not found')
+        return
+      }
+
+      teacherClasses.value = [classData]
+      selectedClassId.value = classData.class_id
+      
+      // Now fetch the students for this class
+      await fetchClassStudents(effectiveSchoolId)
+    }
+  } catch (error) {
+    console.error('Error fetching class details:', error)
+    toast.error('Failed to fetch class details')
+  } finally {
+    loadingClasses.value = false
+  }
+}
+
+// Fetch students for selected class
+const fetchClassStudents = async (schoolId: string) => {
+  if (!selectedClassId.value || !schoolId) return
+
+  loadingStudents.value = true
+  try {
+    console.log('Fetching students for class:', selectedClassId.value, 'in school:', schoolId)
+
+    const { data, error } = await supabase
+      .from('user_roles')
+      .select(`
+        id,
+        username,
+        identification
+      `)
+      .eq('role', 'student')
+      .eq('class_id', selectedClassId.value)
+      .eq('school_id', schoolId)
+
+    if (error) throw error
+
+    classStudents.value = data?.map(student => ({
+      id: student.id,
+      name: student.username,
+      identification: student.identification
+    })) || []
+    
+    totalStudents.value = classStudents.value.length
+    
+    // Initialize attendance for each student
+    classStudents.value.forEach(student => {
+      studentAttendance.value[student.identification] = 'present'
+    })
+
+    if (classStudents.value.length === 0) {
+      toast.info('No students found in this class')
+    }
+  } catch (error) {
+    console.error('Error fetching students:', error)
+    toast.error('Failed to fetch students')
+  } finally {
+    loadingStudents.value = false
+  }
+}
+
+// Fetch today's attendance
+const fetchAttendanceRecords = async () => {
+  try {
+    // Get user's role and school info
+    const { data: userData, error: userError } = await supabase
+      .from('user_roles')
+      .select('role, school_id, class_id')
+      .eq('id', authStore.userRole?.id)
+      .single()
+
+    if (userError) {
+      console.error('Error fetching user data:', userError)
+      toast.error('Failed to fetch user information')
+      return
+    }
+
+    // For superadmin, use the selected school ID from auth store
+    const effectiveSchoolId = isSuperAdmin.value 
+      ? authStore.getSelectedSchoolId 
+      : userData.school_id
+
+    if (!effectiveSchoolId) {
+      console.error('No school ID found')
+      if (isSuperAdmin.value) {
+        toast.info('Please select a school first')
+      } else {
+        toast.error('School information not found')
+      }
+      return
+    }
+
+    // Base query for attendance records
+    let query = supabase
+      .from('attendances')
+      .select(`
+        id,
+        student_id,
+        class_id,
+        date,
+        status,
+        remarks,
+        created_at,
+        updated_at,
+        user_roles!inner (
+          username,
+          identification,
+          class_id
+        ),
+        classes (
+          class_name
+        )
+      `)
+      .eq('date', selectedDate.value)
+      .eq('school_id', effectiveSchoolId)
+
+    // If admin, use selected class. If teacher, use assigned class
+    const classIdToUse = userData.role.toLowerCase() === 'admin' || userData.role.toLowerCase() === 'superadmin'
+      ? selectedClassId.value
+      : userData.class_id
+
+    if (!classIdToUse) {
+      console.error('No class ID available')
+      toast.error('Please select a class first')
+      return
+    }
+
+    // Add class filter
+    query = query.eq('class_id', classIdToUse)
+
+    const { data, error } = await query
+
+    if (error) {
+      console.error('Error fetching attendance:', error)
+      toast.error('Failed to fetch attendance records')
+      return
+    }
+
+    const attendanceRecords = (data as unknown) as AttendanceResponse[] || []
+    
+    todayAttendance.value = attendanceRecords.map(record => ({
+      id: record.id,
+      student_name: record.user_roles.username,
+      identification: record.student_id,
+      status: record.status,
+      remarks: record.remarks,
+      class_name: record.classes?.class_name || ''
+    }))
+
+  } catch (error) {
+    console.error('Error fetching attendance:', error)
+    toast.error('Failed to fetch attendance records')
+  }
+}
+
+// Quick actions
+const markAllPresent = () => {
+  classStudents.value.forEach(student => {
+    studentAttendance.value[student.identification] = 'present'
+  })
+}
+
+const markAllAbsent = () => {
+  classStudents.value.forEach(student => {
+    studentAttendance.value[student.identification] = 'absent'
+  })
+}
+
+// Update the openTakeAttendanceModal function
+const openTakeAttendanceModal = async () => {
+  try {
+    const currentDate = new Date().toISOString().split('T')[0]
+    
+    // Get user's role and school info
+    const { data: userData, error: userError } = await supabase
+      .from('user_roles')
+      .select('role, school_id, class_id')
+      .eq('id', authStore.userRole?.id)
+      .single()
+
+    if (userError) {
+      console.error('Error fetching user data:', userError)
+      toast.error('Failed to fetch user information')
+      return
+    }
+
+    // For superadmin, use the selected school ID from auth store
+    const effectiveSchoolId = isSuperAdmin.value 
+      ? authStore.getSelectedSchoolId 
+      : userData.school_id
+
+    if (!effectiveSchoolId) {
+      console.error('No school ID found')
+      if (isSuperAdmin.value) {
+        toast.info('Please select a school first')
+      } else {
+        toast.error('School information not found')
+      }
+      return
+    }
+
+    // Determine which class ID to use based on role
+    const classIdToUse = userData.role.toLowerCase() === 'admin' || userData.role.toLowerCase() === 'superadmin'
+      ? selectedClassId.value
+      : userData.class_id
+
+    if (!classIdToUse) {
+      console.error('No class ID available')
+      toast.error('Please select a class first')
+      return
+    }
+
+    // Check if attendance records exist for today
+    const { data, error } = await supabase
+      .from('attendances')
+      .select('status')
+      .eq('date', currentDate)
+      .eq('class_id', classIdToUse)
+      .eq('school_id', effectiveSchoolId)
+
+    if (error) {
+      console.error('Error checking attendance:', error)
+      toast.error('Failed to check attendance records')
+      return
+    }
+
+    if (data && data.length > 0) {
+      // Calculate summary
+      existingAttendanceSummary.value = data.reduce((acc, record) => {
+        const status = record.status.toLowerCase() as 'present' | 'absent' | 'late'
+        if (status in acc) {
+          acc[status]++
+        }
+        return acc
+      }, { present: 0, absent: 0, late: 0 })
+
+      // Show the warning modal
+      if (!attendanceExistsModal) {
+        const modalElement = document.getElementById('attendanceExistsModal')
+        if (modalElement) {
+          attendanceExistsModal = new bootstrap.Modal(modalElement)
+        }
+      }
+      attendanceExistsModal?.show()
+    } else {
+      // No attendance yet, proceed with taking attendance
+      showTakeAttendanceModal()
+    }
+  } catch (error) {
+    console.error('Error checking attendance:', error)
+    toast.error('Failed to check if attendance exists')
+  }
+}
+
+const showTakeAttendanceModal = () => {
+  const modalElement = document.getElementById('takeAttendanceModal')
+  if (modalElement) {
+    // First dispose of any existing modal instance to prevent duplicates
+    bootstrap.Modal.getInstance(modalElement)?.dispose()
+    
+    // Create and store the modal instance
+    attendanceModal = new bootstrap.Modal(modalElement, {
+      backdrop: 'static',
+      keyboard: false
+    })
+    
+    // Reset form data
+    resetForm()
+    
+    // Show the modal
+    attendanceModal.show()
+  }
+
+}
+
+const closeAttendanceExistsModal = () => {
+  attendanceExistsModal?.hide()
+}
+
+// Save attendance
+const saveAttendance = async () => {
+  if (!selectedClassId.value) {
+    toast.error('Please select a class')
+    return
+  }
+
+  saving.value = true
+  try {
+    // Get the teacher's school_id
+    const { data: userData, error: userError } = await supabase
+      .from('user_roles')
+      .select('school_id')
+      .eq('id', authStore.userRole?.id)
+      .single()
+
+    if (userError) throw userError
+
+    // For superadmin, use the selected school ID from auth store
+    const effectiveSchoolId = isSuperAdmin.value 
+      ? authStore.getSelectedSchoolId 
+      : userData?.school_id
+
+    if (!effectiveSchoolId) {
+      if (isSuperAdmin.value) {
+        throw new Error('Please select a school first')
+      } else {
+        throw new Error('No school assigned to this teacher')
+      }
+    }
+
+    const attendanceRecords = classStudents.value.map(student => ({
+      student_id: student.identification,
+      class_id: selectedClassId.value,
+      date: attendanceDate.value,
+      status: studentAttendance.value[student.identification] || 'absent',
+      remarks: studentRemarks.value[student.identification] || null,
+      school_id: effectiveSchoolId
+    }))
+
+    const { error } = await supabase
+      .from('attendances')
+      .insert(attendanceRecords)
+
+    if (error) throw error
+
+    // Log activity
+    await logActivity(
+      'create',
+      'attendances',
+      selectedClassId.value.toString(),
+      null,
+      { date: attendanceDate.value, records: attendanceRecords.length }
+    )
+
+    toast.success('Attendance saved successfully')
+    attendanceModal?.hide()
+
+    // Refresh attendance data
+    await fetchAttendanceRecords()
+
+    // Reset form
+    studentAttendance.value = {}
+    studentRemarks.value = {}
+    attendanceDate.value = new Date().toISOString().slice(0, 10)
+  } catch (error) {
+    console.error('Error saving attendance:', error)
+    toast.error(error instanceof Error ? error.message : 'Failed to save attendance')
+  } finally {
+    saving.value = false
+  }
+}
+
+// Edit attendance
+const editAttendance = async (record: any) => {
+  try {
+    // Initialize modal if not already done
+    if (!editAttendanceModal) {
+      const modalElement = document.getElementById('editAttendanceModal')
+      if (modalElement) {
+        editAttendanceModal = new bootstrap.Modal(modalElement)
+      }
+    }
+
+    // Set editing student data
+    editingStudent.value = {
+      id: record.id,
+      name: record.student_name,
+      identification: record.identification,
+      status: record.status,
+      remarks: record.remarks || '',
+      updated_at: record.updated_at
+    }
+
+    // Store original state for comparison
+    originalEditState.value = {
+      status: record.status,
+      remarks: record.remarks || ''
+    }
+
+    // Show modal
+    editAttendanceModal?.show()
+  } catch (error) {
+    console.error('Error preparing attendance edit:', error)
+    toast.error('Failed to prepare attendance edit')
+  }
+}
+
+// Delete attendance
+const deleteAttendance = async (id: string) => {
+  try {
+    const { error } = await supabase
+      .from('attendances')
+      .delete()
+      .eq('id', id)
+
+    if (error) throw error
+
+    toast.success('Attendance record deleted')
+    await fetchAttendanceRecords()
+  } catch (error) {
+    console.error('Error deleting attendance:', error)
+    toast.error('Failed to delete attendance record')
+  }
+}
+
+// Update the watch function to handle null school_id
+watch(selectedClassId, async () => {
+  // Get the teacher's school_id
+  const { data: teacherData } = await supabase
+    .from('user_roles')
+    .select('school_id')
+    .eq('id', authStore.userRole?.id)
+    .single()
+
+  if (teacherData?.school_id) {
+    await fetchClassStudents(teacherData.school_id)
+  }
+})
+
+// Add this method to handle modal closing
+const handleModalClose = () => {
+  if (hasUnsavedChanges.value) {
+    if (confirm('You have unsaved changes. Are you sure you want to close?')) {
+      attendanceModal?.hide()
+      resetForm()
+    }
+  } else {
+    attendanceModal?.hide()
+    resetForm()
+  }
+}
+
+// Add reset form method
+const resetForm = () => {
+  studentAttendance.value = {}
+  studentRemarks.value = {}
+  hasUnsavedChanges.value = false
+}
+
+// Add a watch to track changes
+watch([studentAttendance, studentRemarks], () => {
+  hasUnsavedChanges.value = true
+}, { deep: true })
+
+// Update the closeModal function to ensure it handles errors
+const closeModal = () => {
+  try {
+    if (attendanceModal) {
+      attendanceModal.hide()
+      resetForm()
+    } else {
+      // If modal reference is missing, try to get it again
+      const modalElement = document.getElementById('takeAttendanceModal')
+      if (modalElement) {
+        const bootstrapModalInstance = bootstrap.Modal.getOrCreateInstance(modalElement)
+        bootstrapModalInstance.hide()
+      }
+      resetForm()
+    }
+  } catch (error) {
+    console.error('Error closing modal:', error)
+    // Try alternative method to close the modal
+    const modalElement = document.getElementById('takeAttendanceModal')
+    if (modalElement) {
+      const bootstrapModalInstance = bootstrap.Modal.getOrCreateInstance(modalElement)
+      bootstrapModalInstance.hide()
+    }
+    resetForm()
+  }
+}
+
+const formatDate = (dateString: string) => {
+  const options: Intl.DateTimeFormatOptions = { weekday: 'short', month: 'short', day: 'numeric' }
+  return new Date(dateString).toLocaleDateString('en-US', options)
+}
+
+const resetToToday = () => {
+  selectedDate.value = today.value
+  fetchAttendanceRecords()
+}
+
+const openDatePickerModal = () => {
+  // Initialize the date picker modal if not already done
+  if (!datePickerModal) {
+    const modalElement = document.getElementById('datePickerModal')
+    if (modalElement) {
+      datePickerModal = new bootstrap.Modal(modalElement)
+    }
+  }
+  
+  // Set the temporary date to the current selected date
+  tempSelectedDate.value = selectedDate.value
+  
+  // Show the modal
+  datePickerModal?.show()
+}
+
+// Add function to apply the date selection
+const applyDateSelection = () => {
+  if (tempSelectedDate.value) {
+    selectedDate.value = tempSelectedDate.value
+    fetchAttendanceRecords()
+    datePickerModal?.hide()
+  }
+}
+
+const formatDateFull = (dateString: string) => {
+  const options: Intl.DateTimeFormatOptions = { 
+    weekday: 'long', 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric' 
+  }
+  return new Date(dateString).toLocaleDateString('en-US', options)
+}
+
+const getYesterday = () => {
+  const yesterday = new Date()
+  yesterday.setDate(yesterday.getDate() - 1)
+  return yesterday.toISOString().slice(0, 10)
+}
+
+const setTempDateToToday = () => {
+  tempSelectedDate.value = today.value
+}
+
+const setTempDateToYesterday = () => {
+  tempSelectedDate.value = getYesterday()
+}
+
+const closeDatePickerModal = () => {
+  datePickerModal?.hide()
+}
+
+const hasDateChanges = () => {
+  return tempSelectedDate.value !== selectedDate.value
+}
+
+const dateInput = ref<HTMLInputElement | null>(null)
+
+const focusDateInput = () => {
+  dateInput.value?.click()
+}
+
+const formatDateSegment = (dateString: string, segment: 'month' | 'day' | 'year' | 'weekday') => {
+  const date = new Date(dateString)
+  switch (segment) {
+    case 'month':
+      return date.toLocaleString('en-US', { month: 'long' })
+    case 'day':
+      return date.getDate()
+    case 'year':
+      return date.getFullYear()
+    case 'weekday':
+      return date.toLocaleString('en-US', { weekday: 'long' })
+    default:
+      return ''
+  }
+}
+
+const navigateDate = (days: number) => {
+  const currentDate = new Date(tempSelectedDate.value || today.value)
+  currentDate.setDate(currentDate.getDate() + days)
+  
+  // Don't allow future dates
+  if (currentDate <= new Date(today.value)) {
+    tempSelectedDate.value = currentDate.toISOString().slice(0, 10)
+  }
+}
+
+const isYesterdayDisabled = computed(() => {
+  return false // You can add logic here if needed
+})
+
+const isTomorrowDisabled = computed(() => {
+  if (!tempSelectedDate.value) return true
+  const nextDay = new Date(tempSelectedDate.value)
+  nextDay.setDate(nextDay.getDate() + 1)
+  return nextDay > new Date(today.value)
+})
+
+const formatDateModern = (dateString: string) => {
+  const options: Intl.DateTimeFormatOptions = { 
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric'
+  }
+  return new Date(dateString).toLocaleDateString('en-US', options)
+}
+
+const formatDateTime = (dateString: string) => {
+  return new Date(dateString).toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: 'numeric',
+    hour12: true
+  })
+}
+
+const closeEditModal = () => {
+  if (hasAttendanceChanged.value) {
+    if (confirm('Are you sure you want to discard your changes?')) {
+      editAttendanceModal?.hide()
+    }
+  } else {
+    editAttendanceModal?.hide()
+  }
+}
+
+const saveAttendanceEdit = async () => {
+  try {
+    const { error } = await supabase
+      .from('attendances')
+      .update({
+        status: editingStudent.value.status,
+        remarks: editingStudent.value.remarks,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', editingStudent.value.id)
+
+    if (error) throw error
+
+    // Log the activity
+    await logActivity(
+      'update',
+      'attendances',
+      editingStudent.value.id,
+      {
+        status: originalEditState.value.status,
+        remarks: originalEditState.value.remarks
+      },
+      {
+        status: editingStudent.value.status,
+        remarks: editingStudent.value.remarks
+      }
+    )
+
+    toast.success('Attendance updated successfully')
+    editAttendanceModal?.hide()
+    
+    // Refresh attendance records
+    await fetchAttendanceRecords()
+  } catch (error) {
+    console.error('Error updating attendance:', error)
+    toast.error('Failed to update attendance')
+  }
+}
+
+const handleClassChange = async () => {
+  if (selectedClassId.value) {
+    const { data: userData } = await supabase
+      .from('user_roles')
+      .select('school_id')
+      .eq('id', authStore.userRole?.id)
+      .single()
+
+    if (userData?.school_id) {
+      await fetchClassStudents(userData.school_id)
+      await fetchAttendanceRecords()
+    }
+  }
+}
+
+// Add these refs
+const isPageReady = ref(false)
+let classSelectionModal: bootstrap.Modal | null = null
+
+// Add this computed property
+const shouldShowClassSelection = computed(() => {
+  const role = authStore.userRole?.role?.toLowerCase() || ''
+  return role === 'admin' || role === 'superadmin'
+})
+
+// Add this function
+const proceedToTeacherView = async () => {
+  if (selectedClassId.value) {
+    const schoolId = isSuperAdmin.value ? authStore.getSelectedSchoolId : authStore.userRole?.school_id
+    if (!schoolId) {
+      toast.error('No school selected')
+      return
+    }
+    
+    classSelectionModal?.hide()
+    isPageReady.value = true
+    await fetchClassStudents(schoolId)
+    await fetchAttendanceRecords()
+  }
+}
+
+// Add the computed property for isSuperAdmin
+const isSuperAdmin = computed(() => {
+  return authStore.userRole?.role?.toLowerCase() === 'superadmin'
+})
+
+// Add the handleSchoolChange function
+const handleSchoolChange = async (schoolId: string) => {
+  console.log('School changed to:', schoolId)
+  
+  // Reset class selection
+  selectedClassId.value = ''
+  teacherClasses.value = []
+  
+  if (schoolId) {
+    try {
+      // Update the auth store with the selected school ID
+      await authStore.setSelectedSchoolId(schoolId)
+      
+      // Fetch classes for the selected school
+      const { data: classData, error: classError } = await supabase
+        .from('classes')
+        .select('class_id, class_name')
+        .eq('school_id', schoolId)
+        .order('class_name', { ascending: true })
+
+      if (classError) throw classError
+
+      if (!classData || classData.length === 0) {
+        toast.info('No classes found in this school')
+        return
+      }
+
+      teacherClasses.value = classData
+      console.log('Classes loaded:', teacherClasses.value)
+      
+      // Reset attendance data
+      todayAttendance.value = []
+      classStudents.value = []
+      
+    } catch (error) {
+      console.error('Error fetching classes:', error)
+      toast.error('Failed to load classes')
+    }
+  }
+}
+
+// Add the openClassSelectionModal function
+const openClassSelectionModal = () => {
+  if (classSelectionModal) {
+    classSelectionModal.show()
+  }
+}
+
+// New refs for promotion functionality
+const selectedStudents = ref<number[]>([])
+const selectAllStudents = ref(false)
+const studentPromotions = ref<{ [key: number]: number }>({})
+const availableClasses = ref<any[]>([])
+
+// Computed property for button state
+const hasSelectedStudents = computed(() => selectedStudents.value.length > 0)
+
+// Methods for promotion functionality
+const toggleAllStudents = () => {
+  if (selectAllStudents.value) {
+    selectedStudents.value = classStudents.value.map(student => student.id)
+  } else {
+    selectedStudents.value = []
+  }
+}
+
+const fetchAvailableClasses = async () => {
+  try {
+    const schoolId = isSuperAdmin.value 
+      ? authStore.getSelectedSchoolId 
+      : authStore.userRole?.school_id
+
+    if (!schoolId) return
+
+    const { data, error } = await supabase
+      .from('classes')
+      .select('class_id, class_name')
+      .eq('school_id', schoolId)
+      .order('class_name', { ascending: true })
+
+    if (error) throw error
+
+    // Filter out the current class
+    availableClasses.value = data?.filter(cls => cls.class_id !== selectedClassId.value) || []
+  } catch (error) {
+    console.error('Error fetching available classes:', error)
+    toast.error('Failed to fetch available classes')
+  }
+}
+
+const promoteSelectedStudents = async () => {
+  try {
+    const updates = selectedStudents.value
+      .filter(studentId => studentPromotions.value[studentId])
+      .map(studentId => ({
+        id: studentId,
+        class_id: studentPromotions.value[studentId]
+      }))
+
+    if (updates.length === 0) {
+      toast.warning('Please select students and their target classes')
+      return
+    }
+
+    const { error } = await supabase
+      .from('user_roles')
+      .upsert(updates)
+
+    if (error) throw error
+
+    // Log the activity
+    await logActivity(
+      'update',
+      'user_roles',
+      'bulk',
+      null,
+      { promoted_students: updates.length }
+    )
+
+    toast.success('Students promoted successfully')
+    
+    // Reset selections
+    selectedStudents.value = []
+    selectAllStudents.value = false
+    studentPromotions.value = {}
+    
+    // Refresh student list
+    await fetchClassStudents(authStore.getSelectedSchoolId || '')
+  } catch (error) {
+    console.error('Error promoting students:', error)
+    toast.error('Failed to promote students')
+  }
+}
+
+// Add loading state
+const loading = ref(true)
 </script>
 
-<style scoped lang="scss">
-.container {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding-left: 1.5rem;
-  padding-right: 1.5rem;
+<style lang="scss" scoped>
+// Modern Color Palette
+$primary: #10b981;
+$primary-light: #d1fae5;
+$primary-dark: #059669;
+$success: #10b981;
+$success-light: #d1fae5;
+$danger: #ef4444;
+$danger-light: #fee2e2;
+$warning: #f59e0b;
+$warning-light: #fef3c7;
+$info: #3b82f6;
+$info-light: #dbeafe;
+$dark: #1f2937;
+$gray: #6b7280;
+$light-gray: #e5e7eb;
+$background: #f9fafb;
+$white: #ffffff;
+
+// Reset and Base Styles
+.teachers-view {
+  background-color: $background;
+  min-height: 100vh;
 }
 
-.tab-menu {
-  display: flex;
-  gap: 1.5rem;
-  border-bottom: 2px solid #e6e6e6;
-  margin-bottom: 2rem;
+// Reduce spacing in cards
+.header-card, .content-card, .analytics-card {
+  padding: 1.25rem;
 }
-.tab-btn {
-  background: none;
-  border: none;
-  outline: none;
-  font-size: 1.1rem;
-  font-weight: 500;
-  color: #35495e;
-  padding: 0.75rem 1.5rem 0.5rem 1.5rem;
-  border-bottom: 3px solid transparent;
-  transition: color 0.2s, border-color 0.2s;
-  cursor: pointer;
-  border-radius: 0.5rem 0.5rem 0 0;
+
+// Reduce table padding
+.custom-table {
+  th {
+    padding: 0.875rem 1.25rem;
+  }
+  
+  td {
+    padding: 0.875rem 1.25rem;
+  }
+}
+
+// Make modal more compact
+.modal-dialog.modal-xl {
+  max-width: 1000px;
+}
+
+// Reduce padding in modal sections
+.modal-header, .modal-footer, .attendance-header {
+  padding: 1rem 1.25rem;
+}
+
+.attendance-list {
+  padding: 1rem 1.25rem;
+}
+
+// Smaller avatar size
+.avatar-circle, .student-attendance-row .avatar {
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+}
+
+// More compact attendance row
+.student-attendance-row {
+  padding: 0.875rem;
+  margin-bottom: 0.625rem;
+}
+
+// Modern Card Styles
+.header-card {
+  background-color: $white;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  margin-bottom: 1.5rem;
+
+  h2 {
+    font-weight: 600;
+    color: $dark;
+    font-size: 1.5rem;
+  }
+
+  p {
+    color: $gray;
+  }
+}
+
+// Analytics Cards
+.analytics-card {
+  background-color: $white;
+  border-radius: 12px;
+  padding: 1.25rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   display: flex;
   align-items: center;
-  &:hover {
-    color: #42b883;
-    background: #f8f9fa;
+  gap: 1rem;
+
+  .analytics-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    
+    i {
+      font-size: 1.25rem;
+      color: $white;
+    }
+
+    &.students {
+      background-color: $primary;
+    }
+
+    &.present {
+      background-color: $success;
+    }
+
+    &.absent {
+      background-color: $danger;
+    }
+
+    &.late {
+      background-color: $warning;
+    }
   }
-  &.active {
-    color: #42b883;
-    border-bottom: 3px solid #42b883;
-    background: #f8f9fa;
+  
+  .analytics-data {
+    h4 {
+      font-weight: 600;
+      font-size: 1.5rem;
+      margin-bottom: 0.25rem;
+      color: $dark;
+    }
+
+    p {
+      margin-bottom: 0;
+      color: $gray;
+      font-size: 0.875rem;
+}
   }
 }
 
-.tab-content-area {
-  min-height: 220px;
-}
-.tab-card {
-  background: #fff;
-  border-radius: 1rem;
-  box-shadow: 0 2px 12px rgba(66, 184, 131, 0.07);
-  padding: 2rem 1.5rem 1.5rem 1.5rem;
-  border: 1px solid #e6e6e6;
-  text-align: left;
+// Content Tabs
+.content-tabs {
+  margin-bottom: 1.5rem;
+
+  .nav-pills {
+    background-color: $white;
+    padding: 0.5rem;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    
+    .nav-link {
+      color: $gray;
+      border-radius: 8px;
+      padding: 0.75rem 1.25rem;
+  font-weight: 500;
+      transition: all 0.15s ease;
+      margin-right: 0.5rem;
+
+      &.active {
+        background-color: $primary;
+        color: $white;
+      }
+
+      &:not(.active):hover {
+        background-color: $light-gray;
+      }
+    }
+  }
 }
 
-.attendance-table th, .attendance-table td {
-  vertical-align: middle;
+// Content Cards
+.content-card {
+  background-color: $white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+
+  .card-header {
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid $light-gray;
+    background-color: $white;
+
+    h5 {
+      font-weight: 600;
+      color: $dark;
+      margin-bottom: 0;
+    }
+  }
 }
-.attendance-select {
-  min-width: 120px;
-  border-radius: 0.5rem;
-  font-size: 1rem;
+
+// Custom Table
+.custom-table {
+  margin-bottom: 0;
+
+  th {
+    background-color: $white;
+    font-weight: 600;
+    color: $dark;
+    font-size: 0.875rem;
+  padding: 1rem 1.5rem;
+    border-bottom: 1px solid $light-gray;
+  }
+
+  td {
+    padding: 1rem 1.5rem;
+    vertical-align: middle;
+    border-bottom: 1px solid $light-gray;
+    color: $dark;
+
+    h6 {
+      font-size: 0.875rem;
+      font-weight: 600;
+      margin-bottom: 0.125rem;
+    }
+
+    small {
+      font-size: 0.75rem;
+      color: $gray;
+    }
+  }
+
+  tbody tr:hover {
+    background-color: rgba(0, 0, 0, 0.01);
+}
+
+.avatar-circle {
+  width: 40px;
+  height: 40px;
+    min-width: 40px;
+    border-radius: 10px;
+    background: $primary;
+    color: $white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+    font-weight: 600;
+    font-size: 0.875rem;
+  }
+}
+
+// Status Badges
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: capitalize;
+  
+  &.present {
+    background-color: $success-light;
+    color: darken($success, 15%);
+  }
+  
+  &.absent {
+    background-color: $danger-light;
+    color: darken($danger, 15%);
+  }
+  
+  &.late {
+    background-color: $warning-light;
+    color: darken($warning, 15%);
+}
+
+  &.excused {
+    background-color: $info-light;
+    color: darken($info, 15%);
+  }
+  
+  &.pending {
+    background-color: $warning-light;
+    color: darken($warning, 15%);
+  }
+}
+
+// Action Buttons
+.actions {
+  display: flex;
+  gap: 0.5rem;
+
+  .action-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: none;
+    
+    i {
+      font-size: 0.875rem;
+    }
+    
+    &.edit {
+      color: $info;
+      background-color: $info-light;
+    }
+    
+    &.delete {
+      color: $danger;
+      background-color: $danger-light;
+    }
+  }
+}
+
+// Empty State
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 3rem 1rem;
+  
+  i {
+    font-size: 3rem;
+    color: $primary;
+    margin-bottom: 1.5rem;
+    opacity: 0.8;
+    filter: drop-shadow(0 4px 6px rgba($primary, 0.2));
+  }
+  
+  h4 {
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+    color: $dark;
+    font-size: 1.5rem;
+  }
+  
+  p {
+    color: $gray;
+    max-width: 400px;
+    text-align: center;
+    margin-bottom: 2rem;
+    font-size: 1.1rem;
+    line-height: 1.6;
+  }
+
+  .btn-primary {
+    padding: 1rem 2rem;
+    font-size: 1.1rem;
+    font-weight: 500;
+    border-radius: 12px;
+    background: linear-gradient(45deg, $primary, darken($primary, 10%));
+    border: none;
+    box-shadow: 0 4px 12px rgba($primary, 0.3);
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+    
+    &::before {
+  content: '';
+  position: absolute;
+      top: 0;
+  left: 0;
+  width: 100%;
+      height: 100%;
+      background: linear-gradient(
+        45deg,
+        rgba(255, 255, 255, 0.1),
+        rgba(255, 255, 255, 0.2)
+      );
+      transform: translateX(-100%) rotate(45deg);
+      transition: transform 0.6s ease;
+    }
+    
+    &:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 15px rgba($primary, 0.4);
+      background: linear-gradient(45deg, darken($primary, 5%), darken($primary, 15%));
+      
+      &::before {
+        transform: translateX(100%) rotate(45deg);
+      }
+    }
+    
+    &:active {
+      transform: translateY(1px);
+      box-shadow: 0 2px 8px rgba($primary, 0.3);
+    }
+    
+    i {
+      font-size: 1rem;
+      margin-right: 0.75rem;
+      color: white;
+      opacity: 1;
+      filter: none;
+      margin-bottom: 0;
+      transition: transform 0.3s ease;
+    }
+    
+    &:hover i {
+      transform: translateX(3px);
+    }
+  }
+}
+
+// Bootstrap Overrides
+.btn {
+  font-weight: 500;
+  border-radius: 8px;
   padding: 0.5rem 1rem;
+  
+  &.btn-primary {
+    background-color: $primary;
+    border-color: $primary;
+    
+    &:hover, &:focus {
+      background-color: $primary-dark;
+      border-color: $primary-dark;
+}
+  }
+  
+  &.btn-outline-primary {
+    border-color: $primary;
+    color: $primary;
+    
+    &:hover, &:focus {
+      background-color: $primary;
+      color: $white;
+    }
+  }
+}
+
+// Modal Redesign
+.modal-content {
+  border-radius: 12px;
+  border: none;
+  overflow: hidden;
+}
+
+.modal-header {
+  padding: 1.25rem;
+  border-bottom: 1px solid $light-gray;
+  
+  .modal-title {
+    font-weight: 600;
+    color: $dark;
+  }
+}
+
+.modal-footer {
+  padding: 1.25rem;
+  border-top: 1px solid $light-gray;
+}
+
+.attendance-header {
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid $light-gray;
+  
+  .date-picker {
+    max-width: 240px;
+    
+    .form-label {
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: $gray;
+      margin-bottom: 0.35rem;
+    }
+    
+    .input-icon {
+      position: relative;
+      
+      i {
+        position: absolute;
+        top: 50%;
+        left: 0.75rem;
+        transform: translateY(-50%);
+        color: $gray;
+      }
+      
+      input {
+        padding-left: 2rem;
+  padding-right: 1rem;
+        border-radius: 8px;
+        height: 40px;
+        width: 100%;
+      }
+    }
+  }
+}
+
+.attendance-list-container {
+  max-height: 500px;
+  overflow-y: auto;
+  background-color: $background;
+}
+
+.loading-state, .empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1rem;
+  
+  .spinner {
+    width: 48px;
+    height: 48px;
+    border: 3px solid $light-gray;
+    border-top-color: $primary;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 1rem;
+  }
+  
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+  
+  p {
+    color: $gray;
+  }
+}
+
+.attendance-list {
+  padding: 1.25rem 1.5rem;
+}
+
+.student-attendance-row {
+  display: flex;
+  flex-direction: column;
+  padding: 1rem;
+  background-color: $white;
+  border-radius: 10px;
+  margin-bottom: 0.75rem;
+  border: 1px solid $light-gray;
+  
+  &:last-child {
+    margin-bottom: 0;
+  }
+  
+  .student-info {
+    display: flex;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+    
+    .avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background-color: $primary;
+      color: $white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      font-size: 0.875rem;
+    }
+    
+    .details {
+      h6 {
+        font-size: 0.875rem;
+        font-weight: 600;
+        margin-bottom: 0.125rem;
+        color: $dark;
+      }
+      
+      p {
+        font-size: 0.75rem;
+        color: $gray;
+        margin-bottom: 0;
+      }
+    }
+  }
+  
+  .attendance-options {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    
+    .status-options {
+      display: flex;
+      gap: 0.5rem;
+      
+      .status-option {
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        background-color: $light-gray;
+        
+        i {
+          color: $gray;
+          font-size: 0.875rem;
+        }
+        
+        &.active {
+          &.present {
+            background-color: $success;
+            i { color: $white; }
+          }
+          
+          &.absent {
+            background-color: $danger;
+            i { color: $white; }
+          }
+          
+          &.late {
+            background-color: $warning;
+            i { color: $white; }
+          }
+          
+          &.excused {
+            background-color: $info;
+            i { color: $white; }
+          }
+        }
+      }
+    }
+    
+    .remarks-field {
+      input {
+        border-radius: 8px;
+        border: 1px solid $light-gray;
+        
+        &::placeholder {
+          color: #adb5bd;
+          font-size: 0.75rem;
+        }
+        
+        &:focus {
+          border-color: $primary;
+          box-shadow: 0 0 0 0.15rem rgba($primary, 0.15);
+        }
+      }
+    }
+  }
+}
+
+// Responsive Adjustments
+@media (min-width: 768px) {
+  .student-attendance-row {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    
+    .student-info {
+      margin-bottom: 0;
+    }
+    
+    .attendance-options {
+      flex-direction: row;
+      align-items: center;
+      gap: 1rem;
+      
+      .remarks-field {
+        min-width: 200px;
+      }
+    }
+  }
+}
+
+@media (max-width: 767px) {
+  .analytics-card {
+    .analytics-data {
+      h4 {
+        font-size: 1.25rem;
+      }
+    }
+  }
+  
+  .content-tabs {
+    .nav-pills {
+      .nav-link {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.875rem;
+      }
+    }
+  }
+  
+  .custom-table {
+    th, td {
+      padding: 0.75rem 1rem;
+    }
+  }
+}
+
+.empty-state-container {
+  height: 350px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: $white;
+}
+
+.empty-state {
+  padding: 2rem;
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.modern-date-display {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 16px;
+  background: rgba($dark, 0.05);
+  border-radius: 6px;
+  font-size: 0.9rem;
+  color: $dark;
+  font-weight: 500;
+  
+  i {
+    color: $gray;
+  }
+}
+
+.btn-date-change {
+  padding: 8px 16px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  border: 1px solid rgba($dark, 0.1);
+  color: $dark;
+  background: transparent;
+  
+  &:hover {
+    background: rgba($dark, 0.05);
+    border-color: rgba($dark, 0.15);
+  }
+}
+
+.btn-today {
+  padding: 8px 16px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: $primary;
+  background: transparent;
+  border: none;
+  
+  &:hover {
+    color: darken($primary, 10%);
+  }
+}
+
+.date-picker-card {
+  background: $white;
+  border-radius: 12px;
+  overflow: hidden;
+  
+  .current-date-display {
+    padding: 2rem;
+    background: linear-gradient(45deg, $primary, darken($primary, 10%));
+    color: white;
+    text-align: center;
+    
+    .date-preview {
+      .month-year {
+        font-size: 1.1rem;
+        opacity: 0.9;
+        margin-bottom: 0.5rem;
+      }
+      
+      .day-number {
+        font-size: 3.5rem;
+        font-weight: 600;
+        line-height: 1;
+        margin-bottom: 0.5rem;
+      }
+      
+      .day-name {
+        font-size: 1.1rem;
+        opacity: 0.9;
+      }
+    }
+  }
+  
+  .date-selection {
+    padding: 1.5rem;
+    
+    .form-label {
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: $gray;
+      margin-bottom: 1rem;
+    }
+    
+    .date-input-wrapper {
+      margin-bottom: 1.5rem;
+      
+      .date-display {
+        position: relative;
+        display: flex;
+        align-items: center;
+        padding: 0.75rem 1rem;
+        border: 1px solid $light-gray;
+        border-radius: 8px;
+        background: $white;
+        cursor: pointer;
+        transition: all 0.2s;
+        
+        &:hover {
+          border-color: $primary;
+          background: rgba($primary, 0.02);
+        }
+        
+        i {
+          margin-right: 1rem;
+        }
+        
+        .date-input {
+          border: none;
+  background: none;
+          width: 100%;
+          color: $dark;
+          font-size: 1rem;
+          
+          &:focus {
+            outline: none;
+          }
+        }
+      }
+}
+
+    .quick-actions {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.75rem;
+      
+      .action-btn {
+        padding: 0.75rem;
+        border: 1px solid $light-gray;
+        border-radius: 8px;
+        background: $white;
+        color: $dark;
+        font-size: 0.9rem;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+        
+        &:hover:not(:disabled) {
+          border-color: $primary;
+          background: rgba($primary, 0.02);
+          color: $primary;
+        }
+        
+        &.today-btn {
+          border-color: $primary;
+          color: $primary;
+          
+          &:hover:not(:disabled) {
+            background: rgba($primary, 0.1);
+          }
+        }
+        
+        &:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+        
+        i {
+          font-size: 0.8rem;
+        }
+      }
+    }
+  }
+}
+
+#datePickerModal {
+  .modal-content {
+    border: none;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  }
+  
+  .modal-header {
+    border-bottom: 1px solid $light-gray;
+    padding: 1.25rem;
+    
+    .modal-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+    }
+  }
+  
+  .modal-footer {
+    border-top: 1px solid $light-gray;
+    padding: 1.25rem;
+    
+    .btn {
+      padding: 0.75rem 1.5rem;
+      font-weight: 500;
+    }
+  }
+}
+
+.attendance-exists-card {
+  padding: 2rem;
+  text-align: center;
+  
+  .warning-icon {
+    width: 80px;
+    height: 80px;
+    background: rgba($warning, 0.1);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1.5rem;
+    
+    i {
+      font-size: 2.5rem;
+      color: $warning;
+    }
+  }
+  
+  .warning-content {
+    margin-bottom: 2rem;
+    
+    h4 {
+      color: $dark;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+    
+    p {
+      color: $gray;
+      margin-bottom: 0;
+      font-size: 0.95rem;
+      line-height: 1.5;
+    }
+}
+
+  .attendance-summary {
+    display: flex;
+    justify-content: center;
+    gap: 2rem;
+    margin-bottom: 2rem;
+    padding: 1.5rem;
+    background: $background;
+    border-radius: 12px;
+    
+    .summary-item {
+      text-align: center;
+      
+      .label {
+        display: block;
+        font-size: 0.9rem;
+        color: $gray;
+        margin-bottom: 0.5rem;
+      }
+      
+      .value {
+        font-size: 1.5rem;
+        font-weight: 600;
+      }
+    }
+  }
+
+  .edit-instruction {
+    background: rgba($primary, 0.05);
+    border-radius: 12px;
+    padding: 1.25rem;
+    margin-bottom: 2rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    
+    .instruction-icon {
+  width: 40px;
+  height: 40px;
+      min-width: 40px;
+      background: rgba($primary, 0.1);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+      
+      i {
+        color: $primary;
+        font-size: 1.25rem;
+      }
+    }
+    
+    p {
+      margin: 0;
+      text-align: left;
+      font-size: 0.95rem;
+      color: $dark;
+      
+      i {
+        margin: 0 0.25rem;
+      }
+    }
+  }
+  
+  .action-buttons {
+    .btn {
+      padding: 0.75rem 2rem;
+  font-weight: 500;
+}
+  }
+}
+
+.edit-attendance-card {
+  .student-info-section {
+    background: linear-gradient(45deg, $primary, darken($primary, 10%));
+    padding: 2rem;
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    color: white;
+    
+    .avatar {
+      width: 64px;
+      height: 64px;
+      background: rgba(white, 0.2);
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      font-weight: 600;
+    }
+    
+    .info {
+      h4 {
+        margin: 0 0 0.25rem;
+        font-weight: 600;
+}
+
+      p {
+        margin: 0;
+        opacity: 0.9;
+        color: white;
+      }
+    }
+  }
+  
+  .section-label {
+    display: block;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: $gray;
+    margin-bottom: 1rem;
+  }
+  
+  .status-section {
+    padding: 1.5rem;
+    border-bottom: 1px solid $light-gray;
+    
+    .status-options {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0.75rem;
+      
+      .status-btn {
+        padding: 1rem;
+        border: 1px solid $light-gray;
+        border-radius: 12px;
+        background: white;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.5rem;
+        transition: all 0.2s;
+        
+        i {
+          font-size: 1.25rem;
+          color: $gray;
+        }
+        
+        span {
+          font-size: 0.85rem;
+          color: $dark;
+          font-weight: 500;
+        }
+        
+        &.active {
+          &.present {
+            background: rgba($success, 0.1);
+            border-color: $success;
+            i, span { color: $success; }
+          }
+          
+          &.absent {
+            background: rgba($danger, 0.1);
+            border-color: $danger;
+            i, span { color: $danger; }
+          }
+          
+          &.late {
+            background: rgba($warning, 0.1);
+            border-color: $warning;
+            i, span { color: $warning; }
+          }
+          
+          &.excused {
+            background: rgba($info, 0.1);
+            border-color: $info;
+            i, span { color: $info; }
+          }
+        }
+        
+        &:hover:not(.active) {
+          background: $background;
+          border-color: darken($light-gray, 5%);
+        }
+      }
+    }
+}
+
+  .remarks-section {
+    padding: 1.5rem;
+    border-bottom: 1px solid $light-gray;
+    
+    textarea {
+      border-radius: 12px;
+      resize: none;
+      font-size: 0.95rem;
+      
+      &:focus {
+        border-color: $primary;
+        box-shadow: 0 0 0 0.25rem rgba($primary, 0.1);
+      }
+    }
+  }
+  
+  .last-updated {
+    padding: 1rem 1.5rem;
+    background: $background;
+    font-size: 0.85rem;
+    color: $gray;
+    text-align: center;
+  }
+}
+
+#editAttendanceModal {
+  .modal-content {
+    border: none;
+    border-radius: 16px;
+    overflow: hidden;
+  }
+  
+  .modal-header {
+    padding: 1.5rem;
+    
+    .modal-title {
+      font-size: 1.25rem;
+      font-weight: 600;
+    }
+  }
+  
+  .modal-footer {
+    padding: 1.25rem 1.5rem;
+    
+    .btn {
+      padding: 0.75rem 1.5rem;
+      font-weight: 500;
+}
+  }
+}
+
+.class-selector {
+  .form-select {
+    min-width: 200px;
+    border-radius: 8px;
+    border: 1px solid $light-gray;
+    padding: 0.5rem 2.25rem 0.5rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: $dark;
+    background-color: $white;
+    transition: all 0.2s;
+    
+    &:focus {
+      border-color: $primary;
+      box-shadow: 0 0 0 0.15rem rgba($primary, 0.15);
+    }
+    
+    &:hover:not(:disabled) {
+      border-color: $primary;
+    }
+  }
+}
+
+.class-selection-card {
+  .info-section {
+    background: rgba($primary, 0.05);
+    padding: 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin: 0;
+    border-radius: 0;
+    
+    .icon {
+      width: 36px;
+      height: 36px;
+      min-width: 36px;
+      background: rgba($primary, 0.1);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      
+      i {
+        color: $primary;
+        font-size: 1rem;
+      }
+    }
+    
+    p {
+      margin: 0;
+      font-size: 0.9rem;
+      color: $dark;
+      line-height: 1.5;
+    }
+  }
+
+  .selection-container {
+    padding: 1.25rem;
+
+    .selection-section {
+      .form-label {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: $gray;
+        margin-bottom: 0.5rem;
+        display: block;
+      }
+
+      .class-select-wrapper {
+        position: relative;
+        
+        .form-select {
+          width: 100%;
+    padding: 0.75rem 1rem;
+          font-size: 0.9rem;
+          border-radius: 8px;
+          border: 1px solid $light-gray;
+          background-color: $white;
+          transition: all 0.2s ease;
+          appearance: none;
+          -webkit-appearance: none;
+          background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e");
+          background-repeat: no-repeat;
+          background-position: right 0.75rem center;
+          background-size: 16px 12px;
+          
+          &:focus {
+            border-color: $primary;
+            box-shadow: 0 0 0 0.25rem rgba($primary, 0.1);
+          }
+          
+          &:disabled {
+            background-color: rgba($light-gray, 0.5);
+            cursor: not-allowed;
+          }
+        }
+
+        .spinner-wrapper {
+          position: absolute;
+          right: 2.5rem;
+          top: 50%;
+          transform: translateY(-50%);
+          
+          .spinner-border {
+            width: 1rem;
+            height: 1rem;
+            border-width: 0.15em;
+          }
+        }
+      }
+    }
+  }
+}
+
+.modal-header {
+  padding: 1.25rem;
+  
+  .modal-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    
+    i {
+      color: $primary;
+    }
+  }
+}
+
+.modal-footer {
+  padding: 1.25rem;
+  
+  .btn {
+    padding: 0.75rem 1.5rem;
+    font-weight: 500;
+    
+    &:disabled {
+      cursor: not-allowed;
+      opacity: 0.7;
+    }
+  }
+}
+
+.class-info {
+  .badge {
+    font-size: 0.875rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 8px;
+    font-weight: 500;
+    background: linear-gradient(45deg, $primary, darken($primary, 10%));
+    
+    i {
+      opacity: 0.8;
+    }
+  }
+}
+
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.9);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+
+  .spinner-container {
+    text-align: center;
+    
+    .spinner-border {
+      width: 3rem;
+      height: 3rem;
+      color: #42b883;
+    }
+    
+    p {
+      color: #2c3e50;
+      font-size: 1.1rem;
+      font-weight: 500;
+      margin: 1rem 0 0;
+    }
+  }
 }
 </style> 

@@ -450,7 +450,7 @@
                 
                 <div class="row g-4">
                   <!-- Class Levels Card -->
-                  <div class="col-md-6 col-lg-4">
+                  <div v-if="userRole === 'superadmin' || studentPortalEnabled" class="col-md-6 col-lg-4">
                     <div class="value-list-card">
                       <div class="value-card-icon">
                         <i class="fas fa-layer-group"></i>
@@ -2058,113 +2058,173 @@ const accessPackage = ref({
   ]
 })
 
+// Add studentPortalEnabled ref
+const studentPortalEnabled = ref(false)
+
+// Add function to check student portal status
+const checkStudentPortalStatus = async () => {
+  try {
+    const schoolId = ['admin', 'registrar'].includes(userRole.value || '') 
+      ? authStore.userRole?.school_id 
+      : authStore.getSelectedSchoolId
+
+    if (!schoolId) {
+      studentPortalEnabled.value = false
+      return
+    }
+
+    const { data, error } = await supabase
+      .from('setup')
+      .select('*')
+      .eq('school_id', schoolId)
+      .single()
+
+    if (error) {
+      console.error('Error checking student portal status:', error)
+      studentPortalEnabled.value = false
+      return
+    }
+
+    if (data) {
+      const setupDataKeys = Object.keys(data)
+      const studentPortalField = setupDataKeys.find(key => 
+        key.toLowerCase() === 'student_portal'
+      )
+      
+      if (studentPortalField) {
+        studentPortalEnabled.value = String(data[studentPortalField]).toUpperCase() === 'YES'
+        console.log('Student portal status:', studentPortalEnabled.value)
+      } else {
+        studentPortalEnabled.value = false
+      }
+    }
+  } catch (error) {
+    console.error('Error checking student portal status:', error)
+    studentPortalEnabled.value = false
+  }
+}
+
 // Add function to fetch access package settings
 const fetchAccessPackageSettings = async () => {
+  loadingAccessPackage.value = true
   try {
-    loadingAccessPackage.value = true;
     // Get the school_id
     const schoolId = ['admin', 'registrar'].includes(userRole.value || '') 
       ? authStore.userRole?.school_id 
-      : authStore.getSelectedSchoolId;
-    
+      : authStore.getSelectedSchoolId
+
     if (!schoolId) {
       console.log('No school_id found. For superadmin, please select a school first.')
       return
     }
 
-    console.log('Fetching access package settings for school:', schoolId);
+    console.log('Fetching access package settings for school:', schoolId)
     
     // Fetch entire setup record to check all available fields
     const { data, error } = await supabase
       .from('setup')
       .select('*')
       .eq('school_id', schoolId)
-      .single();
+      .single()
 
     if (error) {
-      console.error('Setup fetch error:', error);
+      console.error('Setup fetch error:', error)
       if (error.code === 'PGRST116') {
-        console.log('No setup record found, using default access package settings');
+        console.log('No setup record found, using default access package settings')
         // No record found, use defaults
-        return;
+        return
       }
-      throw error;
+      throw error
     }
 
-    console.log('Fetched setup data:', data);
-    
+    console.log('Fetched setup data:', data)
+
     if (data) {
+      // Check for student portal field first
+      const setupDataKeys = Object.keys(data)
+      const studentPortalField = setupDataKeys.find(key => 
+        key.toLowerCase() === 'student_portal'
+      )
+      
+      // Update student portal enabled state
+      if (studentPortalField) {
+        studentPortalEnabled.value = String(data[studentPortalField]).toUpperCase() === 'YES'
+      } else {
+        studentPortalEnabled.value = false
+      }
+
       // Check if the data has the access_package field populated
       if (data.access_package) {
-        console.log('Found access_package in setup data:', data.access_package);
-        accessPackage.value = data.access_package;
+        console.log('Found access_package in setup data:', data.access_package)
+        accessPackage.value = data.access_package
       } else {
-        console.log('No access_package field in setup data, updating individual features');
+        console.log('No access_package field in setup data, updating individual features')
       }
 
       // Individual feature updates - these will work even without an access_package field
 
       // If auto_generate_id exists, set the feature
       if (data.auto_generate_id !== undefined) {
-        console.log('Setting Auto Generate ID feature to:', data.auto_generate_id);
-        const autoGenFeature = accessPackage.value.features.find(f => f.name === 'Auto Generate ID');
+        console.log('Setting Auto Generate ID feature to:', data.auto_generate_id)
+        const autoGenFeature = accessPackage.value.features.find(f => f.name === 'Auto Generate ID')
         if (autoGenFeature) {
-          autoGenFeature.enabled = data.auto_generate_id === 'Yes';
+          autoGenFeature.enabled = data.auto_generate_id === 'Yes'
         }
       }
 
       // If student_check exists, set the validate student feature
       if (data.student_check !== undefined) {
-        console.log('Setting Auto Validate Student ID feature to:', data.student_check);
-        const validateStudentFeature = accessPackage.value.features.find(f => f.name === 'Auto Validate Student ID');
+        console.log('Setting Auto Validate Student ID feature to:', data.student_check)
+        const validateStudentFeature = accessPackage.value.features.find(f => f.name === 'Auto Validate Student ID')
         if (validateStudentFeature) {
-          validateStudentFeature.enabled = data.student_check === 'Yes';
+          validateStudentFeature.enabled = data.student_check === 'Yes'
         }
       }
 
       // Check for finance feature
       if (data.finance !== undefined) {
-        console.log('Setting Finance Module feature to:', data.finance);
-        const financeFeature = accessPackage.value.features.find(f => f.name === 'Finance Module');
+        console.log('Setting Finance Module feature to:', data.finance)
+        const financeFeature = accessPackage.value.features.find(f => f.name === 'Finance Module')
         if (financeFeature) {
-          financeFeature.enabled = data.finance === 'Yes';
+          financeFeature.enabled = data.finance === 'Yes'
         }
       }
 
       // Check for student portal
       if (data.student_portal !== undefined) {
-        console.log('Setting Student Portal feature to:', data.student_portal);
-        const studentPortalFeature = accessPackage.value.features.find(f => f.name === 'Student Portal');
+        console.log('Setting Student Portal feature to:', data.student_portal)
+        const studentPortalFeature = accessPackage.value.features.find(f => f.name === 'Student Portal')
         if (studentPortalFeature) {
-          studentPortalFeature.enabled = data.student_portal === 'Yes';
+          studentPortalFeature.enabled = data.student_portal === 'Yes'
         }
       }
 
       // Check for teacher portal
       if (data.teacher_portal !== undefined) {
-        console.log('Setting Teacher Portal feature to:', data.teacher_portal);
-        const teacherPortalFeature = accessPackage.value.features.find(f => f.name === 'Teacher Portal');
+        console.log('Setting Teacher Portal feature to:', data.teacher_portal)
+        const teacherPortalFeature = accessPackage.value.features.find(f => f.name === 'Teacher Portal')
         if (teacherPortalFeature) {
-          teacherPortalFeature.enabled = data.teacher_portal === 'Yes';
+          teacherPortalFeature.enabled = data.teacher_portal === 'Yes'
         }
       }
 
       // Check for parent portal
       if (data.parent_portal !== undefined) {
-        console.log('Setting Parent Portal feature to:', data.parent_portal);
-        const parentPortalFeature = accessPackage.value.features.find(f => f.name === 'Parent Portal');
+        console.log('Setting Parent Portal feature to:', data.parent_portal)
+        const parentPortalFeature = accessPackage.value.features.find(f => f.name === 'Parent Portal')
         if (parentPortalFeature) {
-          parentPortalFeature.enabled = data.parent_portal === 'Yes';
+          parentPortalFeature.enabled = data.parent_portal === 'Yes'
         }
       }
     }
   } catch (error: any) {
-    console.error('Error fetching access package settings:', error);
-    toast.error('Failed to load access package settings');
+    console.error('Error fetching access package settings:', error)
+    toast.error('Failed to load access package settings')
+    studentPortalEnabled.value = false
   } finally {
-    loadingAccessPackage.value = false;
+    loadingAccessPackage.value = false
   }
-};
+}
 
 // Add this after access package ref definition
 const savingFeature = ref<string | null>(null);
@@ -2353,7 +2413,8 @@ const handleSchoolSelected = async (schoolId: string) => {
         // Load the badge counts as well
         fetchPaymentTypes(),
         fetchFees(),
-        fetchClasses()
+        fetchClasses(),
+        checkStudentPortalStatus() // Add this line
       ])
     } catch (error) {
       console.error('Error fetching settings:', error)
@@ -2398,7 +2459,8 @@ watch(
           // Load the badge counts as well
           fetchPaymentTypes(),
           fetchFees(),
-          fetchClasses()
+          fetchClasses(),
+          checkStudentPortalStatus() // Add this line
         ])
       } catch (error) {
         console.error('Error fetching settings:', error)
@@ -3406,7 +3468,8 @@ onMounted(async () => {
           // Load the badge counts as well
           fetchPaymentTypes(),
           fetchFees(),
-          fetchClasses()
+          fetchClasses(),
+          checkStudentPortalStatus() // Add this line
         ])
       } catch (error) {
         console.error('Error loading settings for superadmin:', error)
@@ -3427,7 +3490,8 @@ onMounted(async () => {
         // Preload payment types and fees counts for the badges
         fetchPaymentTypes(),
         fetchFees(),
-        fetchClasses()
+        fetchClasses(),
+        checkStudentPortalStatus() // Add this line
       ])
     } catch (error) {
       console.error('Error loading settings:', error)

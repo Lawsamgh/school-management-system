@@ -101,24 +101,12 @@
                           <div class="mega-menu-content"><h6>Parents</h6><p>Manage parent accounts</p></div>
                         </router-link>
                         <router-link 
-                          v-if="isAuthenticated && (userRole === 'superadmin' || authStore.financeModuleEnabled)"
+                          v-if="showFinanceMenu"
                           to="/accountants" 
                           class="mega-menu-item"
                         >
                           <div class="mega-menu-icon"><i class="fas fa-calculator"></i></div>
                           <div class="mega-menu-content"><h6>Accountants</h6><p>Manage accounting staff</p></div>
-                        </router-link>
-                        <router-link to="/courses" class="mega-menu-item">
-                          <div class="mega-menu-icon"><i class="fas fa-graduation-cap"></i></div>
-                          <div class="mega-menu-content"><h6>Courses</h6><p>Manage academic courses</p></div>
-                        </router-link>
-                        <router-link to="/classes" class="mega-menu-item">
-                          <div class="mega-menu-icon"><i class="fas fa-clock"></i></div>
-                          <div class="mega-menu-content"><h6>Classes</h6><p>Manage class schedules</p></div>
-                        </router-link>
-                        <router-link to="/engagements" class="mega-menu-item">
-                          <div class="mega-menu-icon"><i class="fas fa-running"></i></div>
-                          <div class="mega-menu-content"><h6>Engagements</h6><p>Manage school engagements</p></div>
                         </router-link>
                         <router-link 
                           v-if="userRole === 'superadmin' || userRole === 'admin'"
@@ -222,21 +210,12 @@
                         <i class="fas fa-user-friends me-2"></i>Parents
                       </a>
                       <a 
-                        v-if="isAuthenticated && (userRole === 'superadmin' || authStore.financeModuleEnabled)"
+                        v-if="showFinanceMenu"
                         class="dropdown-item" 
                         @click="(e) => handleMenuItemClick('/accountants', e)" 
                         :class="{ active: isRouteActive('/accountants') }"
                       >
                         <i class="fas fa-calculator me-2"></i>Accountants
-                      </a>
-                      <a class="dropdown-item" @click="(e) => handleMenuItemClick('/courses', e)" :class="{ active: isRouteActive('/courses') }">
-                        <i class="fas fa-graduation-cap me-2"></i>Courses
-                      </a>
-                      <a class="dropdown-item" @click="(e) => handleMenuItemClick('/classes', e)" :class="{ active: isRouteActive('/classes') }">
-                        <i class="fas fa-clock me-2"></i>Classes
-                      </a>
-                      <a class="dropdown-item" @click="(e) => handleMenuItemClick('/engagements', e)" :class="{ active: isRouteActive('/engagements') }">
-                        <i class="fas fa-running me-2"></i>Engagements
                       </a>
                       <a 
                         v-if="userRole === 'superadmin' || userRole === 'admin'"
@@ -747,6 +726,19 @@ const fetchSchoolInfo = async (schoolId?: string) => {
     isLoading.value = false
   }
 }
+
+// Add computed property for finance menu visibility
+const showFinanceMenu = computed(() => {
+  const role = userRole.value?.toLowerCase() || ''
+  
+  // Always show for superadmin
+  if (role === 'superadmin') {
+    return true
+  }
+  
+  // For other roles, check if finance module is enabled
+  return authStore.financeModuleEnabled && ['admin', 'accountant'].includes(role)
+})
 </script>
 
 <style lang="scss">

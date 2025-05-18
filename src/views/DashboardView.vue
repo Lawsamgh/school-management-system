@@ -147,16 +147,21 @@
           <!-- Regular Stats for other roles -->
           <template v-else>
             <!-- Students Stats -->
-            <div class="col-md-4" v-motion-slide-visible-once-bottom>
+            <div 
+              class="col-md-4" 
+              v-motion-slide-visible-once-bottom
+              v-if="userRole?.toLowerCase() !== 'teacher'"
+            >
               <div class="stat-card" :class="{ 'skeleton-loading': loading }">
                 <template v-if="!loading">
+                  <div class="stat-content">
+                    <h3 class="d-none d-md-block">Students</h3>
+                    <h3 class="d-md-none">Total Students</h3>
+                    <p class="stat-number">{{ studentCount }}</p>
+                    <p class="stat-label d-none d-md-block">Active Enrollments</p>
+                  </div>
                   <div class="stat-icon">
                     <i class="fas fa-book-reader"></i>
-                  </div>
-                  <div class="stat-content">
-                    <h3>Students</h3>
-                    <p class="stat-number">{{ studentCount }}</p>
-                    <p class="stat-label">Active Enrollments</p>
                   </div>
                 </template>
                 <template v-else>
@@ -171,7 +176,11 @@
             </div>
             
             <!-- Teachers Stats -->
-            <div class="col-md-4" v-motion-slide-visible-once-bottom>
+            <div 
+              class="col-md-4" 
+              v-motion-slide-visible-once-bottom
+              v-if="userRole?.toLowerCase() !== 'teacher'"
+            >
               <div class="stat-card" :class="{ 'skeleton-loading': loading }">
                 <template v-if="!loading">
                   <div class="stat-icon">
@@ -193,18 +202,113 @@
                 </template>
               </div>
             </div>
-            
-            <!-- Students 2 Stats -->
-            <div class="col-md-4" v-motion-slide-visible-once-bottom>
+
+            <!-- Administrators Stats -->
+            <div 
+              class="col-md-4" 
+              v-motion-slide-visible-once-bottom
+              v-if="userRole?.toLowerCase() !== 'teacher'"
+            >
               <div class="stat-card" :class="{ 'skeleton-loading': loading }">
                 <template v-if="!loading">
                   <div class="stat-icon">
-                    <i class="fas fa-book-reader"></i>
+                    <i class="fas fa-user-shield"></i>
                   </div>
                   <div class="stat-content">
-                    <h3>Students 2</h3>
-                    <p class="stat-number">{{ studentCount }}</p>
-                    <p class="stat-label">Active Enrollments</p>
+                    <h3>Administrators</h3>
+                    <p class="stat-number">{{ adminCount }}</p>
+                    <p class="stat-label">Active Administrators</p>
+                  </div>
+                </template>
+                <template v-else>
+                  <div class="skeleton-icon"></div>
+                  <div class="stat-content">
+                    <div class="skeleton-text skeleton-sm"></div>
+                    <div class="skeleton-text skeleton-lg"></div>
+                    <div class="skeleton-text skeleton-sm"></div>
+                  </div>
+                </template>
+              </div>
+            </div>
+            
+            <!-- Classes Stats for Teachers -->
+            <div 
+              class="col-md-4" 
+              v-motion-slide-visible-once-bottom
+              v-if="userRole?.toLowerCase() === 'teacher'"
+            >
+              <div class="stat-card" :class="{ 'skeleton-loading': loading }">
+                <template v-if="!loading">
+                  <div class="stat-icon">
+                    <i class="fas fa-chalkboard"></i>
+                  </div>
+                  <div class="stat-content">
+                    <h3>{{ teacherClassName || 'Unassigned Class' }}</h3>
+                    <p class="stat-number">{{ classCount || 0 }}</p>
+                    <p class="stat-label">Students</p>
+                  </div>
+                </template>
+                <template v-else>
+                  <div class="skeleton-icon"></div>
+                  <div class="stat-content">
+                    <div class="skeleton-text skeleton-sm"></div>
+                    <div class="skeleton-text skeleton-lg"></div>
+                    <div class="skeleton-text skeleton-sm"></div>
+                  </div>
+                </template>
+              </div>
+            </div>
+
+            <!-- Assignments Stats for Teachers -->
+            <div 
+              class="col-md-4" 
+              v-motion-slide-visible-once-bottom
+              v-if="userRole?.toLowerCase() === 'teacher'"
+            >
+              <div class="stat-card" :class="{ 'skeleton-loading': loading }">
+                <template v-if="!loading">
+                  <div class="stat-content">
+                    <h3 class="d-none d-md-block">Assignments</h3>
+                    <h3 class="d-md-none">Active Tasks</h3>
+                    <p class="stat-number">{{ assignmentCount || 0 }}</p>
+                    <p class="stat-label d-none d-md-block">Active Assignments</p>
+                  </div>
+                  <div class="stat-icon">
+                    <i class="fas fa-book"></i>
+                  </div>
+                </template>
+                <template v-else>
+                  <div class="skeleton-icon"></div>
+                  <div class="stat-content">
+                    <div class="skeleton-text skeleton-sm"></div>
+                    <div class="skeleton-text skeleton-lg"></div>
+                    <div class="skeleton-text skeleton-sm"></div>
+                  </div>
+                </template>
+              </div>
+            </div>
+
+            <!-- Attendance Stats for Teachers -->
+            <div 
+              class="col-md-4" 
+              v-motion-slide-visible-once-bottom
+              v-if="userRole?.toLowerCase() === 'teacher'"
+            >
+              <div class="stat-card" :class="{ 'skeleton-loading': loading }">
+                <template v-if="!loading">
+                  <div class="attendance-stats">
+                    <div class="attendance-ring" :style="{ '--percentage': attendancePercentage + '%' }">
+                      <div class="percentage">
+                        <span class="number">{{ attendancePercentage }}</span>
+                        <span class="symbol">%</span>
+                      </div>
+                    </div>
+                    <div class="attendance-details">
+                      <h3 class="d-none d-md-block">Today's Attendance</h3>
+                      <h3 class="d-md-none">Students Present</h3>
+                      <p class="stat-number">{{ attendanceCount || 0 }}</p>
+                      <p class="stat-label d-none d-md-block">Students Present</p>
+                    </div>
                   </div>
                 </template>
                 <template v-else>
@@ -296,9 +400,9 @@
             <div class="dashboard-card" :class="{ 'skeleton-loading': loading }">
               <div class="card-header">
                 <template v-if="!loading">
-                  <h2>{{ authStore.isAuthenticated && (userRole?.toLowerCase() === 'superadmin' || (isAdminOrHigher && authStore.financeModuleEnabled)) ? 'Recent Payments' : 'Recent Activities' }}</h2>
+                  <h2>{{ showFinanceContent ? 'Recent Payments' : 'Recent Activities' }}</h2>
                   <router-link 
-                    v-if="authStore.isAuthenticated && (userRole?.toLowerCase() === 'superadmin' || (isAdminOrHigher && authStore.financeModuleEnabled))" 
+                    v-if="showFinanceContent" 
                     to="/accountants" 
                     class="btn btn-outline-primary btn-sm"
                   >
@@ -312,9 +416,9 @@
                 </template>
               </div>
 
-              <!-- Payment Table for Accountants, Admins and Superadmins -->
+              <!-- Payment Table for Accountants and Admins -->
               <div 
-                v-if="!loading && authStore.isAuthenticated && (userRole?.toLowerCase() !== 'superadmin' && ((userRole?.toLowerCase() === 'admin' || userRole?.toLowerCase() === 'accountant') && authStore.financeModuleEnabled))"
+                v-if="showFinanceContent"
                 class="payments-table-container"
               >
                 <div class="responsive-table">
@@ -453,7 +557,7 @@
 
           <!-- Monthly Payment Chart -->
           <div 
-            v-if="showChart && userRole?.toLowerCase() !== 'superadmin'"
+            v-if="showChart"
             class="col-12 mt-3" 
             v-motion-slide-visible-once-bottom
           >
@@ -527,9 +631,16 @@ const initChart = ref(false)
 const chartInitialized = ref(false)
 const hasPaymentData = ref(false)
 const teacherPortalEnabled = ref(false)
+const classCount = ref(0)
+const assignmentCount = ref(0)
+const attendanceCount = ref(0)
+const teacherClassName = ref('')
 
 // Add new ref for password status
 const passwordStatus = ref<string | null>(null)
+
+// Change parentCount to adminCount
+const adminCount = ref(0)
 
 // Update the computed property for showing password change alert
 const showPasswordChangeAlert = computed(() => {
@@ -565,17 +676,7 @@ const showChart = computed(() => {
     return false
   }
 
-  const roleValue = userRole.value?.toLowerCase() || ''
-  console.log('Role check for chart:', { role: roleValue })
-  
-  // Never show for superadmin role
-  if (roleValue === 'superadmin') {
-    return false
-  }
-  
-  // Only show for admin and accountant roles, and when finance module is enabled
-  return ((['admin', 'accountant'].includes(roleValue)) && 
-    authStore.financeModuleEnabled)
+  return showFinanceContent.value
 })
 
 // Debug watcher
@@ -952,11 +1053,169 @@ watch(
   }
 )
 
-// Initialize
+// Add these interfaces at the top of the script section
+interface Class {
+  class_name: string
+}
+
+interface TeacherData {
+  id: number
+  class_id: number
+  classes: Class[]
+}
+
+// Update the fetchTeacherClass function
+const fetchTeacherClass = async () => {
+  try {
+    // First get the teacher's class_id
+    const { data: teacherData, error: teacherError } = await supabase
+      .from('user_roles')
+      .select('class_id')
+      .eq('id', authStore.userRole?.id)
+      .single()
+
+    if (teacherError) throw teacherError
+
+    if (teacherData?.class_id) {
+      // Now fetch the class name using the class_id
+      const { data: classData, error: classError } = await supabase
+        .from('classes')
+        .select('class_name')
+        .eq('class_id', teacherData.class_id)
+        .single()
+
+      if (!classError && classData) {
+        teacherClassName.value = classData.class_name
+      } else {
+        teacherClassName.value = 'Unassigned Class'
+      }
+
+      // Get student count for this class
+      const { data: students, error: studentsError } = await supabase
+        .from('user_roles')
+        .select('id', { count: 'exact' })
+        .eq('class_id', teacherData.class_id)
+        .eq('role', 'student')
+
+      if (!studentsError) {
+        classCount.value = students?.length || 0
+      }
+    } else {
+      teacherClassName.value = 'Unassigned Class'
+      classCount.value = 0
+    }
+  } catch (error) {
+    console.error('Error fetching teacher class:', error)
+    teacherClassName.value = 'Unassigned Class'
+    classCount.value = 0
+  }
+}
+
+// Add these at the top of the script section after the imports
+const todayAttendance = ref<any[]>([])
+const today = computed(() => new Date().toISOString().slice(0, 10))
+
+// Add this function before onMounted
+const fetchTodayAttendance = async () => {
+  try {
+    if (userRole.value?.toLowerCase() === 'teacher') {
+      const schoolId = authStore.userRole?.school_id
+      
+      if (!schoolId) {
+        console.error('No school ID found')
+        return
+      }
+
+      // Get the teacher's class_id first
+      const { data: teacherData, error: teacherError } = await supabase
+        .from('user_roles')
+        .select('class_id')
+        .eq('id', authStore.userRole?.id)
+        .single()
+
+      if (teacherError) {
+        console.error('Error getting teacher class:', teacherError)
+        return
+      }
+
+      if (!teacherData?.class_id) {
+        console.log('No class assigned to teacher')
+        return
+      }
+
+      // Get today's attendance records
+      const { data: attendanceRecords, error: attendanceError } = await supabase
+        .from('attendances')
+        .select('id, status')
+        .eq('class_id', teacherData.class_id)
+        .eq('school_id', schoolId)
+        .eq('date', today.value)
+      
+      if (attendanceError) {
+        console.error('Error fetching attendance:', attendanceError)
+        return
+      }
+
+      todayAttendance.value = attendanceRecords || []
+      
+      // Update attendance count based on 'present' status
+      attendanceCount.value = todayAttendance.value.filter(record => record.status === 'present').length
+
+      // Get total students in class for percentage calculation
+      const { data: students, error: studentsError } = await supabase
+        .from('user_roles')
+        .select('id', { count: 'exact' })
+        .eq('class_id', teacherData.class_id)
+        .eq('school_id', schoolId)
+        .eq('role', 'student')
+
+      if (!studentsError) {
+        classCount.value = students?.length || 0
+      }
+    }
+  } catch (error) {
+    console.error('Error fetching today\'s attendance:', error)
+    toast.error('Failed to fetch attendance records')
+  }
+}
+
+// Change fetchParentCount to fetchAdminCount
+const fetchAdminCount = async () => {
+  try {
+    // Get the school_id based on user role
+    const schoolId = ['admin', 'registrar'].includes(userRole.value?.toLowerCase() || '') 
+      ? authStore.userRole?.school_id 
+      : userRole.value?.toLowerCase() === 'superadmin' ? authStore.getSelectedSchoolId : authStore.userRole?.school_id;
+
+    // Base query to get admins
+    let query = supabase
+      .from('user_roles')
+      .select('*', { count: 'exact' })
+      .eq('role', 'admin');
+    
+    // Add school_id filter if available
+    if (schoolId) {
+      query = query.eq('school_id', schoolId);
+    }
+    
+    const { data, error, count } = await query;
+    
+    if (error) {
+      console.error('Error fetching admin count:', error);
+      return;
+    }
+    
+    adminCount.value = count || 0;
+    console.log('Admin count:', adminCount.value);
+  } catch (error) {
+    console.error('Error fetching admin count:', error);
+  }
+}
+
+// Update onMounted to use fetchAdminCount
 onMounted(async () => {
   console.log('Component mounted')
   try {
-    // Fetch password status instead of checking localStorage
     await fetchPasswordStatus()
     
     initializeYears()
@@ -975,6 +1234,37 @@ onMounted(async () => {
     } else {
       await fetchTeacherCount()
       await fetchStudentCount()
+      await fetchAdminCount() // Changed from fetchParentCount
+    }
+    
+    // Fetch teacher-specific stats if user is a teacher
+    if (userRole.value?.toLowerCase() === 'teacher') {
+      try {
+        await fetchTeacherClass()
+        await fetchTodayAttendance()
+        
+        // Get the teacher's class_id for assignments
+        const { data: teacherData } = await supabase
+          .from('user_roles')
+          .select('class_id')
+          .eq('id', authStore.userRole?.id)
+          .single()
+
+        if (teacherData?.class_id) {
+          // Fetch assignment count
+          const { data: assignments, error: assignmentError } = await supabase
+            .from('assignments')
+            .select('id')
+            .eq('class_id', teacherData.class_id)
+            .eq('status', 'active')
+          
+          if (!assignmentError) {
+            assignmentCount.value = assignments?.length || 0
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching teacher stats:', error)
+      }
     }
     
     loading.value = false
@@ -1108,6 +1398,20 @@ const fetchSchoolInfo = async () => {
     teacherPortalEnabled.value = false;
   }
 };
+
+const attendancePercentage = computed(() => {
+  if (!classCount.value || !todayAttendance.value.length) return 0
+  const presentCount = todayAttendance.value.filter(record => record.status === 'present').length
+  return Math.round((presentCount / classCount.value) * 100)
+})
+
+// Add new computed property for finance content visibility
+const showFinanceContent = computed(() => {
+  const roleValue = userRole.value?.toLowerCase() || ''
+  
+  // For admin and accountant, only show if finance module is enabled
+  return (['admin', 'accountant'].includes(roleValue) && authStore.financeModuleEnabled)
+})
 </script>
 
 <style lang="scss" scoped>
@@ -1178,6 +1482,83 @@ const fetchSchoolInfo = async () => {
     box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
   }
 
+  .attendance-stats {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+
+    .attendance-ring {
+      position: relative;
+      width: 100px;
+      height: 100px;
+      background: conic-gradient(
+        #ff9800 var(--percentage),
+        rgba(255, 152, 0, 0.1) var(--percentage)
+      );
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      
+      &::before {
+        content: '';
+        position: absolute;
+        width: 80px;
+        height: 80px;
+        background: white;
+        border-radius: 50%;
+      }
+      
+      .percentage {
+        position: relative;
+        display: flex;
+        align-items: baseline;
+        
+        .number {
+          font-size: 1.75rem;
+          font-weight: 600;
+          color: #ff9800;
+        }
+        
+        .symbol {
+          font-size: 1rem;
+          color: #ff9800;
+          margin-left: 2px;
+        }
+      }
+    }
+
+    .attendance-details {
+      flex: 1;
+
+      h3 {
+        font-size: 1.1rem;
+        color: #666;
+        margin-bottom: 0.5rem;
+        font-weight: 500;
+      }
+
+      .stat-number {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: #2c3e50;
+        margin-bottom: 0.25rem;
+        background: linear-gradient(135deg, #ff9800, #f57c00);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+
+      .stat-label {
+        color: #666;
+        font-size: 0.9rem;
+        margin: 0;
+        opacity: 0.8;
+      }
+    }
+  }
+
   .stat-icon {
     position: absolute;
     right: -1rem;
@@ -1186,11 +1567,6 @@ const fetchSchoolInfo = async () => {
     font-size: 5rem;
     color: rgba(66, 184, 131, 0.1);
     transition: all 0.3s ease;
-  }
-
-  &:hover .stat-icon {
-    transform: translateY(-50%) scale(1.1);
-    color: rgba(66, 184, 131, 0.15);
   }
 
   .stat-content {
@@ -1210,7 +1586,7 @@ const fetchSchoolInfo = async () => {
       font-weight: 700;
       color: #2c3e50;
       margin-bottom: 0.25rem;
-      background: linear-gradient(135deg, #42b883, #3aa876);
+      background: linear-gradient(135deg, #ff9800, #f57c00);
       -webkit-background-clip: text;
       background-clip: text;
       -webkit-text-fill-color: transparent;
@@ -1225,20 +1601,57 @@ const fetchSchoolInfo = async () => {
   }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 991px) {
   .stat-card {
     padding: 1.25rem;
-
-    .stat-icon {
-      font-size: 4rem;
-      right: -0.5rem;
-    }
+    text-align: center;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
 
     .stat-content {
-      padding-right: 3rem;
+      padding-right: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      flex: 1;
+      min-height: 180px;
+      padding: 1rem;
+
+      h3 {
+        font-size: 1rem;
+        margin-bottom: 1rem;
+        color: #666;
+      }
 
       .stat-number {
+        font-size: 2.5rem;
+        margin: 0.5rem 0;
+        background: linear-gradient(135deg, #42b883, #3aa876);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        font-weight: 700;
+      }
+    }
+
+    .stat-icon {
+      position: static;
+      transform: none;
+      margin: 0.5rem auto;
+      width: 80px;
+      height: 80px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      background: rgba(66, 184, 131, 0.1);
+
+      i {
         font-size: 2rem;
+        color: #42b883;
+        opacity: 1;
       }
     }
   }
@@ -1343,7 +1756,7 @@ const fetchSchoolInfo = async () => {
   gap: 1rem;
   justify-content: flex-start;
   
-  @media (max-width: 768px) {
+  @media (max-width: 991px) {
     justify-content: center;
   }
 }
@@ -1384,7 +1797,7 @@ const fetchSchoolInfo = async () => {
   text-decoration: none;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 991px) {
   .welcome-card {
     padding: 1.5rem;
 
@@ -1581,8 +1994,7 @@ const fetchSchoolInfo = async () => {
   }
 
   i {
-    font-size: 1.1rem;
-    filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.5));
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1));
   }
 }
 
@@ -2016,6 +2428,56 @@ const fetchSchoolInfo = async () => {
       
       i {
         filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1));
+      }
+    }
+  }
+}
+
+@media (max-width: 991px) {
+  .stat-card {
+    .attendance-stats {
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 1rem;
+
+      .attendance-ring {
+        width: 120px;
+        height: 120px;
+        margin: 0 auto;
+        order: 2;
+
+        &::before {
+          width: 90px;
+          height: 90px;
+        }
+
+        .percentage {
+          .number {
+            font-size: 2rem;
+            font-weight: bold;
+          }
+          .symbol {
+            font-size: 1rem;
+          }
+        }
+      }
+
+      .attendance-details {
+        width: 100%;
+        margin-bottom: 1rem;
+        order: 1;
+
+        h3 {
+          font-size: 1rem;
+          margin-bottom: 0.5rem;
+        }
+
+        .stat-number {
+          font-size: 1.75rem;
+          margin-bottom: 0;
+        }
       }
     }
   }

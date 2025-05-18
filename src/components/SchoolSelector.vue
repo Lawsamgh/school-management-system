@@ -34,7 +34,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch, onUnmounted, computed } from 'vue'
+import { ref, onMounted, watch, onUnmounted, computed, nextTick } from 'vue'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/store/auth'
 import { useToast } from 'vue-toastification'
@@ -86,6 +86,20 @@ const handleSearch = () => {
 const handleFocus = () => {
   searchQuery.value = ''
   showDropdown.value = true
+  
+  // Calculate and set dropdown position when in modal
+  nextTick(() => {
+    const input = document.querySelector('.school-selector .form-control') as HTMLElement
+    const dropdown = document.querySelector('.school-selector .custom-select-dropdown') as HTMLElement
+    const modal = input?.closest('.modal')
+    
+    if (input && dropdown && modal) {
+      const inputRect = input.getBoundingClientRect()
+      dropdown.style.top = `${inputRect.bottom + window.scrollY}px`
+      dropdown.style.left = `${inputRect.left}px`
+      dropdown.style.width = `${inputRect.width}px`
+    }
+  })
 }
 
 const selectSchool = async (school: { id: string; name: string }) => {
@@ -102,26 +116,54 @@ const selectSchool = async (school: { id: string; name: string }) => {
   }
 }
 
-// Add event listener for school refresh
+// Add resize and scroll handlers for modal context
 onMounted(() => {
   fetchSchools()
   // Listen for refresh event
   window.addEventListener('refresh-schools', fetchSchools)
   
   // Add click outside listener to close dropdown
-  document.addEventListener('click', (e: MouseEvent) => {
+  const handleClickOutside = (e: MouseEvent) => {
     const target = e.target as HTMLElement
-    const container = document.querySelector('.custom-select-container')
+    const container = document.querySelector('.school-selector .custom-select-container')
+    const modal = target.closest('.modal')
+    
+    // Only close if click is outside container and inside the same modal (if any)
     if (container && !container.contains(target)) {
-      showDropdown.value = false
+      const containerModal = container.closest('.modal')
+      if ((!modal && !containerModal) || (modal && containerModal && modal === containerModal)) {
+        showDropdown.value = false
+      }
     }
+  }
+  
+  // Add scroll and resize handlers for modal context
+  const updateDropdownPosition = () => {
+    if (showDropdown.value) {
+      const input = document.querySelector('.school-selector .form-control') as HTMLElement
+      const dropdown = document.querySelector('.school-selector .custom-select-dropdown') as HTMLElement
+      const modal = input?.closest('.modal')
+      
+      if (input && dropdown && modal) {
+        const inputRect = input.getBoundingClientRect()
+        dropdown.style.top = `${inputRect.bottom + window.scrollY}px`
+        dropdown.style.left = `${inputRect.left}px`
+        dropdown.style.width = `${inputRect.width}px`
+      }
+    }
+  }
+  
+  document.addEventListener('click', handleClickOutside)
+  window.addEventListener('scroll', updateDropdownPosition, true)
+  window.addEventListener('resize', updateDropdownPosition)
+  
+  // Clean up
+  onUnmounted(() => {
+    window.removeEventListener('refresh-schools', fetchSchools)
+    document.removeEventListener('click', handleClickOutside)
+    window.removeEventListener('scroll', updateDropdownPosition, true)
+    window.removeEventListener('resize', updateDropdownPosition)
   })
-})
-
-// Clean up event listeners
-onUnmounted(() => {
-  window.removeEventListener('refresh-schools', fetchSchools)
-  document.removeEventListener('click', () => {})
 })
 
 // Watch for external changes to selected school
@@ -140,6 +182,11 @@ watch(() => authStore.getSelectedSchoolId, (newId) => {
 
 <style scoped lang="scss">
 .school-selector {
+  // Remove the margin-bottom when inside a modal
+  .modal & {
+    margin-bottom: 0;
+  }
+
   .form-label {
     font-weight: 600;
     color: #1e293b;
@@ -186,9 +233,28 @@ watch(() => authStore.getSelectedSchoolId, (newId) => {
     border-radius: 0.5rem;
     margin-top: 0.25rem;
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-    z-index: 50;
-    max-height: 250px;
+    z-index: 1080; // Higher z-index to appear above modal
+    max-height: 200px;
     overflow-y: auto;
+    animation: dropdown-fade-in 0.2s ease;
+
+    // Ensure proper positioning within modal
+    .modal & {
+      position: fixed; // Use fixed positioning in modal context
+      width: calc(100% - 2rem); // Account for modal padding
+      max-width: calc(100% - 2rem); // Ensure it doesn't overflow modal
+    }
+  }
+
+  @keyframes dropdown-fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(-5px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 
   .custom-select-options {
