@@ -933,19 +933,21 @@
                   <!-- Step 2: MCQ Questions -->
                   <div v-show="currentStep === 2">
                     <div class="mcq-section" ref="mcqSection">
-                      <div class="d-flex justify-content-between align-items-center mb-4">
-                        <div>
-                          <label class="section-label mb-1">Questions</label>
-                          <p class="text-muted small mb-0">Add multiple choice questions for your assignment</p>
+                      <div class="questions-header">
+                        <div class="d-flex justify-content-between align-items-start">
+                          <div class="header-content">
+                            <h5 class="section-label">Questions</h5>
+                            <p class="text-muted">Add multiple choice questions for your assignment</p>
+                          </div>
+                          <button 
+                            type="button" 
+                            class="btn btn-outline-primary btn-sm"
+                            @click="addQuestion"
+                          >
+                            <i class="fas fa-plus me-2"></i>
+                            Add Question
+                          </button>
                         </div>
-                        <button 
-                          type="button" 
-                          class="btn btn-outline-primary btn-sm"
-                          @click="addQuestion"
-                        >
-                          <i class="fas fa-plus me-2"></i>
-                          Add Question
-                        </button>
                       </div>
 
                       <!-- Questions List -->
@@ -4112,26 +4114,146 @@ $white: #ffffff;
 // Update modal styles
 #createAssignmentModal {
   .modal-dialog {
-    max-height: 90vh;
+    max-width: 900px;
+    margin: 1rem auto;
     display: flex;
-    flex-direction: column;
+    align-items: center;
+    min-height: calc(100% - 2rem);
+    animation: modalSlideIn 0.4s ease-out;
   }
 
   .modal-content {
-    max-height: calc(90vh - 2rem);
+    border: none;
+    border-radius: 20px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1),
+                0 10px 20px rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+    background: linear-gradient(to bottom, #ffffff, #f8fafc);
+    animation: modalFadeIn 0.3s ease-out;
+    height: 75vh;
     display: flex;
     flex-direction: column;
   }
 
   .modal-body {
     flex: 1;
-    overflow: hidden;
+    overflow: hidden; // Changed from overflow-y: auto
     padding: 0;
   }
 
-  .modal-header,
-  .modal-footer {
-    flex-shrink: 0;
+  .create-assignment-card {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    
+    .form-section {
+      padding: 2rem;
+      height: 100%;
+      overflow: hidden; // Changed from overflow-y: auto
+      
+      .basic-details {
+        animation: cardSlideUp 0.4s ease-out;
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05),
+                    0 2px 6px rgba(0, 0, 0, 0.03);
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        
+        &:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08),
+                      0 3px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        .form-group {
+          margin-bottom: 1.5rem;
+          
+          &:last-child {
+            margin-bottom: 0;
+          }
+
+          textarea.form-control {
+            min-height: 80px;
+          }
+        }
+      }
+
+      .mcq-section {
+        animation: cardSlideUp 0.4s ease-out 0.2s backwards;
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05),
+                    0 2px 6px rgba(0, 0, 0, 0.03);
+        padding: 1.5rem;
+        height: calc(100% - 350px); // Adjusted for the new total height
+        display: flex;
+        flex-direction: column;
+        
+        .questions-list {
+          flex: 1;
+          overflow-y: auto;
+          padding-right: 1rem;
+          margin-right: -1rem;
+          
+          &::-webkit-scrollbar {
+            width: 6px;
+          }
+          
+          &::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.05);
+            border-radius: 3px;
+          }
+          
+          &::-webkit-scrollbar-thumb {
+            background: rgba(0, 0, 0, 0.15);
+            border-radius: 3px;
+            
+            &:hover {
+              background: rgba(0, 0, 0, 0.25);
+            }
+          }
+        }
+        
+        .question-card {
+          background: $background;
+          border-radius: 12px;
+          padding: 1.5rem;
+          margin-bottom: 1.5rem;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+          animation: questionCardSlide 0.4s ease-out;
+          transition: transform 0.3s ease, box-shadow 0.3s ease;
+          
+          &:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+          }
+
+          .question-content {
+            .form-group {
+              margin-bottom: 1.5rem;
+            }
+
+            .options-section {
+              margin-top: 1.5rem;
+              
+              .options-grid {
+                margin-top: 0.75rem;
+                
+                .option-item {
+                  margin-bottom: 0.75rem;
+                  
+                  &:last-child {
+                    margin-bottom: 0;
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
   }
 }
 
@@ -4316,5 +4438,275 @@ $white: #ffffff;
     width: 100%;
   }
 }
+
+// Enhanced Create Assignment Modal Styles
+#createAssignmentModal {
+  .modal-dialog {
+    max-width: 900px;
+    margin: 1.75rem auto;
+    display: flex;
+    align-items: center;
+    min-height: calc(100% - 3.5rem);
+    animation: modalSlideIn 0.4s ease-out;
+  }
+
+  .modal-content {
+    border: none;
+    border-radius: 20px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1),
+                0 10px 20px rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+    background: linear-gradient(to bottom, #ffffff, #f8fafc);
+    animation: modalFadeIn 0.3s ease-out;
+  }
+
+  .create-assignment-card {
+    .form-section {
+      padding: 2.5rem;
+      
+      .basic-details {
+        animation: cardSlideUp 0.4s ease-out;
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05),
+                    0 2px 6px rgba(0, 0, 0, 0.03);
+        padding: 2rem;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        
+        &:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08),
+                      0 3px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        .form-group {
+          margin-bottom: 2rem;
+          
+          .form-label {
+            font-weight: 600;
+            color: $dark;
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            
+            &::before {
+              content: '';
+              display: inline-block;
+              width: 4px;
+              height: 16px;
+              background: $primary;
+              border-radius: 2px;
+              animation: labelBarSlide 0.3s ease-out;
+            }
+          }
+          
+          .form-control, .form-select {
+            border-radius: 12px;
+            border: 2px solid $light-gray;
+            padding: 1rem 1.25rem;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            background: white;
+            
+            &:focus {
+              border-color: $primary;
+              box-shadow: 0 0 0 4px rgba($primary, 0.1);
+              transform: translateY(-2px);
+            }
+            
+            &:hover:not(:focus) {
+              border-color: darken($light-gray, 10%);
+            }
+          }
+        }
+      }
+
+      .mcq-section {
+        animation: cardSlideUp 0.4s ease-out 0.2s backwards;
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05),
+                    0 2px 6px rgba(0, 0, 0, 0.03);
+        padding: 2rem;
+        margin-top: 2rem;
+        
+        .question-card {
+          background: $background;
+          border-radius: 12px;
+          padding: 1.5rem;
+          margin-bottom: 1.5rem;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+          animation: questionCardSlide 0.4s ease-out;
+          transition: transform 0.3s ease, box-shadow 0.3s ease;
+          
+          &:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+          }
+        }
+      }
+    }
+  }
+
+  // Step Progress Animation
+  .step-progress {
+    .step {
+      &.active {
+        .step-number {
+          animation: stepNumberPop 0.4s ease-out;
+        }
+        
+        .step-label {
+          animation: stepLabelFade 0.4s ease-out;
+        }
+      }
+    }
+    
+    .step-line::after {
+      transition: width 0.6s ease-in-out;
+    }
+  }
+}
+
+// Animation Keyframes
+@keyframes modalSlideIn {
+  from {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes cardSlideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes labelBarSlide {
+  from {
+    transform: scaleY(0);
+    opacity: 0;
+  }
+  to {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+}
+
+@keyframes questionCardSlide {
+  from {
+    transform: translateX(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes stepNumberPop {
+  0% {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes stepLabelFade {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+// ... existing code ...
+
+.mcq-section {
+  animation: cardSlideUp 0.4s ease-out 0.2s backwards;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05),
+              0 2px 6px rgba(0, 0, 0, 0.03);
+  padding: 1.5rem;
+  height: calc(100% - 350px);
+  display: flex;
+  flex-direction: column;
+  
+  .questions-header {
+    background: white;
+    border-radius: 12px;
+    padding: 1.25rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    animation: cardSlideUp 0.3s ease-out;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    
+    .header-content {
+      .section-label {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: $dark;
+        margin-bottom: 0.5rem;
+      }
+      
+      p {
+        color: $gray;
+        margin: 0;
+        font-size: 0.9rem;
+      }
+    }
+    
+    .btn-outline-primary {
+      padding: 0.5rem 1rem;
+      font-size: 0.9rem;
+      border-radius: 8px;
+      border-width: 2px;
+      font-weight: 500;
+      transition: all 0.3s ease;
+      
+      &:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba($primary, 0.15);
+      }
+      
+      i {
+        font-size: 0.8rem;
+      }
+    }
+  }
+
+  // ... rest of existing mcq-section styles ...
+}
+
+// ... rest of existing styles ...
 
 </style> 
