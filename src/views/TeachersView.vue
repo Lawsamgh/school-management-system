@@ -831,7 +831,7 @@
           <div class="modal-header border-0">
             <h5 class="modal-title d-flex align-items-center">
               <i class="fas fa-book text-primary me-2"></i>
-              Create Assignment
+              {{ isEditing ? 'Edit Assignment' : 'Create Assignment' }}
             </h5>
             <button type="button" class="btn-close" @click="closeCreateAssignmentModal"></button>
           </div>
@@ -1107,7 +1107,7 @@
                   :disabled="!isAssignmentFormValid || savingAssignment"
                 >
                   <i class="fas fa-save me-2"></i>
-                  {{ savingAssignment ? 'Saving...' : 'Create Assignment' }}
+                  {{ savingAssignment ? 'Saving...' : isEditing ? 'Save Changes' : 'Create Assignment' }}
                 </button>
               </div>
             </div>
@@ -1129,6 +1129,7 @@ import { useToast } from 'vue-toastification'
 import { logActivity } from '@/lib/auditLogger'
 import SchoolSelector from '@/components/SchoolSelector.vue'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
+import PromptModal from '@/components/PromptModal.vue'
 
 // Initialize Bootstrap tabs
 onMounted(() => {
@@ -1281,6 +1282,37 @@ interface Student {
   username: string
   identification: string
   class_id: bigint
+}
+
+// Add these interfaces near the top of the script section
+interface Assignment {
+  id: string;
+  title: string;
+  description: string;
+  class_id: number;
+  teacher_id: number;
+  due_date: string;
+  total_points: number;
+  status: string;
+  school_id: string;
+  assignment_questions?: AssignmentQuestion[];
+  type?: 'mcq' | 'file';
+  total_questions?: number;
+}
+
+interface AssignmentQuestion {
+  id: string;
+  question_text: string;
+  points: number;
+  question_order: number;
+  question_options: QuestionOption[];
+}
+
+interface QuestionOption {
+  id: string;
+  option_text: string;
+  is_correct: boolean;
+  option_order: number;
 }
 
 // Helper functions
@@ -1817,20 +1849,15 @@ const editAttendance = async (record: any) => {
 
 // Delete attendance
 const deleteAttendance = async (id: string) => {
-  try {
-    const { error } = await supabase
-      .from('attendances')
-      .delete()
-      .eq('id', id)
-
-    if (error) throw error
-
-    toast.success('Attendance record deleted')
-    await fetchAttendanceRecords()
-  } catch (error) {
-    console.error('Error deleting attendance:', error)
-    toast.error('Failed to delete attendance record')
+  promptModalData.value = {
+    title: 'Delete Attendance Record',
+    message: 'Are you sure you want to delete this attendance record? This action cannot be undone.',
+    itemToDelete: id
   }
+  
+  nextTick(() => {
+    promptModalRef.value?.show()
+  })
 }
 
 // Update the watch function to handle null school_id
@@ -2387,6 +2414,8 @@ const openCreateAssignmentModal = async () => {
 
 const closeCreateAssignmentModal = () => {
   currentStep.value = 1
+  isEditing.value = false
+  editingAssignmentId.value = ''
   createAssignmentModal?.hide()
 }
 
@@ -2398,74 +2427,113 @@ const saveAssignment = async () => {
 
   savingAssignment.value = true
   try {
-    // First create the assignment
-    const { data: assignmentData, error: assignmentError } = await supabase
-      .from('assignments')
-      .insert([{
-        title: newAssignment.value.title,
-        subject: newAssignment.value.subject,
-        description: newAssignment.value.description,
-        due_date: newAssignment.value.due_date,
-        max_score: newAssignment.value.type === 'mcq' 
-          ? newAssignment.value.questions.reduce((sum, q) => sum + q.points, 0)
-          : newAssignment.value.max_score,
-        class_id: newAssignment.value.class_id,
-        school_id: newAssignment.value.school_id,
-        type: newAssignment.value.type,
-        status: 'active'
-      }])
-      .select()
+    // Calculate total points
+    const totalPoints = newAssignment.value.type === 'mcq' 
+      ? newAssignment.value.questions.reduce((sum, q) => sum + q.points, 0)
+      : newAssignment.value.max_score
 
-    if (assignmentError) throw assignmentError
-
-    // If it's an MCQ assignment, save the questions
-    if (newAssignment.value.type === 'mcq' && assignmentData?.[0]?.id) {
-      const assignmentId = assignmentData[0].id
-
-      // Prepare questions data
-      const questionsData = newAssignment.value.questions.map((question, index) => ({
-        assignment_id: assignmentId,
-        question_text: question.text,
-        points: question.points,
-        question_order: index + 1,
-        options: question.options.map(opt => opt.text),
-        correct_option: question.correctOption
-      }))
-
-      // Save questions
-      const { error: questionsError } = await supabase
-        .from('assignment_questions')
-        .insert(questionsData)
-
-      if (questionsError) throw questionsError
+    const assignmentData = {
+      title: newAssignment.value.title,
+      subject: newAssignment.value.subject,
+      description: newAssignment.value.description,
+      class_id: newAssignment.value.class_id,
+      teacher_id: authStore.userRole?.id,
+      due_date: newAssignment.value.due_date,
+      total_points: totalPoints,
+      school_id: newAssignment.value.school_id,
+      status: 'active'
     }
 
-    // Log activity
+    let assignmentId: string
+
+    if (isEditing.value) {
+      // Update existing assignment
+      const { error: assignmentError } = await supabase
+        .from('assignments')
+        .update(assignmentData)
+        .eq('id', editingAssignmentId.value)
+
+      if (assignmentError) throw assignmentError
+      assignmentId = editingAssignmentId.value
+    } else {
+      // Create new assignment
+      const { data: newAssignmentData, error: assignmentError } = await supabase
+        .from('assignments')
+        .insert([assignmentData])
+        .select()
+        .single()
+
+      if (assignmentError) throw assignmentError
+      assignmentId = newAssignmentData.id
+    }
+
+    // Handle MCQ questions and options
+    if (newAssignment.value.type === 'mcq') {
+      // Delete existing questions and options if editing
+      if (isEditing.value) {
+        await supabase
+          .from('assignment_questions')
+          .delete()
+          .eq('assignment_id', assignmentId)
+      }
+
+      // Insert new questions and options
+      for (const [qIndex, question] of newAssignment.value.questions.entries()) {
+        const { data: questionData, error: questionError } = await supabase
+          .from('assignment_questions')
+          .insert({
+            assignment_id: assignmentId,
+            question_text: question.text,
+            points: question.points,
+            question_order: qIndex + 1
+          })
+          .select()
+          .single()
+
+        if (questionError) throw questionError
+
+        // Insert options for this question
+        const optionsToInsert = question.options.map((opt, optIndex) => ({
+          question_id: questionData.id,
+          option_text: opt.text,
+          is_correct: optIndex === question.correctOption,
+          option_order: optIndex + 1
+        }))
+
+        const { error: optionsError } = await supabase
+          .from('question_options')
+          .insert(optionsToInsert)
+
+        if (optionsError) throw optionsError
+      }
+    }
+
+    // Log the activity
     await logActivity(
-      'create',
+      isEditing.value ? 'update' : 'create',
       'assignments',
-      newAssignment.value.class_id.toString(),
+      assignmentId,
       null,
-      { 
+      {
         title: newAssignment.value.title,
         type: newAssignment.value.type
       }
     )
 
-    toast.success('Assignment created successfully')
-    createAssignmentModal?.hide()
-    
-    // Refresh assignments list
+    toast.success(`Assignment ${isEditing.value ? 'updated' : 'created'} successfully`)
+    closeCreateAssignmentModal()
     await fetchAssignments()
   } catch (error) {
-    console.error('Error creating assignment:', error)
-    toast.error('Failed to create assignment')
+    console.error(`Error ${isEditing.value ? 'updating' : 'creating'} assignment:`, error)
+    toast.error(`Failed to ${isEditing.value ? 'update' : 'create'} assignment`)
   } finally {
     savingAssignment.value = false
+    isEditing.value = false
+    editingAssignmentId.value = ''
   }
 }
 
-// Add function to fetch assignments
+// Update fetchAssignments to include questions and options
 const fetchAssignments = async () => {
   try {
     const { data: userData, error: userError } = await supabase
@@ -2488,20 +2556,49 @@ const fetchAssignments = async () => {
 
     if (!classIdToUse) return
 
+    // Fetch assignments with their questions and options
     const { data, error } = await supabase
       .from('assignments')
-      .select('*')
+      .select(`
+        *,
+        assignment_questions (
+          id,
+          question_text,
+          points,
+          question_order,
+          question_options (
+            id,
+            option_text,
+            is_correct,
+            option_order
+          )
+        )
+      `)
       .eq('class_id', classIdToUse)
       .eq('school_id', effectiveSchoolId)
       .order('created_at', { ascending: false })
 
     if (error) throw error
 
-    assignments.value = data || []
+    // Process the assignments to include type and submission info
+    assignments.value = data?.map(assignment => ({
+      ...assignment,
+      type: assignment.assignment_questions?.length > 0 ? 'mcq' : 'file',
+      total_questions: assignment.assignment_questions?.length || 0,
+      total_points: assignment.total_points || 0
+    })) || []
+
   } catch (error) {
     console.error('Error fetching assignments:', error)
     toast.error('Failed to fetch assignments')
   }
+}
+
+// Add computed property for assignment type display
+const getAssignmentTypeDisplay = (assignment: Assignment): string => {
+  return assignment.type === 'mcq' 
+    ? `MCQ (${assignment.total_questions} questions, ${assignment.total_points} points)`
+    : 'File Upload'
 }
 
 // Add this ref for assignments list
@@ -2509,36 +2606,63 @@ const assignments = ref<any[]>([])
 
 // Add these functions for assignment management
 const deleteAssignment = async (id: string) => {
-  if (confirm('Are you sure you want to delete this assignment?')) {
-    try {
-      const { error } = await supabase
-        .from('assignments')
-        .delete()
-        .eq('id', id)
+  try {
+    const { error } = await supabase
+      .from('assignments')
+      .delete()
+      .eq('id', id)
 
-      if (error) throw error
+    if (error) throw error
 
-      // Log activity
-      await logActivity(
-        'delete',
-        'assignments',
-        id,
-        null,
-        null
-      )
+    // Log activity
+    await logActivity(
+      'delete',
+      'assignments',
+      id,
+      null,
+      null
+    )
 
-      toast.success('Assignment deleted successfully')
-      await fetchAssignments()
-    } catch (error) {
-      console.error('Error deleting assignment:', error)
-      toast.error('Failed to delete assignment')
-    }
+    toast.success('Assignment deleted successfully')
+    await fetchAssignments()
+  } catch (error) {
+    console.error('Error deleting assignment:', error)
+    toast.error('Failed to delete assignment')
   }
 }
 
-const editAssignment = (assignment: any) => {
-  // For now, we'll just show a toast message
-  toast.info('Assignment editing will be implemented soon')
+const editAssignment = async (assignment: any) => {
+  try {
+    editingAssignmentId.value = assignment.id
+    isEditing.value = true
+
+    // Pre-fill the form with existing assignment data
+    newAssignment.value = {
+      title: assignment.title,
+      subject: assignment.subject,
+      description: assignment.description,
+      due_date: new Date(assignment.due_date).toISOString().split('T')[0], // Format the date properly
+      max_score: assignment.total_points,
+      class_id: assignment.class_id,
+      school_id: assignment.school_id,
+      type: assignment.type,
+      questions: assignment.assignment_questions?.map((q: any) => ({
+        text: q.question_text,
+        points: q.points,
+        options: q.question_options.map((opt: any) => ({
+          text: opt.option_text
+        })),
+        correctOption: q.question_options.findIndex((opt: any) => opt.is_correct)
+      })) || []
+    }
+
+    // Reset step to 1 and show modal
+    currentStep.value = 1
+    createAssignmentModal?.show()
+  } catch (error) {
+    console.error('Error preparing assignment edit:', error)
+    toast.error('Failed to prepare assignment edit')
+  }
 }
 
 // Add this watch to fetch assignments when class changes
@@ -2603,6 +2727,78 @@ const isBasicDetailsValid = computed(() => {
 const goToQuestions = () => {
   if (isBasicDetailsValid.value) {
     currentStep.value = 2
+  }
+}
+
+// Add these refs for editing assignments
+const editingAssignmentId = ref('')
+const isEditing = ref(false)
+
+// Add these refs for the prompt modal
+const promptModalRef = ref<InstanceType<typeof PromptModal> | null>(null)
+const promptModalData = ref({
+  title: '',
+  message: '',
+  itemToDelete: null as string | null
+})
+
+// Add a new function to handle the actual deletion
+const confirmDeleteAssignment = async () => {
+  if (!promptModalData.value.itemToDelete) return
+  
+  try {
+    const { error } = await supabase
+      .from('assignments')
+      .delete()
+      .eq('id', promptModalData.value.itemToDelete)
+
+    if (error) throw error
+
+    // Log activity
+    await logActivity(
+      'delete',
+      'assignments',
+      promptModalData.value.itemToDelete,
+      null,
+      null
+    )
+
+    toast.success('Assignment deleted successfully')
+    await fetchAssignments()
+  } catch (error) {
+    console.error('Error deleting assignment:', error)
+    toast.error('Failed to delete assignment')
+  }
+}
+
+// Add a new function to handle the actual attendance deletion
+const confirmDeleteAttendance = async () => {
+  if (!promptModalData.value.itemToDelete) return
+  
+  try {
+    const { error } = await supabase
+      .from('attendances')
+      .delete()
+      .eq('id', promptModalData.value.itemToDelete)
+
+    if (error) throw error
+
+    toast.success('Attendance record deleted')
+    await fetchAttendanceRecords()
+  } catch (error) {
+    console.error('Error deleting attendance:', error)
+    toast.error('Failed to delete attendance record')
+  }
+}
+
+// Add a generic handler for the prompt modal confirmation
+const handlePromptConfirm = async () => {
+  const title = promptModalData.value.title
+  
+  if (title === 'Delete Assignment') {
+    await confirmDeleteAssignment()
+  } else if (title === 'Delete Attendance Record') {
+    await confirmDeleteAttendance()
   }
 }
 
@@ -4710,3 +4906,15 @@ $white: #ffffff;
 // ... rest of existing styles ...
 
 </style> 
+
+<!-- Add PromptModal component before closing div -->
+<PromptModal
+  ref="promptModalRef"
+  modalId="confirmPromptModal"
+  :title="promptModalData.title"
+  :message="promptModalData.message"
+  icon="fa-exclamation-triangle"
+  confirmButtonText="Delete"
+  confirmIcon="fa-trash"
+  @confirm="handlePromptConfirm"
+/>

@@ -345,6 +345,13 @@ const routes: RouteRecordRaw[] = [
       requiresAuth: true,
       allowedRoles: ['superadmin', 'admin']
     }
+  },
+  // Test route for PromptModal
+  {
+    path: '/test-modal',
+    name: 'TestModal',
+    component: () => import('@/views/TestPromptModal.vue'),
+    meta: { requiresAuth: true }
   }
 ]
 

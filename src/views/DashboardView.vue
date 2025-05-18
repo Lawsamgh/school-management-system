@@ -150,7 +150,7 @@
             <div 
               class="col-md-4" 
               v-motion-slide-visible-once-bottom
-              v-if="userRole?.toLowerCase() !== 'teacher'"
+              v-if="userRole?.toLowerCase() !== 'teacher' && userRole?.toLowerCase() !== 'student'"
             >
               <div class="stat-card" :class="{ 'skeleton-loading': loading }">
                 <template v-if="!loading">
@@ -179,7 +179,7 @@
             <div 
               class="col-md-4" 
               v-motion-slide-visible-once-bottom
-              v-if="userRole?.toLowerCase() !== 'teacher'"
+              v-if="userRole?.toLowerCase() !== 'teacher' && userRole?.toLowerCase() !== 'student'"
             >
               <div class="stat-card" :class="{ 'skeleton-loading': loading }">
                 <template v-if="!loading">
@@ -207,7 +207,7 @@
             <div 
               class="col-md-4" 
               v-motion-slide-visible-once-bottom
-              v-if="userRole?.toLowerCase() !== 'teacher'"
+              v-if="userRole?.toLowerCase() !== 'teacher' && userRole?.toLowerCase() !== 'student'"
             >
               <div class="stat-card" :class="{ 'skeleton-loading': loading }">
                 <template v-if="!loading">
@@ -322,6 +322,92 @@
               </div>
             </div>
           </template>
+          
+          <!-- Student Class Card -->
+          <div 
+            class="col-md-4" 
+            v-motion-slide-visible-once-bottom
+            v-if="userRole?.toLowerCase() === 'student'"
+          >
+            <div class="stat-card" :class="{ 'skeleton-loading': loading }">
+              <template v-if="!loading">
+                <div class="stat-icon">
+                  <i class="fas fa-graduation-cap"></i>
+                </div>
+                <div class="stat-content">
+                  <h3>My Class</h3>
+                  <p class="stat-number">{{ studentClassName || 'Unassigned' }}</p>
+                  <p class="stat-label">Current Class</p>
+                </div>
+              </template>
+              <template v-else>
+                <div class="skeleton-icon"></div>
+                <div class="stat-content">
+                  <div class="skeleton-text skeleton-sm"></div>
+                  <div class="skeleton-text skeleton-lg"></div>
+                  <div class="skeleton-text skeleton-sm"></div>
+                </div>
+              </template>
+            </div>
+          </div>
+
+          <!-- Student Assignments Card -->
+          <div 
+            class="col-md-4" 
+            v-motion-slide-visible-once-bottom
+            v-if="userRole?.toLowerCase() === 'student'"
+          >
+            <div class="stat-card" :class="{ 'skeleton-loading': loading }">
+              <template v-if="!loading">
+                <div class="stat-icon">
+                  <i class="fas fa-book"></i>
+                </div>
+                <div class="stat-content">
+                  <h3>Assignments</h3>
+                  <p class="stat-number">{{ studentAssignmentCount }}</p>
+                  <p class="stat-label">Total Assignments</p>
+                </div>
+              </template>
+              <template v-else>
+                <div class="skeleton-icon"></div>
+                <div class="stat-content">
+                  <div class="skeleton-text skeleton-sm"></div>
+                  <div class="skeleton-text skeleton-lg"></div>
+                  <div class="skeleton-text skeleton-sm"></div>
+                </div>
+              </template>
+            </div>
+          </div>
+
+          <!-- Class Teachers Card -->
+          <div 
+            class="col-md-4" 
+            v-motion-slide-visible-once-bottom
+            v-if="userRole?.toLowerCase() === 'student'"
+          >
+            <div class="stat-card" :class="{ 'skeleton-loading': loading }">
+              <template v-if="!loading">
+                <div class="stat-icon">
+                  <i class="fas fa-chalkboard-teacher"></i>
+                </div>
+                <div class="stat-content">
+                  <h3>Class Teacher{{ classTeachers.length > 1 ? 's' : '' }}</h3>
+                  <p class="stat-number teacher-names">
+                    {{ classTeachers.length ? classTeachers.join(', ') : 'Not Assigned' }}
+                  </p>
+                  <p class="stat-label">{{ classTeachers.length }} Teacher{{ classTeachers.length !== 1 ? 's' : '' }}</p>
+                </div>
+              </template>
+              <template v-else>
+                <div class="skeleton-icon"></div>
+                <div class="stat-content">
+                  <div class="skeleton-text skeleton-sm"></div>
+                  <div class="skeleton-text skeleton-lg"></div>
+                  <div class="skeleton-text skeleton-sm"></div>
+                </div>
+              </template>
+            </div>
+          </div>
           
           <!-- Quick Actions -->
           <div 
@@ -595,822 +681,75 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted, watch, onBeforeUnmount, nextTick } from 'vue'
-import { useAuthStore } from '@/store/auth'
-import AddUserModal from '@/components/AddUserModal.vue'
-import ChangePasswordModal from '@/components/ChangePasswordModal.vue'
-import PaymentChart from '@/components/PaymentChart.vue'
-import { getPayments, getPaymentsByDateRange } from '@/api/payments'
-import { supabase } from '@/lib/supabase'
-import { Chart } from 'chart.js/auto'
-import type { ChartConfiguration, TooltipItem } from 'chart.js'
-import { useToast } from 'vue-toastification'
-import { useSchoolValidation } from '@/composables/useSchoolValidation'
-import { getUserInitials, getDisplayName } from '@/utils/userUtils'
-import { useMotion } from '@vueuse/motion'
+import { onMounted, onBeforeUnmount } from 'vue'
+import { useDashboard } from '@/composables/useDashboard'
 
-// Initialize toast and validation
-const toast = useToast()
-const { withSchoolValidation } = useSchoolValidation()
+// Use the dashboard composable
+const {
+  loading,
+  showAddUserModal,
+  showChangePasswordModal,
+  hasChangedPassword,
+  recentPayments,
+  teacherCount,
+  studentCount,
+  schoolCount,
+  paymentChart,
+  selectedYear,
+  availableYears,
+  monthlyStats,
+  hasPaymentData,
+  teacherPortalEnabled,
+  classCount,
+  assignmentCount,
+  attendanceCount,
+  teacherClassName,
+  todayAttendance,
+  showPasswordChangeAlert,
+  userName,
+  userRole,
+  userInitials,
+  today,
+  attendancePercentage,
+  getStudentInitials,
+  formatAmount,
+  isStudentOrParent,
+  isAdminOrHigher,
+  isRegistrarOrHigher,
+  isTeacherOrHigher,
+  showFinanceContent,
+  canViewPayments,
+  canViewFinancials,
+  canViewRegistration,
+  canViewTeaching,
+  showChart,
+  handleChangePassword,
+  initializeDashboard,
+  cleanUp,
+  authStore,
+  adminCount,
+  studentClassName,
+  studentClassId,
+  fetchStudentClassInfo,
+  studentAssignmentCount,
+  classTeachers
+} = useDashboard()
 
-const authStore = useAuthStore()
-const loading = ref(true)
-const showAddUserModal = ref(false)
-const showChangePasswordModal = ref(false)
-const hasChangedPassword = ref(false)
-const recentPayments = ref<any[]>([])
-const teacherCount = ref(0)
-const studentCount = ref(0)
-const schoolCount = ref(0)
-const paymentChart = ref<HTMLCanvasElement | null>(null)
-const chartInstance = ref<Chart | null>(null)
-const selectedYear = ref(new Date().getFullYear())
-const availableYears = ref<number[]>([])
-const monthlyStats = ref<number[]>(Array(12).fill(0))
-const initChart = ref(false)
-const chartInitialized = ref(false)
-const hasPaymentData = ref(false)
-const teacherPortalEnabled = ref(false)
-const classCount = ref(0)
-const assignmentCount = ref(0)
-const attendanceCount = ref(0)
-const teacherClassName = ref('')
-
-// Add new ref for password status
-const passwordStatus = ref<string | null>(null)
-
-// Change parentCount to adminCount
-const adminCount = ref(0)
-
-// Update the computed property for showing password change alert
-const showPasswordChangeAlert = computed(() => {
-  const role = userRole.value?.toLowerCase()
-  return ['student', 'parent'].includes(role) && passwordStatus.value !== 'changed'
-})
-
-// Function to fetch user's password status
-const fetchPasswordStatus = async () => {
-  try {
-    const { data: userRole, error } = await supabase
-      .from('user_roles')
-      .select('password_status')
-      .eq('email', authStore.user?.email)
-      .single()
-
-    if (error) {
-      console.error('Error fetching password status:', error)
-      return
-    }
-
-    passwordStatus.value = userRole?.password_status
-    console.log('Password status:', passwordStatus.value)
-  } catch (error) {
-    console.error('Error in fetchPasswordStatus:', error)
-  }
-}
-
-// Computed property to control chart visibility
-const showChart = computed(() => {
-  // Don't show chart while authentication is still loading
-  if (loading.value || !authStore.isAuthenticated) {
-    return false
-  }
-
-  return showFinanceContent.value
-})
-
-// Debug watcher
-watch(showChangePasswordModal, (newVal) => {
-  console.log('Change password modal state:', newVal)
-})
-
-// Computed property for display data
-// Get user display name and initials consistently across the app
-const userName = computed(() => getDisplayName(authStore))
-const userRole = computed(() => {
-  const role = authStore.userRole?.role || 'No Role Assigned'
-  return role
-})
-const userInitials = computed(() => getUserInitials(userName.value))
-
-// Get student initials using the same utility function
-const getStudentInitials = (name: string): string => {
-  return getUserInitials(name)
-}
-
-// Function to format amount
-const formatAmount = (amount: any): string => {
-  // Convert to number and handle any potential issues
-  const num = Number(amount);
-  if (isNaN(num)) return '0.00';
-  return num.toFixed(2);
-}
-
-// Fetch recent payments if user is an accountant, admin, or superadmin
-const fetchRecentPayments = async () => {
-  try {
-    console.log('Checking role for payments:', {
-      role: userRole.value,
-      isAdmin: isAdminOrHigher.value,
-      finance: authStore.financeModuleEnabled
-    })
-    
-    // Only fetch for superadmin or admin/accountant with finance module enabled
-    if (userRole.value?.toLowerCase() === 'superadmin' || 
-        (isAdminOrHigher.value && authStore.financeModuleEnabled)) {
-      console.log('Fetching payments...')
-      
-      // Get the school_id based on user role
-      const schoolId = ['admin', 'registrar'].includes(userRole.value?.toLowerCase() || '') 
-        ? authStore.userRole?.school_id 
-        : userRole.value?.toLowerCase() === 'superadmin' ? authStore.getSelectedSchoolId : authStore.userRole?.school_id;
-      
-      // For superadmin, only proceed if a school is selected
-      if (userRole.value?.toLowerCase() === 'superadmin' && !schoolId) {
-        console.log('Superadmin has no school selected, skipping payment fetch')
-        recentPayments.value = [];
-        hasPaymentData.value = false;
-        return;
-      }
-      
-      console.log('Fetching payments with school ID:', schoolId)
-      
-      const data = await getPayments(schoolId);
-      console.log('Received payments data:', data)
-      
-      // Take only the most recent 5 payments
-      recentPayments.value = data?.slice(0, 5) || [];
-      hasPaymentData.value = !!(recentPayments.value && recentPayments.value.length > 0);
-      console.log('Set recent payments:', recentPayments.value)
-    } else {
-      console.log('User does not have permission to view payments or finance module is disabled')
-      recentPayments.value = [];
-      hasPaymentData.value = false;
-    }
-  } catch (error) {
-    console.error('Error fetching recent payments:', error);
-    toast.error('Failed to load recent payments')
-    hasPaymentData.value = false;
-  }
-}
-
-// Fetch teacher count from user_roles table
-const fetchTeacherCount = async () => {
-  try {
-    // Get the school_id based on user role
-    const schoolId = ['admin', 'registrar'].includes(userRole.value?.toLowerCase() || '') 
-      ? authStore.userRole?.school_id 
-      : userRole.value?.toLowerCase() === 'superadmin' ? authStore.getSelectedSchoolId : authStore.userRole?.school_id;
-
-    // Base query to get teachers
-    let query = supabase
-      .from('user_roles')
-      .select('*', { count: 'exact' })
-      .eq('role', 'teacher');
-    
-    // Add school_id filter if available
-    if (schoolId) {
-      query = query.eq('school_id', schoolId);
-    }
-    
-    const { data, error, count } = await query;
-    
-    if (error) {
-      console.error('Error fetching teacher count:', error);
-      return;
-    }
-    
-    teacherCount.value = count || 0;
-    console.log('Teacher count:', teacherCount.value);
-  } catch (error) {
-    console.error('Error fetching teacher count:', error);
-  }
-}
-
-// Fetch student count from user_roles table
-const fetchStudentCount = async () => {
-  try {
-    // Get the school_id based on user role
-    const schoolId = ['admin', 'registrar'].includes(userRole.value?.toLowerCase() || '') 
-      ? authStore.userRole?.school_id 
-      : userRole.value?.toLowerCase() === 'superadmin' ? authStore.getSelectedSchoolId : authStore.userRole?.school_id;
-
-    // Base query to get students
-    let query = supabase
-      .from('user_roles')
-      .select('*', { count: 'exact' })
-      .eq('role', 'student');
-    
-    // Add school_id filter if available
-    if (schoolId) {
-      query = query.eq('school_id', schoolId);
-    }
-    
-    const { data, error, count } = await query;
-    
-    if (error) {
-      console.error('Error fetching student count:', error);
-      return;
-    }
-    
-    studentCount.value = count || 0;
-    console.log('Student count:', studentCount.value);
-  } catch (error) {
-    console.error('Error fetching student count:', error);
-  }
-}
-
-// Fetch school count for superadmin
-const fetchSchoolCount = async () => {
-  try {
-    if (userRole.value?.toLowerCase() === 'superadmin') {
-      // Query to get total schools
-      const { data, error, count } = await supabase
-        .from('schools')
-        .select('*', { count: 'exact' });
-      
-      if (error) {
-        console.error('Error fetching school count:', error);
-        return;
-      }
-      
-      schoolCount.value = count || 0;
-      console.log('School count:', schoolCount.value);
-    }
-  } catch (error) {
-    console.error('Error fetching school count:', error);
-  }
-}
-
-// Simplified updateChart function
-const updateChart = async () => {
-  try {
-    console.log('Starting chart update with data:', monthlyStats.value)
-    if (!showChart.value) {
-      console.log('Chart not shown due to role')
-      return
-    }
-
-    const canvas = paymentChart.value
-    if (!canvas) {
-      console.log('Canvas element not found')
-      return
-    }
-
-    const ctx = canvas.getContext('2d')
-    if (!ctx) {
-      console.log('Failed to get canvas context')
-      return
-    }
-
-    const months = [
-      'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December'
-    ]
-
-    const chartConfig = {
-      type: 'bar' as const,
-      data: {
-        labels: months,
-        datasets: [{
-          label: 'Total Payments (GHC)',
-          data: monthlyStats.value,
-          backgroundColor: '#42b88380',
-          borderColor: '#42b883',
-          borderWidth: 2,
-          borderRadius: 8,
-          hoverBackgroundColor: '#42b883',
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: {
-            display: true,
-            position: 'top'
-          },
-          tooltip: {
-            backgroundColor: '#2c3e50',
-            titleFont: {
-              size: 14,
-              weight: 'bold'
-            },
-            bodyFont: {
-              size: 13
-            },
-            padding: 12,
-            cornerRadius: 8,
-            callbacks: {
-              label: (context: TooltipItem<'bar'>) => `GHC ${Number(context.raw || 0).toLocaleString(undefined, {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
-              })}`
-            }
-          }
-        },
-        scales: {
-          y: {
-            beginAtZero: true,
-            grid: {
-              color: '#f0f0f0'
-            },
-            ticks: {
-              callback: (value: number | string) => `GHC ${Number(value).toLocaleString(undefined, {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
-              })}`
-            }
-          },
-          x: {
-            grid: {
-              display: false
-            }
-          }
-        },
-        animation: {
-          duration: 750,
-          easing: 'easeInOutQuart'
-        }
-      }
-    } as ChartConfiguration<'bar', number[], string>
-
-    // If chart exists, destroy it first
-    if (chartInstance.value) {
-      console.log('Destroying existing chart')
-      chartInstance.value.destroy()
-    }
-
-    // Create new chart
-    console.log('Creating new chart instance')
-    chartInstance.value = new Chart(ctx, chartConfig)
-    console.log('Chart created successfully')
-  } catch (error) {
-    console.error('Error creating/updating chart:', error)
-    toast.error('Failed to update chart')
-  }
-}
-
-// Modify the template chart container
-const template = `
-<div class="chart-container" style="position: relative; height: 400px; width: 100%;">
-  <canvas ref="paymentChart"></canvas>
-</div>
-`
-
-// Add resize handler
-const handleResize = () => {
-  if (chartInstance.value) {
-    chartInstance.value.resize()
-  }
-}
-
-// Add window resize listener
-onMounted(() => {
-  window.addEventListener('resize', handleResize)
-})
-
-onBeforeUnmount(() => {
-  window.removeEventListener('resize', handleResize)
-  if (chartInstance.value) {
-    chartInstance.value.destroy()
-  }
-})
-
-// Simplified fetchPaymentStats function
-const fetchPaymentStats = async () => {
-  try {
-    console.log('Fetching payment stats for year:', selectedYear.value)
-    const startDate = `${selectedYear.value}-01-01`
-    const endDate = `${selectedYear.value}-12-31`
-    
-    // Get the school_id based on user role
-    const schoolId = ['admin', 'registrar'].includes(userRole.value?.toLowerCase() || '') 
-      ? authStore.userRole?.school_id 
-      : userRole.value?.toLowerCase() === 'superadmin' ? authStore.getSelectedSchoolId : authStore.userRole?.school_id;
-    
-    // For superadmin, only proceed if a school is selected
-    if (userRole.value?.toLowerCase() === 'superadmin' && !schoolId) {
-      console.log('Superadmin has no school selected, skipping payment stats fetch')
-      monthlyStats.value = Array(12).fill(0);
-      hasPaymentData.value = false;
-      return;
-    }
-    
-    console.log('Fetching payment stats with school ID:', schoolId)
-    
-    // Include school_id in the API call
-    const data = await getPaymentsByDateRange(startDate, endDate, schoolId)
-    console.log('Payment data received:', data)
-
-    // Reset monthly totals
-    const monthlyTotals = Array(12).fill(0)
-    
-    // Process data
-    if (data && data.length > 0) {
-      data.forEach(payment => {
-        const month = new Date(payment.payment_date).getMonth()
-        monthlyTotals[month] += Number(payment.amount || 0)
-      })
-      hasPaymentData.value = true;
-    } else {
-      hasPaymentData.value = false;
-    }
-    
-    console.log('Processed monthly totals:', monthlyTotals)
-    monthlyStats.value = monthlyTotals
-    await updateChart()
-  } catch (error) {
-    console.error('Error fetching payment stats:', error)
-    toast.error('Failed to load payment statistics')
-    hasPaymentData.value = false;
-  }
-}
-
-// Initialize available years
-const initializeYears = () => {
-  const currentYear = new Date().getFullYear()
-  availableYears.value = Array.from({ length: 5 }, (_, i) => currentYear - i)
-}
-
-// Add watch for selected school changes for superadmin
-watch(
-  () => authStore.getSelectedSchoolId,
-  async (newSchoolId) => {
-    if (userRole.value?.toLowerCase() === 'superadmin') {
-      console.log('Selected school changed, refetching data...');
-      await fetchTeacherCount();
-      await fetchStudentCount();
-      
-      // Also refresh payment chart data when school changes
-      if (showChart.value) {
-        await fetchPaymentStats();
-      }
-      
-      // Refresh recent payments list
-      await fetchRecentPayments();
-    }
-  }
-)
-
-// Add these interfaces at the top of the script section
-interface Class {
-  class_name: string
-}
-
-interface TeacherData {
-  id: number
-  class_id: number
-  classes: Class[]
-}
-
-// Update the fetchTeacherClass function
-const fetchTeacherClass = async () => {
-  try {
-    // First get the teacher's class_id
-    const { data: teacherData, error: teacherError } = await supabase
-      .from('user_roles')
-      .select('class_id')
-      .eq('id', authStore.userRole?.id)
-      .single()
-
-    if (teacherError) throw teacherError
-
-    if (teacherData?.class_id) {
-      // Now fetch the class name using the class_id
-      const { data: classData, error: classError } = await supabase
-        .from('classes')
-        .select('class_name')
-        .eq('class_id', teacherData.class_id)
-        .single()
-
-      if (!classError && classData) {
-        teacherClassName.value = classData.class_name
-      } else {
-        teacherClassName.value = 'Unassigned Class'
-      }
-
-      // Get student count for this class
-      const { data: students, error: studentsError } = await supabase
-        .from('user_roles')
-        .select('id', { count: 'exact' })
-        .eq('class_id', teacherData.class_id)
-        .eq('role', 'student')
-
-      if (!studentsError) {
-        classCount.value = students?.length || 0
-      }
-    } else {
-      teacherClassName.value = 'Unassigned Class'
-      classCount.value = 0
-    }
-  } catch (error) {
-    console.error('Error fetching teacher class:', error)
-    teacherClassName.value = 'Unassigned Class'
-    classCount.value = 0
-  }
-}
-
-// Add these at the top of the script section after the imports
-const todayAttendance = ref<any[]>([])
-const today = computed(() => new Date().toISOString().slice(0, 10))
-
-// Add this function before onMounted
-const fetchTodayAttendance = async () => {
-  try {
-    if (userRole.value?.toLowerCase() === 'teacher') {
-      const schoolId = authStore.userRole?.school_id
-      
-      if (!schoolId) {
-        console.error('No school ID found')
-        return
-      }
-
-      // Get the teacher's class_id first
-      const { data: teacherData, error: teacherError } = await supabase
-        .from('user_roles')
-        .select('class_id')
-        .eq('id', authStore.userRole?.id)
-        .single()
-
-      if (teacherError) {
-        console.error('Error getting teacher class:', teacherError)
-        return
-      }
-
-      if (!teacherData?.class_id) {
-        console.log('No class assigned to teacher')
-        return
-      }
-
-      // Get today's attendance records
-      const { data: attendanceRecords, error: attendanceError } = await supabase
-        .from('attendances')
-        .select('id, status')
-        .eq('class_id', teacherData.class_id)
-        .eq('school_id', schoolId)
-        .eq('date', today.value)
-      
-      if (attendanceError) {
-        console.error('Error fetching attendance:', attendanceError)
-        return
-      }
-
-      todayAttendance.value = attendanceRecords || []
-      
-      // Update attendance count based on 'present' status
-      attendanceCount.value = todayAttendance.value.filter(record => record.status === 'present').length
-
-      // Get total students in class for percentage calculation
-      const { data: students, error: studentsError } = await supabase
-        .from('user_roles')
-        .select('id', { count: 'exact' })
-        .eq('class_id', teacherData.class_id)
-        .eq('school_id', schoolId)
-        .eq('role', 'student')
-
-      if (!studentsError) {
-        classCount.value = students?.length || 0
-      }
-    }
-  } catch (error) {
-    console.error('Error fetching today\'s attendance:', error)
-    toast.error('Failed to fetch attendance records')
-  }
-}
-
-// Change fetchParentCount to fetchAdminCount
-const fetchAdminCount = async () => {
-  try {
-    // Get the school_id based on user role
-    const schoolId = ['admin', 'registrar'].includes(userRole.value?.toLowerCase() || '') 
-      ? authStore.userRole?.school_id 
-      : userRole.value?.toLowerCase() === 'superadmin' ? authStore.getSelectedSchoolId : authStore.userRole?.school_id;
-
-    // Base query to get admins
-    let query = supabase
-      .from('user_roles')
-      .select('*', { count: 'exact' })
-      .eq('role', 'admin');
-    
-    // Add school_id filter if available
-    if (schoolId) {
-      query = query.eq('school_id', schoolId);
-    }
-    
-    const { data, error, count } = await query;
-    
-    if (error) {
-      console.error('Error fetching admin count:', error);
-      return;
-    }
-    
-    adminCount.value = count || 0;
-    console.log('Admin count:', adminCount.value);
-  } catch (error) {
-    console.error('Error fetching admin count:', error);
-  }
-}
-
-// Update onMounted to use fetchAdminCount
+// Initialize dashboard on mount
 onMounted(async () => {
   console.log('Component mounted')
   try {
-    await fetchPasswordStatus()
-    
-    initializeYears()
-    if (showChart.value) {
-      console.log('Initializing chart data...')
-      await fetchPaymentStats()
-    }
-    await fetchRecentPayments()
-    
-    // Fetch school setup info to check teacher_portal
-    await fetchSchoolInfo()
-    
-    // Fetch counts based on role
-    if (userRole.value?.toLowerCase() === 'superadmin') {
-      await fetchSchoolCount()
-    } else {
-      await fetchTeacherCount()
-      await fetchStudentCount()
-      await fetchAdminCount() // Changed from fetchParentCount
-    }
-    
-    // Fetch teacher-specific stats if user is a teacher
-    if (userRole.value?.toLowerCase() === 'teacher') {
-      try {
-        await fetchTeacherClass()
-        await fetchTodayAttendance()
-        
-        // Get the teacher's class_id for assignments
-        const { data: teacherData } = await supabase
-          .from('user_roles')
-          .select('class_id')
-          .eq('id', authStore.userRole?.id)
-          .single()
-
-        if (teacherData?.class_id) {
-          // Fetch assignment count
-          const { data: assignments, error: assignmentError } = await supabase
-            .from('assignments')
-            .select('id')
-            .eq('class_id', teacherData.class_id)
-            .eq('status', 'active')
-          
-          if (!assignmentError) {
-            assignmentCount.value = assignments?.length || 0
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching teacher stats:', error)
-      }
-    }
-    
-    loading.value = false
+    console.log('Current user role:', userRole.value)
+    await initializeDashboard() // This will handle all role-specific initializations
   } catch (error) {
     console.error('Error in onMounted:', error)
     loading.value = false
   }
 })
 
-// Watch for year changes with immediate option
-watch(selectedYear, async (newYear, oldYear) => {
-  console.log(`Year changed from ${oldYear} to ${newYear}`)
-  if (showChart.value) {
-    await fetchPaymentStats()
-  }
-}, { flush: 'post' })
-
-// Computed property to check if user can view chart
-const canViewChart = computed(() => {
-  const roleValue = authStore.userRole?.role?.toLowerCase() || ''
-  console.log('Current user role:', roleValue)
-  return ['accountant', 'admin'].includes(roleValue.toLowerCase())
-})
-
-// Computed properties for role-based checks
-const isStudentOrParent = computed(() => {
-  const roleValue = userRole.value?.toLowerCase() || ''
-  return ['student', 'parent'].includes(roleValue)
-})
-
-const isAdminOrHigher = computed(() => {
-  const roleValue = userRole.value?.toLowerCase() ?? ''
-  // Only include accountant if finance module is enabled
-  if (roleValue === 'accountant') {
-    return authStore.financeModuleEnabled
-  }
-  return ['admin', 'superadmin'].includes(roleValue)
-})
-
-const isRegistrarOrHigher = computed(() => {
-  const roleValue = userRole.value?.toLowerCase() ?? ''
-  return ['registrar', 'superadmin', 'admin'].includes(roleValue)
-})
-
-const isTeacherOrHigher = computed(() => {
-  const roleValue = userRole.value?.toLowerCase() ?? ''
-  return ['teacher', 'superadmin', 'admin'].includes(roleValue)
-})
-
-const canViewPayments = computed(() => {
-  const roleValue = userRole.value?.toLowerCase() ?? ''
-  // Only include accountant if finance module is enabled
-  if (roleValue === 'accountant') {
-    return authStore.financeModuleEnabled
-  }
-  return ['admin', 'superadmin'].includes(roleValue)
-})
-
-const canViewFinancials = computed(() => {
-  const roleValue = userRole.value?.toLowerCase() ?? ''
-  // Only include accountant if finance module is enabled
-  if (roleValue === 'accountant') {
-    return authStore.financeModuleEnabled
-  }
-  return ['admin', 'superadmin'].includes(roleValue)
-})
-
-const canViewRegistration = computed(() => {
-  const roleValue = userRole.value?.toLowerCase() ?? ''
-  return ['registrar', 'superadmin', 'admin'].includes(roleValue)
-})
-
-const canViewTeaching = computed(() => {
-  const roleValue = userRole.value?.toLowerCase() ?? ''
-  return ['teacher', 'superadmin', 'admin'].includes(roleValue)
-})
-
-// Modify the showChangePasswordModal ref to be a function
-const handleChangePassword = () => {
-  withSchoolValidation(async () => {
-    showChangePasswordModal.value = true
-  })
-}
-
-// Update the watcher for change password modal
-watch(showChangePasswordModal, async (newVal, oldVal) => {
-  if (oldVal && !newVal) {
-    // Modal was closed, refresh the password status
-    await fetchPasswordStatus()
-  }
-})
-
-// Now, update the fetchSchoolInfo function to check for teacher_portal field
-const fetchSchoolInfo = async () => {
-  try {
-    // Get the school_id based on user role
-    const schoolId = ['admin', 'registrar'].includes(userRole.value?.toLowerCase() || '') 
-      ? authStore.userRole?.school_id 
-      : userRole.value?.toLowerCase() === 'superadmin' ? authStore.getSelectedSchoolId : authStore.userRole?.school_id;
-    
-    if (!schoolId) {
-      console.log('No school_id found');
-      return;
-    }
-    
-    const { data: setupData, error: setupError } = await supabase
-      .from('setup')
-      .select('*')
-      .eq('school_id', schoolId)
-      .single();
-      
-    if (!setupError && setupData) {
-      // Look for teacher_portal field (case insensitive)
-      const setupDataKeys = Object.keys(setupData);
-      const teacherPortalField = setupDataKeys.find(key => 
-        key.toLowerCase() === 'teacher_portal'
-      );
-      
-      // Update the teacher portal enabled state
-      if (teacherPortalField) {
-        const value = setupData[teacherPortalField];
-        teacherPortalEnabled.value = String(value).toUpperCase() === 'YES';
-      } else {
-        teacherPortalEnabled.value = false;
-      }
-      
-      console.log('Teacher portal enabled:', teacherPortalEnabled.value);
-    }
-  } catch (error) {
-    console.error('Error fetching school setup:', error);
-    teacherPortalEnabled.value = false;
-  }
-};
-
-const attendancePercentage = computed(() => {
-  if (!classCount.value || !todayAttendance.value.length) return 0
-  const presentCount = todayAttendance.value.filter(record => record.status === 'present').length
-  return Math.round((presentCount / classCount.value) * 100)
-})
-
-// Add new computed property for finance content visibility
-const showFinanceContent = computed(() => {
-  const roleValue = userRole.value?.toLowerCase() || ''
-  
-  // For admin and accountant, only show if finance module is enabled
-  return (['admin', 'accountant'].includes(roleValue) && authStore.financeModuleEnabled)
+// Clean up on unmount
+onBeforeUnmount(() => {
+  cleanUp()
 })
 </script>
 
@@ -1548,6 +887,14 @@ const showFinanceContent = computed(() => {
         -webkit-background-clip: text;
         background-clip: text;
         -webkit-text-fill-color: transparent;
+
+        &.teacher-names {
+          font-size: 1.5rem;
+          line-height: 1.3;
+          white-space: normal;
+          word-wrap: break-word;
+          margin-bottom: 0.5rem;
+        }
       }
 
       .stat-label {
@@ -1590,6 +937,14 @@ const showFinanceContent = computed(() => {
       -webkit-background-clip: text;
       background-clip: text;
       -webkit-text-fill-color: transparent;
+
+      &.teacher-names {
+        font-size: 1.5rem;
+        line-height: 1.3;
+        white-space: normal;
+        word-wrap: break-word;
+        margin-bottom: 0.5rem;
+      }
     }
 
     .stat-label {
