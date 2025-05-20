@@ -21,7 +21,7 @@
             <div class="quick-stats">
               <div class="stat-item">
                 <div class="stat-value">{{ pendingAssignments }}</div>
-                <div class="stat-label">Pending Tasks</div>
+                <div class="stat-label">Attempted Tasks</div>
               </div>
               <div class="stat-item">
                 <div class="stat-value">{{ completedAssignments }}</div>
@@ -61,7 +61,11 @@
                   <div class="assignment-content">
                     <div class="status-indicator"></div>
                     <div class="assignment-details">
-                      <h3>{{ assignment.title }}</h3>
+                      <div class="d-flex align-items-center gap-2">
+                        <h3>{{ assignment.title }}</h3>
+                        <span v-if="!assignment.assignment_status?.length" 
+                              class="new-badge">New</span>
+                      </div>
                       <p>{{ assignment.description }}</p>
                       <div class="meta-info">
                         <span class="due-date">
@@ -314,10 +318,10 @@
                           {{ question.points }} points
           </div>
         </div>
-                      <div class="question-status" :class="{ 'answered': false }">
+                      <!-- <div class="question-status" :class="{ 'answered': false }">
                         <i class="fas fa-circle-check"></i>
                         <span>Not answered</span>
-                      </div>
+                      </div> -->
                     </div>
                     
                     <div class="question-content">
@@ -2361,5 +2365,16 @@ const getTimeDifference = (startDate: string, endDate: string) => {
       }
     }
   }
+}
+
+.new-badge {
+  background: #3b82f6;
+  color: white;
+  padding: 0.25rem 0.5rem;
+  border-radius: 1rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
 }
 </style> 

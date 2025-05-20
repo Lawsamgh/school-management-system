@@ -109,7 +109,8 @@
                       Change {{ isSuperAdmin ? 'School/Class' : 'Class' }}
                     </button>
                     <button 
-                      class="btn btn-outline-primary btn-sm d-flex align-items-center" 
+                      v-if="todayAttendance.length === 0"
+                      class="btn btn-primary" 
                       @click="openTakeAttendanceModal"
                     >
                       <i class="fas fa-clipboard-check me-2"></i>
@@ -124,12 +125,14 @@
                 <ul class="nav nav-pills" id="teacherTabs" role="tablist">
                   <li class="nav-item" role="presentation">
                     <button 
-                      class="nav-link active" 
+                      class="nav-link"
+                      :class="{ active: activeTab === 'attendance' }" 
                       id="attendance-tab" 
                       data-bs-toggle="tab" 
                       data-bs-target="#attendance" 
                       type="button" 
                       role="tab"
+                      @click="setActiveTab('attendance')"
                     >
                       <i class="fas fa-clipboard-check me-2"></i>
                       Attendance
@@ -137,12 +140,14 @@
                   </li>
                   <li class="nav-item" role="presentation">
                     <button 
-                      class="nav-link" 
+                      class="nav-link"
+                      :class="{ active: activeTab === 'assignments' }" 
                       id="assignments-tab" 
                       data-bs-toggle="tab" 
                       data-bs-target="#assignments" 
                       type="button" 
                       role="tab"
+                      @click="setActiveTab('assignments')"
                     >
                       <i class="fas fa-book me-2"></i>
                       Assignments
@@ -150,12 +155,14 @@
                   </li>
                   <li class="nav-item" role="presentation">
                     <button 
-                      class="nav-link" 
+                      class="nav-link"
+                      :class="{ active: activeTab === 'promote' }" 
                       id="promote-tab" 
                       data-bs-toggle="tab" 
                       data-bs-target="#promote" 
                       type="button" 
                       role="tab"
+                      @click="setActiveTab('promote')"
                     >
                       <i class="fas fa-graduation-cap me-2"></i>
                       Promote Student
@@ -168,7 +175,8 @@
               <div class="tab-content" id="teacherTabsContent">
               <!-- Attendance Tab -->
               <div 
-                class="tab-pane fade show active" 
+                class="tab-pane fade"
+                :class="{ 'show active': activeTab === 'attendance' }" 
                 id="attendance" 
                 role="tabpanel"
               >
@@ -192,7 +200,7 @@
                       </div>
                       <div class="analytics-data">
                         <h4>{{ presentCount }}</h4>
-                        <p>Present Today</p>
+                        <p>Present</p>
                       </div>
                     </div>
                   </div>
@@ -203,7 +211,7 @@
                       </div>
                       <div class="analytics-data">
                         <h4>{{ absentCount }}</h4>
-                        <p>Absent Today</p>
+                        <p>Absent</p>
                       </div>
                     </div>
                   </div>
@@ -214,7 +222,7 @@
                       </div>
                       <div class="analytics-data">
                         <h4>{{ lateCount }}</h4>
-                        <p>Late Today</p>
+                        <p>Late</p>
                       </div>
                     </div>
                   </div>
@@ -252,21 +260,22 @@
                             <th>ID</th>
                             <th>Status</th>
                             <th>Remarks</th>
+                            <th>Taken By</th>
                             <th>Actions</th>
                           </tr>
                         </thead>
                         <tbody>
                           <tr v-for="record in todayAttendance" :key="record.id">
                             <td>
-                          <div class="d-flex align-items-center">
+                              <div class="d-flex align-items-center">
                                 <div class="avatar-circle">
                                   {{ getInitials(record.student_name) }}
-                            </div>
-                            <div class="ms-3">
+                                </div>
+                                <div class="ms-3">
                                   <h6 class="mb-0">{{ record.student_name }}</h6>
                                   <small class="text-muted">{{ record.class_name || 'Class not assigned' }}</small>
-                            </div>
-                          </div>
+                                </div>
+                              </div>
                             </td>
                             <td>{{ record.identification }}</td>
                             <td>
@@ -276,8 +285,19 @@
                             </td>
                             <td>{{ record.remarks || '—' }}</td>
                             <td>
+                              <div class="d-flex align-items-center">
+                                <i class="fas fa-user-circle me-2 text-muted"></i>
+                                {{ record.teacher_name }}
+                              </div>
+                            </td>
+                            <td>
                               <div class="actions">
-                                <button class="action-btn edit" @click="editAttendance(record)">
+                                <button 
+                                  v-if="String(record.teacher_id) === String(authStore.userRole?.id)"
+                                  class="action-btn edit" 
+                                  @click="editAttendance(record)"
+                                  :title="'Edit attendance'"
+                                >
                                   <i class="fas fa-edit"></i>
                                 </button>
                                 <button 
@@ -287,7 +307,14 @@
                                 >
                                   <i class="fas fa-trash"></i>
                                 </button>
-                        </div>
+                                <span 
+                                  v-if="String(record.teacher_id) !== String(authStore.userRole?.id)"
+                                  class="text-muted small"
+                                  title="Taken by another teacher"
+                                >
+                                  <i class="fas fa-lock"></i>
+                                </span>
+                              </div>
                             </td>
                           </tr>
                         </tbody>
@@ -296,7 +323,7 @@
                     <div v-else class="empty-state-container">
                       <div class="text-center empty-state">
                         <i class="fas fa-clipboard-list fa-3x mb-4 text-muted"></i>
-                        <h5 class="mb-3">No attendance records for today</h5>
+                        <h5 class="mb-3">No attendance records found</h5>
                         <p class="text-muted mb-4">Click "Take Attendance" to record student attendance</p>
                     </div>
                       </div>
@@ -306,7 +333,8 @@
 
                 <!-- Assignments Tab -->
                 <div 
-                  class="tab-pane fade" 
+                  class="tab-pane fade"
+                  :class="{ 'show active': activeTab === 'assignments' }" 
                   id="assignments" 
                   role="tabpanel"
                 >
@@ -395,7 +423,8 @@
 
                 <!-- Promote Student Tab -->
                 <div 
-                  class="tab-pane fade" 
+                  class="tab-pane fade"
+                  :class="{ 'show active': activeTab === 'promote' }" 
                   id="promote" 
                   role="tabpanel"
                 >
@@ -528,7 +557,7 @@
                       class="form-control" 
                       id="attendanceDate"
                       v-model="attendanceDate"
-                      :max="today"
+                      disabled
                       style="width: 100%;"
                     >
                               </div>
@@ -570,8 +599,12 @@
                     <div class="details">
                       <h6 class="mb-0">{{ student.name }}</h6>
                       <p>ID: {{ student.identification }}</p>
-                            </div>
-                          </div>
+                      <small v-if="!studentAttendance[student.identification]" class="text-danger">
+                        <i class="fas fa-exclamation-circle me-1"></i>
+                        Attendance not marked
+                      </small>
+                    </div>
+                  </div>
                   <div class="attendance-options">
                     <div class="status-options">
                       <span 
@@ -614,11 +647,17 @@
               type="button" 
               class="btn btn-primary"
               @click="saveAttendance"
-              :disabled="saving || classStudents.length === 0"
+              :disabled="saving || classStudents.length === 0 || !isAllStudentsMarked"
+              :title="!isAllStudentsMarked ? 'Please mark attendance for all students' : ''"
             >
-              <i class="fas fa-save me-2"></i>
-              <span v-if="saving">Saving...</span>
-              <span v-else>Save Attendance</span>
+              <span v-if="saving">
+                <i class="fas fa-spinner fa-spin me-2"></i>
+                Saving...
+              </span>
+              <span v-else>
+                <i class="fas fa-save me-2"></i>
+                Save Attendance
+              </span>
             </button>
                         </div>
                       </div>
@@ -908,11 +947,11 @@
                         <div class="col-md-12">
                           <!-- Description -->
                           <div class="form-group">
-                            <label class="form-label">Description <span class="text-danger">*</span></label>
+                            <label class="form-label">Instructions / Description <span class="text-danger">*</span></label>
                             <textarea 
                               class="form-control" 
                               v-model="newAssignment.description"
-                              rows="2"
+                              rows="4"
                               placeholder="Enter assignment description"
                               required
                             ></textarea>
@@ -939,12 +978,40 @@
                               class="form-select" 
                               v-model="newAssignment.type"
                               @change="handleAssignmentTypeChange"
+                              disabled
                               required
                             >
-                              <option value="" disabled>Select assignment type</option>
                               <option value="mcq">Multiple Choice Questions</option>
-                              <option value="file">File Upload</option>
                             </select>
+                          </div>
+                        </div>
+                        <div class="col-md-12">
+                          <!-- Timer Settings -->
+                          <div class="form-group">
+                            <div class="d-flex align-items-center mb-2">
+                              <div class="form-check">
+                                <input 
+                                  type="checkbox" 
+                                  class="form-check-input" 
+                                  id="hasTimer"
+                                  v-model="newAssignment.has_timer"
+                                >
+                                <label class="form-check-label" for="hasTimer">
+                                  Enable Timer
+                                </label>
+                              </div>
+                            </div>
+                            <div v-if="newAssignment.has_timer" class="mt-2">
+                              <label class="form-label">Time Limit (minutes) <span class="text-danger">*</span></label>
+                              <input 
+                                type="number" 
+                                class="form-control" 
+                                v-model="newAssignment.time_limit"
+                                min="1"
+                                placeholder="Enter time limit in minutes"
+                                required
+                              >
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -1142,7 +1209,7 @@
 
 <script setup lang="ts">
 // Add imports at the top of the script section
-import { ref, onMounted, computed, watch, nextTick } from 'vue'
+import { ref, onMounted, computed, watch, nextTick, onUnmounted } from 'vue'
 import * as bootstrap from 'bootstrap'
 import { useAuthStore } from '@/store/auth'
 import { supabase } from '@/lib/supabase'
@@ -1268,17 +1335,18 @@ interface AttendanceRecord {
 interface AttendanceResponse {
   id: string
   student_id: string
-  class_id: bigint
+  class_id: string
   date: string
-  status: 'present' | 'absent' | 'late' | 'excused'
+  status: string
   remarks: string | null
   created_at: string
-  updated_at: string
-  school_id?: string // May be missing in the response
+  updated_at: string | null
+  teacher_name: string | null
+  teacher_id: string
   user_roles: {
     username: string
     identification: string
-    class_id: bigint
+    class_id: string
   }
   classes: {
     class_name: string
@@ -1545,7 +1613,7 @@ const fetchClassStudents = async (schoolId: string) => {
 // Fetch today's attendance
 const fetchAttendanceRecords = async () => {
   try {
-    // Get user's role and school info
+    // Get user data for role check
     const { data: userData, error: userError } = await supabase
       .from('user_roles')
       .select('role, school_id, class_id')
@@ -1573,19 +1641,12 @@ const fetchAttendanceRecords = async () => {
       return
     }
 
-    // Base query for attendance records
+    // Build the query
     let query = supabase
       .from('attendances')
       .select(`
-        id,
-        student_id,
-        class_id,
-        date,
-        status,
-        remarks,
-        created_at,
-        updated_at,
-        user_roles!inner (
+        *,
+        user_roles (
           username,
           identification,
           class_id
@@ -1597,7 +1658,7 @@ const fetchAttendanceRecords = async () => {
       .eq('date', selectedDate.value)
       .eq('school_id', effectiveSchoolId)
 
-    // If admin, use selected class. If teacher, use assigned class
+    // Determine which class ID to use based on role
     const classIdToUse = userData.role.toLowerCase() === 'admin' || userData.role.toLowerCase() === 'superadmin'
       ? selectedClassId.value
       : userData.class_id
@@ -1621,14 +1682,22 @@ const fetchAttendanceRecords = async () => {
 
     const attendanceRecords = (data as unknown) as AttendanceResponse[] || []
     
-    todayAttendance.value = attendanceRecords.map(record => ({
-      id: record.id,
-      student_name: record.user_roles.username,
-      identification: record.student_id,
-      status: record.status,
-      remarks: record.remarks,
-      class_name: record.classes?.class_name || ''
-    }))
+    console.log('Current user ID:', authStore.userRole?.id, 'Type:', typeof authStore.userRole?.id)
+    
+    todayAttendance.value = attendanceRecords.map(record => {
+      const mappedRecord = {
+        id: record.id,
+        student_name: record.user_roles.username,
+        identification: record.student_id,
+        status: record.status,
+        remarks: record.remarks,
+        class_name: record.classes?.class_name || '',
+        teacher_name: record.teacher_name || 'Unknown',
+        teacher_id: String(record.teacher_id) // Ensure teacher_id is a string
+      }
+      console.log('Mapped record teacher_id:', mappedRecord.teacher_id, 'Type:', typeof mappedRecord.teacher_id)
+      return mappedRecord
+    })
 
   } catch (error) {
     console.error('Error fetching attendance:', error)
@@ -1652,9 +1721,9 @@ const markAllAbsent = () => {
 // Update the openTakeAttendanceModal function
 const openTakeAttendanceModal = async () => {
   try {
-    const currentDate = new Date().toISOString().split('T')[0]
-    
-    // Get user's role and school info
+    // Set attendance date to selected date
+    attendanceDate.value = selectedDate.value
+
     const { data: userData, error: userError } = await supabase
       .from('user_roles')
       .select('role, school_id, class_id')
@@ -1697,7 +1766,7 @@ const openTakeAttendanceModal = async () => {
     const { data, error } = await supabase
       .from('attendances')
       .select('status')
-      .eq('date', currentDate)
+      .eq('date', selectedDate.value)
       .eq('class_id', classIdToUse)
       .eq('school_id', effectiveSchoolId)
 
@@ -1769,10 +1838,10 @@ const saveAttendance = async () => {
 
   saving.value = true
   try {
-    // Get the teacher's school_id
+    // Get the teacher's information
     const { data: userData, error: userError } = await supabase
       .from('user_roles')
-      .select('school_id')
+      .select('school_id, username')
       .eq('id', authStore.userRole?.id)
       .single()
 
@@ -1797,7 +1866,9 @@ const saveAttendance = async () => {
       date: attendanceDate.value,
       status: studentAttendance.value[student.identification] || 'absent',
       remarks: studentRemarks.value[student.identification] || null,
-      school_id: effectiveSchoolId
+      school_id: effectiveSchoolId,
+      teacher_id: authStore.userRole?.id,
+      teacher_name: userData.username
     }))
 
     const { error } = await supabase
@@ -2330,6 +2401,8 @@ const newAssignment = ref({
   class_id: '',
   school_id: '',
   type: '',
+  has_timer: false,
+  time_limit: null as number | null,
   questions: [] as Array<{
     text: string;
     points: number;
@@ -2421,7 +2494,9 @@ const openCreateAssignmentModal = async () => {
       max_score: 100,
       class_id: classIdToUse,
       school_id: effectiveSchoolId,
-      type: '',
+      type: 'mcq',
+      has_timer: false,
+      time_limit: null,
       questions: []
     }
 
@@ -2462,7 +2537,9 @@ const saveAssignment = async () => {
       due_date: newAssignment.value.due_date,
       total_points: totalPoints,
       school_id: newAssignment.value.school_id,
-      status: 'active'
+      status: 'active',
+      has_timer: newAssignment.value.has_timer,
+      time_limit: newAssignment.value.has_timer ? newAssignment.value.time_limit : null
     }
 
     let assignmentId: string
@@ -2597,7 +2674,7 @@ const fetchAssignments = async () => {
             option_order
           )
         ),
-        assignment_status!inner (
+        assignment_status (
           id,
           student_id,
           status
@@ -2618,10 +2695,11 @@ const fetchAssignments = async () => {
 
     // Process the assignments to include type and submission info
     assignments.value = data?.map(assignment => {
-      // Count completed submissions
-      const completedSubmissions = assignment.assignment_status?.filter(
+      // Count completed submissions, handle null assignment_status
+      const statuses = assignment.assignment_status || [];
+      const completedSubmissions = statuses.filter(
         (status: AssignmentStatus) => status.status === 'completed'
-      ).length || 0;
+      ).length;
 
       return {
         ...assignment,
@@ -2710,6 +2788,8 @@ const editAssignment = async (assignment: any) => {
       class_id: assignment.class_id,
       school_id: assignment.school_id,
       type: assignment.type,
+      has_timer: assignment.has_timer || false,
+      time_limit: assignment.time_limit || null,
       questions: assignment.assignment_questions?.map((q: any) => ({
         text: q.question_text,
         points: q.points,
@@ -2780,11 +2860,20 @@ const currentStep = ref(1)
 
 // Add this computed property
 const isBasicDetailsValid = computed(() => {
-  return newAssignment.value.title &&
+  const baseValidation = newAssignment.value.title &&
     newAssignment.value.subject &&
     newAssignment.value.description &&
     newAssignment.value.due_date &&
     newAssignment.value.type
+
+  // Add timer validation
+  if (newAssignment.value.has_timer) {
+    return baseValidation && 
+      typeof newAssignment.value.time_limit === 'number' && 
+      newAssignment.value.time_limit > 0
+  }
+
+  return baseValidation
 })
 
 // Add this method
@@ -2865,6 +2954,60 @@ const handlePromptConfirm = async () => {
     await confirmDeleteAttendance()
   }
 }
+
+// Add this in the script section after other computed properties
+const shouldShowLockIcon = computed(() => (record: any) => {
+  console.log('Lock icon - Record teacher ID:', record.teacher_id)
+  console.log('Lock icon - Current user ID:', authStore.userRole?.id)
+  return record.teacher_id !== authStore.userRole?.id
+})
+
+// Add these computed properties after other computed properties
+const shouldShowEditButton = computed(() => (record: any) => {
+  console.log('Edit button - Record teacher ID:', record.teacher_id)
+  console.log('Edit button - Current user ID:', authStore.userRole?.id)
+  return record.teacher_id === authStore.userRole?.id
+})
+
+// Add this computed property after other computed properties
+const isAllStudentsMarked = computed(() => {
+  return classStudents.value.every(student => 
+    studentAttendance.value[student.identification] !== undefined
+  )
+})
+
+// Add in script section after other refs
+const activeTab = ref('attendance')
+
+// Add these functions after other functions
+const setActiveTab = (tab: string) => {
+  activeTab.value = tab
+  window.location.hash = tab
+}
+
+const initializeTab = () => {
+  // Get tab from URL hash or default to 'attendance'
+  const hash = window.location.hash.replace('#', '')
+  if (['attendance', 'assignments', 'promote'].includes(hash)) {
+    activeTab.value = hash
+  } else {
+    activeTab.value = 'attendance'
+  }
+}
+
+// Add to onMounted
+onMounted(() => {
+  // Initialize tab from URL
+  initializeTab()
+
+  // Listen for hash changes
+  window.addEventListener('hashchange', initializeTab)
+})
+
+// Add cleanup in onUnmounted
+onUnmounted(() => {
+  window.removeEventListener('hashchange', initializeTab)
+})
 
 </script>
 
@@ -3432,6 +3575,12 @@ $white: #ffffff;
         font-size: 0.75rem;
         color: $gray;
         margin-bottom: 0;
+      }
+      
+      small.text-danger {
+        font-size: 0.75rem;
+        display: block;
+        margin-top: 0.25rem;
       }
     }
   }
