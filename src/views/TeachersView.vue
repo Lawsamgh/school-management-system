@@ -325,21 +325,25 @@
                         <table class="table custom-table">
                             <thead>
                               <tr>
+                              <th>Created Date</th>
                               <th>Title</th>
                               <th>Subject</th>
                               <th>Due Date</th>
-                                <th>Status</th>
+                              <th>Status</th>
                               <th>Submissions</th>
-                                <th>Actions</th>
+                              <th>Actions</th>
                               </tr>
                             </thead>
                             <tbody>
                               <tr v-for="assignment in assignments" :key="assignment.id">
+                                <td>{{ formatDate(assignment.created_at) }}</td>
                                 <td>
                                 <div>
                                   <h6 class="mb-0">{{ assignment.title }}</h6>
-                                      <small class="text-muted">{{ selectedClassName }}</small>
-                                  </div>
+                                  <small class="text-muted">
+                                    {{ selectedClassName }} | Created by {{ assignment.teacher?.username || 'Unknown Teacher' }}
+                                  </small>
+                                </div>
                                 </td>
                               <td>{{ assignment.subject }}</td>
                               <td>{{ formatDate(assignment.due_date) }}</td>
@@ -347,12 +351,29 @@
                               <td>{{ assignment.submission_count || 0 }}/{{ totalStudents }}</td>
                                 <td>
                                 <div class="actions">
-                                  <button class="action-btn edit" @click="editAssignment(assignment)">
+                                  <button 
+                                    v-if="assignment.teacher_id === authStore.userRole?.id"
+                                    class="action-btn edit" 
+                                    @click="editAssignment(assignment)"
+                                    :title="assignment.teacher_id === authStore.userRole?.id ? 'Edit assignment' : 'Only the creator can edit this assignment'"
+                                  >
                                     <i class="fas fa-edit"></i>
                                   </button>
-                                  <button class="action-btn delete" @click="deleteAssignment(assignment.id)">
+                                  <button 
+                                    v-if="(!assignment.submission_count || assignment.submission_count === 0) && assignment.teacher_id === authStore.userRole?.id"
+                                    class="action-btn delete" 
+                                    @click="deleteAssignment(assignment.id)"
+                                    :title="assignment.teacher_id === authStore.userRole?.id ? 'Delete assignment' : 'Only the creator can delete this assignment'"
+                                  >
                                     <i class="fas fa-trash"></i>
                                   </button>
+                                  <span 
+                                    v-if="assignment.teacher_id !== authStore.userRole?.id" 
+                                    class="text-muted small"
+                                    title="Created by another teacher"
+                                  >
+                                    <i class="fas fa-lock"></i>
+                                  </span>
                                 </div>
                                 </td>
                               </tr>
@@ -2561,6 +2582,9 @@ const fetchAssignments = async () => {
       .from('assignments')
       .select(`
         *,
+        teacher:teacher_id (
+          username
+        ),
         assignment_questions (
           id,
           question_text,
@@ -2572,6 +2596,11 @@ const fetchAssignments = async () => {
             is_correct,
             option_order
           )
+        ),
+        assignment_status!inner (
+          id,
+          student_id,
+          status
         )
       `)
       .eq('class_id', classIdToUse)
@@ -2581,12 +2610,27 @@ const fetchAssignments = async () => {
     if (error) throw error
 
     // Process the assignments to include type and submission info
-    assignments.value = data?.map(assignment => ({
-      ...assignment,
-      type: assignment.assignment_questions?.length > 0 ? 'mcq' : 'file',
-      total_questions: assignment.assignment_questions?.length || 0,
-      total_points: assignment.total_points || 0
-    })) || []
+    interface AssignmentStatus {
+      id: string;
+      student_id: string;
+      status: 'pending' | 'completed';
+    }
+
+    // Process the assignments to include type and submission info
+    assignments.value = data?.map(assignment => {
+      // Count completed submissions
+      const completedSubmissions = assignment.assignment_status?.filter(
+        (status: AssignmentStatus) => status.status === 'completed'
+      ).length || 0;
+
+      return {
+        ...assignment,
+        type: assignment.assignment_questions?.length > 0 ? 'mcq' : 'file',
+        total_questions: assignment.assignment_questions?.length || 0,
+        total_points: assignment.total_points || 0,
+        submission_count: completedSubmissions
+      };
+    }) || [];
 
   } catch (error) {
     console.error('Error fetching assignments:', error)
@@ -2607,6 +2651,20 @@ const assignments = ref<any[]>([])
 // Add these functions for assignment management
 const deleteAssignment = async (id: string) => {
   try {
+    // First check if the current user is the assignment creator
+    const { data: assignment, error: fetchError } = await supabase
+      .from('assignments')
+      .select('teacher_id')
+      .eq('id', id)
+      .single()
+
+    if (fetchError) throw fetchError
+
+    if (assignment?.teacher_id !== authStore.userRole?.id) {
+      toast.error('You can only delete assignments that you created')
+      return
+    }
+
     const { error } = await supabase
       .from('assignments')
       .delete()
@@ -2633,6 +2691,12 @@ const deleteAssignment = async (id: string) => {
 
 const editAssignment = async (assignment: any) => {
   try {
+    // Check if the current user is the assignment creator
+    if (assignment.teacher_id !== authStore.userRole?.id) {
+      toast.error('You can only edit assignments that you created')
+      return
+    }
+
     editingAssignmentId.value = assignment.id
     isEditing.value = true
 

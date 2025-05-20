@@ -13,10 +13,10 @@
                 <h4 class="alert-heading mb-1">Important Security Notice</h4>
                 <p class="mb-0">For your security, please change your password by clicking the "Change Password" button.</p>
               </div>
-              <button class="btn btn-warning ms-auto" @click="handleChangePassword">
+              <!-- <button class="btn btn-warning ms-auto" @click="handleChangePassword">
                 <i class="fas fa-key me-2"></i>
                 Change Password
-              </button>
+              </button> -->
             </div>
           </div>
         </div>
@@ -329,26 +329,33 @@
             v-motion-slide-visible-once-bottom
             v-if="userRole?.toLowerCase() === 'student'"
           >
-            <div class="stat-card" :class="{ 'skeleton-loading': loading }">
-              <template v-if="!loading">
-                <div class="stat-icon">
-                  <i class="fas fa-graduation-cap"></i>
-                </div>
-                <div class="stat-content">
-                  <h3>My Class</h3>
-                  <p class="stat-number">{{ studentClassName || 'Unassigned' }}</p>
-                  <p class="stat-label">Current Class</p>
-                </div>
-              </template>
-              <template v-else>
-                <div class="skeleton-icon"></div>
-                <div class="stat-content">
-                  <div class="skeleton-text skeleton-sm"></div>
-                  <div class="skeleton-text skeleton-lg"></div>
-                  <div class="skeleton-text skeleton-sm"></div>
-                </div>
-              </template>
-            </div>
+            <router-link to="/students" class="text-decoration-none">
+              <div class="stat-card" :class="{ 'skeleton-loading': loading }">
+                <template v-if="!loading">
+                  <div class="stat-icon">
+                    <i class="fas fa-graduation-cap"></i>
+                  </div>
+                  <div class="stat-content">
+                    <div class="stat-header">
+                      <h3>My Class</h3>
+                      <div class="open-icon">
+                        <i class="fas fa-external-link-alt"></i>
+                      </div>
+                    </div>
+                    <p class="stat-number">{{ studentClassName || 'Unassigned' }}</p>
+                    <p class="stat-label">Current Class</p>
+                  </div>
+                </template>
+                <template v-else>
+                  <div class="skeleton-icon"></div>
+                  <div class="stat-content">
+                    <div class="skeleton-text skeleton-sm"></div>
+                    <div class="skeleton-text skeleton-lg"></div>
+                    <div class="skeleton-text skeleton-sm"></div>
+                  </div>
+                </template>
+              </div>
+            </router-link>
           </div>
 
           <!-- Student Assignments Card -->
@@ -357,26 +364,33 @@
             v-motion-slide-visible-once-bottom
             v-if="userRole?.toLowerCase() === 'student'"
           >
-            <div class="stat-card" :class="{ 'skeleton-loading': loading }">
-              <template v-if="!loading">
-                <div class="stat-icon">
-                  <i class="fas fa-book"></i>
-                </div>
-                <div class="stat-content">
-                  <h3>Assignments</h3>
-                  <p class="stat-number">{{ studentAssignmentCount }}</p>
-                  <p class="stat-label">Total Assignments</p>
-                </div>
-              </template>
-              <template v-else>
-                <div class="skeleton-icon"></div>
-                <div class="stat-content">
-                  <div class="skeleton-text skeleton-sm"></div>
-                  <div class="skeleton-text skeleton-lg"></div>
-                  <div class="skeleton-text skeleton-sm"></div>
-                </div>
-              </template>
-            </div>
+            <router-link to="/students" class="text-decoration-none">
+              <div class="stat-card" :class="{ 'skeleton-loading': loading }">
+                <template v-if="!loading">
+                  <div class="stat-icon">
+                    <i class="fas fa-book"></i>
+                  </div>
+                  <div class="stat-content">
+                    <div class="stat-header">
+                      <h3>Assignments</h3>
+                      <div class="open-icon">
+                        <i class="fas fa-external-link-alt"></i>
+                      </div>
+                    </div>
+                    <p class="stat-number">{{ studentAssignmentCount }}</p>
+                    <p class="stat-label">Total Assignments</p>
+                  </div>
+                </template>
+                <template v-else>
+                  <div class="skeleton-icon"></div>
+                  <div class="stat-content">
+                    <div class="skeleton-text skeleton-sm"></div>
+                    <div class="skeleton-text skeleton-lg"></div>
+                    <div class="skeleton-text skeleton-sm"></div>
+                  </div>
+                </template>
+              </div>
+            </router-link>
           </div>
 
           <!-- Class Teachers Card -->
@@ -818,11 +832,6 @@ onBeforeUnmount(() => {
   position: relative;
   overflow: hidden;
 
-  &:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
-  }
-
   .attendance-stats {
     display: flex;
     align-items: center;
@@ -923,6 +932,36 @@ onBeforeUnmount(() => {
     z-index: 1;
     padding-right: 4rem;
 
+    .stat-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.5rem;
+
+      h3 {
+        font-size: 1.1rem;
+        color: #666;
+        margin: 0;
+        font-weight: 500;
+      }
+
+      .open-icon {
+        font-size: 0.9rem;
+        color: #42b883;
+        opacity: 0.6;
+        transition: all 0.3s ease;
+        padding: 0.5rem;
+        margin: -0.5rem;
+        border-radius: 50%;
+        background: rgba(66, 184, 131, 0.1);
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+    }
+
     h3 {
       font-size: 1.1rem;
       color: #666;
@@ -931,7 +970,7 @@ onBeforeUnmount(() => {
     }
 
     .stat-number {
-      font-size: 2.5rem;
+      font-size: 1.5rem;
       font-weight: 700;
       color: #2c3e50;
       margin-bottom: 0.25rem;
@@ -956,6 +995,17 @@ onBeforeUnmount(() => {
       opacity: 0.8;
     }
   }
+
+  &:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+    
+    .stat-header .open-icon {
+      opacity: 1;
+      transform: translateX(3px);
+      background: rgba(66, 184, 131, 0.2);
+    }
+  }
 }
 
 @media (max-width: 991px) {
@@ -976,6 +1026,17 @@ onBeforeUnmount(() => {
       min-height: 180px;
       padding: 1rem;
 
+      .stat-header {
+        justify-content: center;
+        flex-direction: column;
+        gap: 0.5rem;
+        text-align: center;
+        
+        .open-icon {
+          margin-top: 0;
+        }
+      }
+
       h3 {
         font-size: 1rem;
         margin-bottom: 1rem;
@@ -985,7 +1046,7 @@ onBeforeUnmount(() => {
       .stat-number {
         font-size: 1.5rem;
         margin: 0.5rem 0;
-        background: linear-gradient(135deg, #42b883, #3aa876);
+        background: linear-gradient(135deg, #e0a211, #e29804);
         -webkit-background-clip: text;
         background-clip: text;
         -webkit-text-fill-color: transparent;
