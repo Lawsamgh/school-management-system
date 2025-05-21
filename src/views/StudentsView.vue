@@ -130,7 +130,7 @@
         <!-- Sidebar -->
         <div class="col-lg-4">
           <!-- Upcoming Tests -->
-          <div class="content-card mb-4">
+          <div class="content-card upcoming-tests-card mb-4">
             <div class="card-header">
               <h2>
                 <i class="fas fa-clipboard-list me-2"></i>
@@ -156,13 +156,46 @@
               </div>
             </div>
           </div>
+
+          <!-- Performance Stats Card -->
+          <div class="content-card performance-stats-card">
+            <div class="card-header">
+              <h2>
+                <i class="fas fa-chart-line me-2"></i>
+                Performance Stats
+              </h2>
+            </div>
+            <div class="card-body h-100">
+              <div class="stats-grid">
+                <div class="stat-item">
+                  <div class="stat-value">{{ completedAssignments }}</div>
+                  <div class="stat-label">Completed Tasks</div>
+                </div>
+                
+                <div class="stat-item">
+                  <div class="stat-value">{{ pastDueAssignments }}</div>
+                  <div class="stat-label">Past Due</div>
+                </div>
+
+                <div class="stat-item">
+                  <div class="stat-value">{{ averageScore }}%</div>
+                  <div class="stat-label">Average Score</div>
+                </div>
+
+                <div class="stat-item">
+                  <div class="stat-value">{{ attendancePercentage }}%</div>
+                  <div class="stat-label">Attendance</div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
-      <!-- Completed Assignments Section - Full Width -->
+      <!-- Completed Assignments Section -->
       <div class="row mt-4">
-        <div class="col-12">
-          <div class="content-card">
+        <div class="col-md-12">
+          <div class="content-card completed-assignments-card">
             <div class="card-header">
               <h2>
                 <i class="fas fa-check-circle me-2"></i>
@@ -1420,6 +1453,32 @@ const getTimeDifference = (startDate: string, endDate: string) => {
 const isAssignmentExpired = (dueDate: string) => {
   return new Date(dueDate) < new Date();
 };
+
+// First add the computed properties
+const pastDueAssignments = computed(() => {
+  return assignments.value.filter(assignment => {
+    const isPending = assignment.student_status === 'pending'
+    const dueDate = assignment.due_date ? new Date(assignment.due_date) : null
+    const now = new Date()
+    
+    // Count if pending AND has due date that has passed
+    return isPending && dueDate && dueDate < now
+  }).length
+})
+
+const averageScore = computed(() => {
+  const completedWithScores = assignments.value.filter(assignment => 
+    assignment.student_status === 'completed' && assignment.score !== null
+  )
+  
+  if (completedWithScores.length === 0) return 0
+  
+  const totalScore = completedWithScores.reduce((sum, assignment) => 
+    sum + (assignment.score || 0), 0
+  )
+  
+  return Math.round(totalScore / completedWithScores.length)
+})
 </script>
 
 <style lang="scss" scoped>
@@ -2904,5 +2963,213 @@ const isAssignmentExpired = (dueDate: string) => {
       background: inherit;
     }
   }
+}
+
+// Add CSS to make the grid look better
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  padding: 0.5rem;
+
+  .stat-item {
+    background: #f8f9fa;
+    border-radius: 0.75rem;
+    padding: 1.25rem;
+    text-align: center;
+    transition: all 0.3s ease;
+    border: 1px solid #e9ecef;
+
+    &:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+      border-color: #42b883;
+    }
+
+    .stat-value {
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: #2c3e50;
+      margin-bottom: 0.25rem;
+      background: linear-gradient(135deg, #42b883 0%, #3aa876 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .stat-label {
+      color: #666;
+      font-size: 0.875rem;
+      font-weight: 500;
+    }
+  }
+}
+
+.performance-stats-card {
+  position: sticky;
+  top: 1rem;
+  height: 420px !important; // Force the height with !important
+  margin-bottom: 1rem;
+  display: flex;
+  flex-direction: column;
+
+  .card-header {
+    padding: 0.75rem;
+    h2 {
+      font-size: 1rem;
+      margin: 0;
+    }
+  }
+
+  .card-body {
+    flex: 1;
+    display: flex;
+    padding: 0.5rem;
+    min-height: 0; // Important for flex child
+  }
+
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+    width: 100%;
+
+    .stat-item {
+      background: #f8f9fa;
+      border-radius: 0.5rem;
+      padding: 0.75rem;
+      text-align: center;
+      transition: all 0.3s ease;
+      border: 1px solid #e9ecef;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      min-height: 0; // Important for flex child
+
+      &:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        border-color: #42b883;
+      }
+
+      .stat-value {
+        font-size: 2.25rem;
+        font-weight: 700;
+        color: #2c3e50;
+        margin-bottom: 0.25rem;
+        background: linear-gradient(135deg, #42b883 0%, #3aa876 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        line-height: 1;
+      }
+
+      .stat-label {
+        color: #666;
+        font-size: 1rem;
+        font-weight: 500;
+        line-height: 1;
+      }
+    }
+  }
+}
+
+// Update the completed assignments card
+.content-card {
+  &.completed-assignments-card {
+    height: 600px; // Match performance stats card height
+    display: flex;
+    flex-direction: column;
+
+    .card-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1rem;
+    }
+  }
+
+  // Add styles for upcoming tests card
+  &.upcoming-tests-card {
+    height: 220px; // Reduced height
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 1rem;
+
+    .card-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0.75rem;
+    }
+
+    .upcoming-tests {
+      .test-item {
+        padding: 0.75rem;
+        border-radius: 0.5rem;
+        background: #f8f9fa;
+        margin-bottom: 0.5rem;
+        border: 1px solid #e9ecef;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+
+        &:last-child {
+          margin-bottom: 0;
+        }
+
+        .test-date {
+          background: #42b883;
+          color: white;
+          padding: 0.5rem;
+          border-radius: 0.4rem;
+          text-align: center;
+          min-width: 50px;
+          
+          .day {
+            font-size: 1.1rem;
+            font-weight: 700;
+            display: block;
+            line-height: 1;
+          }
+          
+          .month {
+            font-size: 0.75rem;
+            display: block;
+            opacity: 0.9;
+            text-transform: uppercase;
+            margin-top: 0.2rem;
+          }
+        }
+
+        .test-details {
+          flex: 1;
+          min-width: 0;
+
+          h4 {
+            font-size: 0.9rem;
+            margin: 0 0 0.25rem;
+            font-weight: 600;
+          }
+
+          p {
+            font-size: 0.8rem;
+            margin: 0 0 0.25rem;
+            color: #666;
+          }
+
+          .time {
+            font-size: 0.75rem;
+            color: #666;
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+          }
+        }
+      }
+    }
+  }
+}
+
+.completed-assignments {
+  height: 100%;
 }
 </style> 
