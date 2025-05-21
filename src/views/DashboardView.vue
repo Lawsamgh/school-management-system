@@ -770,6 +770,22 @@ onBeforeUnmount(() => {
 </script>
 
 <style lang="scss" scoped>
+.dashboard {
+  .container {
+    padding: 1.5rem;
+    
+    .row {
+      margin-right: 0;
+      margin-left: 0;
+      
+      > [class*='col-'] {
+        padding-right: 0.75rem;
+        padding-left: 0.75rem;
+      }
+    }
+  }
+}
+
 .welcome-card {
   background: linear-gradient(135deg, #42b883 0%, #3aa876 100%);
   border-radius: 1rem;
@@ -777,7 +793,7 @@ onBeforeUnmount(() => {
   color: white;
   position: relative;
   overflow: hidden;
-  margin-bottom: 0.5rem;
+  margin-bottom: 1.5rem;
   box-shadow: 0 4px 15px rgba(66, 184, 131, 0.2);
 
   .content {
@@ -831,6 +847,7 @@ onBeforeUnmount(() => {
   transition: all 0.3s ease;
   position: relative;
   overflow: hidden;
+  margin-bottom: 0;
 
   .attendance-stats {
     display: flex;

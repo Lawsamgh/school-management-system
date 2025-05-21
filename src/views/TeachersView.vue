@@ -380,10 +380,10 @@
                                 <td>
                                 <div class="actions">
                                   <button 
-                                    v-if="assignment.teacher_id === authStore.userRole?.id"
+                                    v-if="assignment.teacher_id === authStore.userRole?.id && (!assignment.submission_count || assignment.submission_count === 0)"
                                     class="action-btn edit" 
                                     @click="editAssignment(assignment)"
-                                    :title="assignment.teacher_id === authStore.userRole?.id ? 'Edit assignment' : 'Only the creator can edit this assignment'"
+                                    :title="assignment.submission_count > 0 ? 'Cannot edit assignment with submissions' : 'Edit assignment'"
                                   >
                                     <i class="fas fa-edit"></i>
                                   </button>
@@ -987,7 +987,7 @@
                         </div>
                         <div class="col-md-12">
                           <!-- Timer Settings -->
-                          <div class="form-group">
+                          <div class="form-group" v-if="!isEditing || (isEditing && originalAssignmentHadTimer)">
                             <div class="d-flex align-items-center mb-2">
                               <div class="form-check">
                                 <input 
@@ -2512,6 +2512,7 @@ const closeCreateAssignmentModal = () => {
   currentStep.value = 1
   isEditing.value = false
   editingAssignmentId.value = ''
+  originalAssignmentHadTimer.value = false
   createAssignmentModal?.hide()
 }
 
@@ -2567,42 +2568,134 @@ const saveAssignment = async () => {
 
     // Handle MCQ questions and options
     if (newAssignment.value.type === 'mcq') {
-      // Delete existing questions and options if editing
       if (isEditing.value) {
-        await supabase
+        // Get existing questions for this assignment
+        const { data: existingQuestions, error: fetchError } = await supabase
           .from('assignment_questions')
-          .delete()
+          .select('id, question_text, points, question_order, question_options(id, option_text, is_correct, option_order)')
           .eq('assignment_id', assignmentId)
-      }
 
-      // Insert new questions and options
-      for (const [qIndex, question] of newAssignment.value.questions.entries()) {
-        const { data: questionData, error: questionError } = await supabase
-          .from('assignment_questions')
-          .insert({
-            assignment_id: assignmentId,
-            question_text: question.text,
-            points: question.points,
-            question_order: qIndex + 1
-          })
-          .select()
-          .single()
+        if (fetchError) throw fetchError
 
-        if (questionError) throw questionError
+        // Create a map of existing questions for comparison
+        const existingQuestionsMap = new Map(
+          existingQuestions?.map(q => [
+            `${q.question_text}-${q.points}-${q.question_order}`,
+            { ...q, options: q.question_options }
+          ])
+        )
 
-        // Insert options for this question
-        const optionsToInsert = question.options.map((opt, optIndex) => ({
-          question_id: questionData.id,
-          option_text: opt.text,
-          is_correct: optIndex === question.correctOption,
-          option_order: optIndex + 1
-        }))
+        // Process each question
+        for (const [qIndex, question] of newAssignment.value.questions.entries()) {
+          const questionKey = `${question.text}-${question.points}-${qIndex + 1}`
+          const existingQuestion = existingQuestionsMap.get(questionKey)
 
-        const { error: optionsError } = await supabase
-          .from('question_options')
-          .insert(optionsToInsert)
+          let questionId: string
 
-        if (optionsError) throw optionsError
+          if (existingQuestion) {
+            // Question exists, update it if needed
+            questionId = existingQuestion.id
+            
+            // Update question if points changed
+            if (existingQuestion.points !== question.points) {
+              await supabase
+                .from('assignment_questions')
+                .update({ points: question.points })
+                .eq('id', questionId)
+            }
+
+            // Update options
+            const existingOptions = existingQuestion.options || []
+            const optionsToUpdate = question.options.map((opt, optIndex) => ({
+              question_id: questionId,
+              option_text: opt.text,
+              is_correct: optIndex === question.correctOption,
+              option_order: optIndex + 1
+            }))
+
+            // Delete old options and insert new ones
+            if (existingOptions.length > 0) {
+              await supabase
+                .from('question_options')
+                .delete()
+                .eq('question_id', questionId)
+            }
+
+            await supabase
+              .from('question_options')
+              .insert(optionsToUpdate)
+
+          } else {
+            // Question doesn't exist, create it
+            const { data: newQuestion, error: questionError } = await supabase
+              .from('assignment_questions')
+              .insert({
+                assignment_id: assignmentId,
+                question_text: question.text,
+                points: question.points,
+                question_order: qIndex + 1
+              })
+              .select()
+              .single()
+
+            if (questionError) throw questionError
+            questionId = newQuestion.id
+
+            // Insert new options
+            const optionsToInsert = question.options.map((opt, optIndex) => ({
+              question_id: questionId,
+              option_text: opt.text,
+              is_correct: optIndex === question.correctOption,
+              option_order: optIndex + 1
+            }))
+
+            const { error: optionsError } = await supabase
+              .from('question_options')
+              .insert(optionsToInsert)
+
+            if (optionsError) throw optionsError
+          }
+
+          existingQuestionsMap.delete(questionKey)
+        }
+
+        // Delete questions that no longer exist
+        const questionsToDelete = Array.from(existingQuestionsMap.values()).map(q => q.id)
+        if (questionsToDelete.length > 0) {
+          await supabase
+            .from('assignment_questions')
+            .delete()
+            .in('id', questionsToDelete)
+        }
+      } else {
+        // Create new questions and options for new assignment
+        for (const [qIndex, question] of newAssignment.value.questions.entries()) {
+          const { data: questionData, error: questionError } = await supabase
+            .from('assignment_questions')
+            .insert({
+              assignment_id: assignmentId,
+              question_text: question.text,
+              points: question.points,
+              question_order: qIndex + 1
+            })
+            .select()
+            .single()
+
+          if (questionError) throw questionError
+
+          const optionsToInsert = question.options.map((opt, optIndex) => ({
+            question_id: questionData.id,
+            option_text: opt.text,
+            is_correct: optIndex === question.correctOption,
+            option_order: optIndex + 1
+          }))
+
+          const { error: optionsError } = await supabase
+            .from('question_options')
+            .insert(optionsToInsert)
+
+          if (optionsError) throw optionsError
+        }
       }
     }
 
@@ -2777,6 +2870,7 @@ const editAssignment = async (assignment: any) => {
 
     editingAssignmentId.value = assignment.id
     isEditing.value = true
+    originalAssignmentHadTimer.value = assignment.has_timer || false
 
     // Pre-fill the form with existing assignment data
     newAssignment.value = {
@@ -2886,6 +2980,7 @@ const goToQuestions = () => {
 // Add these refs for editing assignments
 const editingAssignmentId = ref('')
 const isEditing = ref(false)
+const originalAssignmentHadTimer = ref(false)
 
 // Add these refs for the prompt modal
 const promptModalRef = ref<InstanceType<typeof PromptModal> | null>(null)

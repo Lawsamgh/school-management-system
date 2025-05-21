@@ -29,7 +29,7 @@
               </div>
               <div class="stat-item">
                 <div class="stat-value">{{ attendancePercentage }}%</div>
-                <div class="stat-label">Attendance</div>
+                <div class="stat-label">Attendance (Present)</div>
               </div>
             </div>
           </div>
@@ -56,7 +56,10 @@
                 <div v-for="assignment in filteredAssignments" 
                      :key="assignment.id" 
                      class="assignment-item"
-                     :class="{ 'completed': assignment.student_status === 'completed' }"
+                     :class="{ 
+                       'completed': assignment.student_status === 'completed',
+                       'expired': isAssignmentExpired(assignment.due_date) && assignment.student_status === 'pending'
+                     }"
                 >
                   <div class="assignment-content">
                     <div class="status-indicator"></div>
@@ -65,10 +68,12 @@
                         <h3>{{ assignment.title }}</h3>
                         <span v-if="!assignment.assignment_status?.length" 
                               class="new-badge">New</span>
+                        <span v-if="isAssignmentExpired(assignment.due_date) && assignment.student_status === 'pending'"
+                              class="expired-badge">Expired</span>
                       </div>
                       <p>{{ assignment.description }}</p>
                       <div class="meta-info">
-                        <span class="due-date">
+                        <span class="due-date" :class="{ 'text-danger': isAssignmentExpired(assignment.due_date) }">
                           <i class="far fa-calendar-alt me-1"></i>
                           Due: {{ formatDate(assignment.due_date) }}
                         </span>
@@ -80,10 +85,16 @@
                           <i class="fas fa-star me-1"></i>
                           {{ assignment.total_points }} points
                         </span>
+                        <span v-if="assignment.has_timer" class="timer">
+                          <i class="fas fa-clock me-1"></i>
+                          {{ assignment.time_limit }} minutes
+                        </span>
                       </div>
                     </div>
                     <div class="assignment-actions">
-                      <button class="btn-action btn-view" @click="viewAssignment(assignment)">
+                      <button class="btn-action btn-view" 
+                              @click="viewAssignment(assignment)"
+                              :disabled="isAssignmentExpired(assignment.due_date) && assignment.student_status === 'pending'">
                         <i class="fas fa-eye"></i>
                         <span>View</span>
                       </button>
@@ -91,7 +102,7 @@
                         v-if="assignment.student_status !== 'completed'"
                         class="btn-action btn-submit" 
                         @click="submitAssignment(assignment)"
-                      >
+                        :disabled="isAssignmentExpired(assignment.due_date)">
                         <i class="fas fa-paper-plane"></i>
                         <span>Submit</span>
                       </button>
@@ -229,17 +240,36 @@
         <div class="modal-content">
           <div class="modal-header">
             <div class="modal-title-wrapper">
-              <div class="d-flex align-items-center gap-2 mb-2">
-                <span class="subject-badge">{{ selectedAssignment?.subject }}</span>
-                <span class="due-badge">
-                  <i class="far fa-clock me-1"></i>
-                  Due: {{ formatDate(selectedAssignment?.due_date) }}
-                </span>
-            </div>
-              <h5 class="modal-title">{{ selectedAssignment?.title }}</h5>
+              <div class="header-content">
+                <div class="title-section">
+                  <h5 class="modal-title">{{ selectedAssignment?.title }}</h5>
+                  <div class="badges-container">
+                    <span class="subject-badge">{{ selectedAssignment?.subject }}</span>
+                    <span class="due-badge">
+                      <i class="far fa-clock me-1"></i>
+                      Due: {{ formatDate(selectedAssignment?.due_date) }}
+                    </span>
                   </div>
-            <button type="button" class="btn-close" @click="handleModalClose"></button>
                 </div>
+                <div v-if="selectedAssignment?.has_timer && selectedAssignment?.student_status === 'pending'" 
+                     class="timer-section">
+                  <div class="timer-countdown"
+                       :class="{ 'time-warning': remainingTime && remainingTime <= 300 }">
+                    <div class="timer-label">Time Remaining</div>
+                    <div class="timer-value">
+                      <i class="fas fa-clock"></i>
+                      {{ formatTimeRemaining }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <button type="button" 
+                    class="btn-close" 
+                    @click="handleModalClose"
+                    v-if="!selectedAssignment?.has_timer || selectedAssignment?.student_status === 'completed'">
+            </button>
+          </div>
           <div class="modal-body">
             <div class="quiz-container" v-if="selectedAssignment">
               <!-- Progress Bar -->
@@ -318,10 +348,7 @@
                           {{ question.points }} points
           </div>
         </div>
-                      <!-- <div class="question-status" :class="{ 'answered': false }">
-                        <i class="fas fa-circle-check"></i>
-                        <span>Not answered</span>
-                      </div> -->
+                      
                     </div>
                     
                     <div class="question-content">
@@ -386,7 +413,9 @@
                   <span>Your progress is automatically saved</span>
                 </div>
                 <div class="action-buttons">
-                  <button class="action-btn btn-secondary" @click="closeModal">
+                  <button class="action-btn btn-secondary" 
+                          @click="closeModal"
+                          v-if="!selectedAssignment.has_timer || selectedAssignment.student_status === 'completed'">
                     <i class="fas" :class="selectedAssignment.student_status === 'completed' ? 'fa-times' : 'fa-save'"></i>
                     {{ selectedAssignment.student_status === 'completed' ? 'Close' : 'Save & Exit' }}
                   </button>
@@ -407,7 +436,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed, onUnmounted } from 'vue'
+import { ref, onMounted, computed, onUnmounted, watch } from 'vue'
 import { Modal } from 'bootstrap'
 import { useAuthStore } from '@/store/auth'
 import { supabase } from '@/lib/supabase'
@@ -470,6 +499,8 @@ interface Assignment {
   max_score?: number;
   submitted_at?: string;
   created_at: string;
+  has_timer: boolean;
+  time_limit: number;
 }
 
 // Update the processed assignment interface
@@ -493,6 +524,8 @@ const assignments = ref<ProcessedAssignment[]>([])
 const selectedFilter = ref('all')
 const selectedAssignment = ref<ProcessedAssignment | null>(null)
 const assignmentModal = ref<Modal | null>(null)
+const remainingTime = ref<number | null>(null)
+const timerInterval = ref<number | null>(null)
 
 // Mock data for demo (replace with actual data fetching)
 const upcomingTests = ref([
@@ -512,26 +545,38 @@ const upcomingTests = ref([
   }
 ])
 
+// Initialize the refs with 0
+const presentDays = ref(0)
+const absentDays = ref(0)
+const totalDays = ref(0)
+
+// Initialize attendance data when component mounts
+onMounted(async () => {
+  console.log('Component mounted, initializing data...')
+  await fetchAttendanceData()
+})
+
 // Attendance data
-const presentDays = ref(85)
-const absentDays = ref(15)
-const totalDays = ref(100)
-const attendancePercentage = ref(85)
+const attendancePercentage = computed(() => {
+  console.log('Computing attendance percentage:', {
+    presentDays: presentDays.value,
+    totalDays: totalDays.value
+  })
+  if (totalDays.value === 0) return 0
+  return Math.round((presentDays.value / totalDays.value) * 100)
+})
 
 // Computed
 const pendingAssignments = computed(() => {
-  const schoolId = authStore.userRole?.school_id;
-  const studentId = authStore.userRole?.id;
-  if (!schoolId || !studentId) return 0;
-
   return assignments.value.filter(assignment => {
-    // Check if the assignment has a status of 'pending' for this specific student
-    return assignment.assignment_status?.some((status: AssignmentStatus) => 
-      status.status === 'pending' && 
-   
-      status.student_id === studentId
-    );
-  }).length;
+    // Check if the assignment is pending and not past due date
+    const isPending = assignment.student_status === 'pending'
+    const dueDate = assignment.due_date ? new Date(assignment.due_date) : null
+    const now = new Date()
+    
+    // Only count if pending AND either has no due date or due date hasn't passed
+    return isPending && (!dueDate || dueDate > now)
+  }).length
 })
 
 const completedAssignments = computed(() => 
@@ -540,8 +585,11 @@ const completedAssignments = computed(() =>
 
 const filteredAssignments = computed(() => {
   if (selectedFilter.value === 'all') {
-    // Only show pending assignments by default
-    return assignments.value.filter(a => a.student_status === 'pending');
+    // Only show pending assignments that haven't expired
+    return assignments.value.filter(a => {
+      const isExpired = new Date(a.due_date) < new Date();
+      return a.student_status === 'pending' && !isExpired;
+    });
   }
   return assignments.value.filter(a => a.student_status === selectedFilter.value);
 })
@@ -590,8 +638,212 @@ const formatMonth = (date: string) => {
   return new Date(date).toLocaleDateString('en-US', { month: 'short' })
 }
 
-const viewAssignment = (assignment: ProcessedAssignment) => {
-  selectedAssignment.value = assignment
+const formatTimeRemaining = computed(() => {
+  if (!remainingTime.value) return '--:--';
+  const minutes = Math.floor(remainingTime.value / 60);
+  const seconds = remainingTime.value % 60;
+  return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+});
+
+// Add watchers after the component setup
+// Watch remaining time changes
+watch(remainingTime, async (newTime) => {
+  if (selectedAssignment.value?.has_timer && 
+      selectedAssignment.value?.student_status === 'pending' && 
+      newTime !== null) {
+    const studentId = authStore.userRole?.id;
+    if (studentId && selectedAssignment.value) {
+      try {
+        await supabase
+          .from('assignment_status')
+          .update({
+            remaining_time: newTime,
+            updated_at: new Date().toISOString()
+          })
+          .eq('assignment_id', selectedAssignment.value.id)
+          .eq('student_id', studentId);
+      } catch (error) {
+        console.error('Error saving timer state:', error);
+      }
+    }
+  }
+});
+
+// Update handleOptionSelect to save progress immediately
+const handleOptionSelect = async (questionId: string, optionId: string) => {
+  if (!selectedAssignment.value) return;
+
+  // Find and update the question in the selectedAssignment
+  const question = selectedAssignment.value.questions.find(q => q.id === questionId);
+  if (question) {
+    question.student_response = {
+      id: `temp_${Date.now()}`, // Temporary ID for new responses
+      selected_option_id: optionId
+    };
+  }
+
+  // Update the navigation dot status
+  const questionElement = document.getElementById('question-' + questionId);
+  if (questionElement) {
+    const navDot = document.querySelector(`.nav-dot[data-question="${questionId}"]`);
+    if (navDot) {
+      navDot.classList.add('answered');
+    }
+  }
+
+  // Save progress to database
+  try {
+    const studentId = authStore.userRole?.id;
+    if (!studentId) return;
+
+    const now = new Date().toISOString();
+
+    // Save the response
+    await supabase
+      .from('student_responses')
+      .upsert({
+        student_id: studentId,
+        question_id: questionId,
+        selected_option_id: optionId,
+        created_at: now,
+        updated_at: now
+      }, {
+        onConflict: 'student_id,question_id'
+      });
+
+    // Update assignment status
+    await supabase
+      .from('assignment_status')
+      .upsert({
+        assignment_id: selectedAssignment.value.id,
+        student_id: studentId,
+        status: 'pending',
+        remaining_time: remainingTime.value,
+        updated_at: now
+      }, {
+        onConflict: 'assignment_id,student_id'
+      });
+
+  } catch (error) {
+    console.error('Error saving response:', error);
+    toast.error('Failed to save your answer. Please try again.');
+  }
+}
+
+// Update startTimer to pass isTimerExpired flag
+const startTimer = async () => {
+  if (!selectedAssignment.value?.has_timer || !selectedAssignment.value?.time_limit) return;
+  
+  const studentId = authStore.userRole?.id;
+  if (!studentId || !selectedAssignment.value) return;
+
+  try {
+    // Get existing assignment status
+    const { data: statusData, error: statusError } = await supabase
+      .from('assignment_status')
+      .select('started_at, remaining_time')
+      .eq('assignment_id', selectedAssignment.value.id)
+      .eq('student_id', studentId)
+      .single();
+
+    if (statusError && statusError.code !== 'PGRST116') {
+      console.error('Error fetching timer status:', statusError);
+      throw statusError;
+    }
+
+    const now = new Date();
+    
+    if (!statusData?.started_at) {
+      // First time starting the timer
+      remainingTime.value = selectedAssignment.value.time_limit * 60;
+      
+      // Save initial timer state
+      const { error: saveError } = await supabase
+        .from('assignment_status')
+        .upsert({
+          assignment_id: selectedAssignment.value.id,
+          student_id: studentId,
+          status: 'pending',
+          started_at: now.toISOString(),
+          remaining_time: remainingTime.value,
+          created_at: now.toISOString(),
+          updated_at: now.toISOString()
+        }, {
+          onConflict: 'assignment_id,student_id'
+        });
+
+      if (saveError) {
+        console.error('Error saving timer status:', saveError);
+        throw saveError;
+      }
+    } else {
+      // Resume from saved state
+      remainingTime.value = statusData.remaining_time;
+    }
+  } catch (error) {
+    console.error('Error in startTimer:', error);
+    toast.error('Failed to start timer. Please try again.');
+    return;
+  }
+
+  // Clear any existing interval
+  if (timerInterval.value) {
+    clearInterval(timerInterval.value);
+  }
+  
+  // Start countdown
+  timerInterval.value = window.setInterval(() => {
+    if (remainingTime.value && remainingTime.value > 0) {
+      remainingTime.value--;
+    } else {
+      // Time's up - auto submit
+      if (timerInterval.value) {
+        clearInterval(timerInterval.value);
+      }
+      if (selectedAssignment.value) {
+        submitAssignment(selectedAssignment.value, true); // Pass true for timer expiration
+      }
+    }
+  }, 1000);
+};
+
+const stopTimer = () => {
+  if (timerInterval.value) {
+    clearInterval(timerInterval.value);
+    timerInterval.value = null;
+  }
+  remainingTime.value = null;
+};
+
+// Modify viewAssignment to handle both initial view and refresh
+const viewAssignment = async (assignment: ProcessedAssignment) => {
+  // Check if assignment is expired and not yet started
+  if (isAssignmentExpired(assignment.due_date) && assignment.student_status === 'pending') {
+    toast.error('This assignment has expired. The due date has passed.');
+    return;
+  }
+
+  selectedAssignment.value = assignment;
+  
+  // Check if this is a timed assignment
+  if (assignment.has_timer && assignment.student_status === 'pending') {
+    const studentId = authStore.userRole?.id;
+    if (studentId) {
+      const { data: statusData } = await supabase
+        .from('assignment_status')
+        .select('started_at, remaining_time')
+        .eq('assignment_id', assignment.id)
+        .eq('student_id', studentId)
+        .single();
+
+      // If there's an ongoing timer or it's a new start, initialize timer
+      if (statusData?.started_at && statusData?.remaining_time) {
+        startTimer();
+      } else {
+        startTimer();
+      }
+    }
+  }
   
   // Ensure modal is initialized
   if (!assignmentModal.value) {
@@ -607,14 +859,18 @@ const viewAssignment = (assignment: ProcessedAssignment) => {
   assignmentModal.value?.show()
 }
 
-const submitAssignment = async (assignment: ProcessedAssignment) => {
+// Update submitAssignment function to clear timer data
+const submitAssignment = async (assignment: ProcessedAssignment, isTimerExpired: boolean = false) => {
   try {
-    // 1. Validate that all questions are answered
-    const unansweredQuestions = assignment.questions.filter(q => !q.student_response);
-    if (unansweredQuestions.length > 0) {
-      toast.warning(`Please answer all questions before submitting. ${unansweredQuestions.length} questions remaining.`);
-      scrollToQuestion(unansweredQuestions[0].id);
-      return;
+    // Only validate complete answers if not timer expired
+    if (!isTimerExpired) {
+      // 1. Validate that all questions are answered
+      const unansweredQuestions = assignment.questions.filter(q => !q.student_response);
+      if (unansweredQuestions.length > 0) {
+        toast.warning(`Please answer all questions before submitting. ${unansweredQuestions.length} questions remaining.`);
+        scrollToQuestion(unansweredQuestions[0].id);
+        return;
+      }
     }
 
     // Show loading toast
@@ -632,8 +888,9 @@ const submitAssignment = async (assignment: ProcessedAssignment) => {
     }
     const now = new Date().toISOString();
 
-    // 3. Save student responses
-    const responses = assignment.questions.map(question => ({
+    // 3. Save student responses (only for answered questions)
+    const answeredQuestions = assignment.questions.filter(q => q.student_response);
+    const responses = answeredQuestions.map(question => ({
       student_id: studentId,
       question_id: question.id,
       selected_option_id: question.student_response?.selected_option_id,
@@ -641,15 +898,14 @@ const submitAssignment = async (assignment: ProcessedAssignment) => {
       updated_at: now
     }));
 
-    const { error: submissionError } = await supabase
-      .from('student_responses')
-      .upsert(responses, {
-        onConflict: 'student_id,question_id'
-      });
+    if (responses.length > 0) {
+      const { error: submissionError } = await supabase
+        .from('student_responses')
+        .upsert(responses, {
+          onConflict: 'student_id,question_id'
+        });
 
-    if (submissionError) {
-      console.error('Error saving responses:', submissionError);
-      throw submissionError;
+      if (submissionError) throw submissionError;
     }
 
     // 4. Calculate and save score
@@ -679,80 +935,23 @@ const submitAssignment = async (assignment: ProcessedAssignment) => {
         onConflict: 'assignment_id,student_id'
       });
 
-    if (scoreError) {
-      console.error('Error saving score:', scoreError);
-      throw scoreError;
-    }
+    if (scoreError) throw scoreError;
 
     // 5. Update assignment status to completed
-    // First, check if a status record exists
-    const { data: existingStatus, error: checkError } = await supabase
+    const { error: statusError } = await supabase
       .from('assignment_status')
-      .select('*')
+      .update({
+        status: 'completed',
+        submitted_at: now,
+        remaining_time: null,
+        updated_at: now
+      })
       .eq('assignment_id', assignment.id)
-      .eq('student_id', studentId)
-      .single();
+      .eq('student_id', studentId);
 
-    if (checkError && checkError.code !== 'PGRST116') {
-      console.error('Error checking status:', checkError);
-      throw checkError;
-    }
+    if (statusError) throw statusError;
 
-    let statusUpdateResult;
-    const statusData = {
-      assignment_id: assignment.id,
-      student_id: studentId,
-      status: 'completed' as const,
-      submitted_at: now,
-      updated_at: now
-    };
-
-    if (existingStatus) {
-      // Update existing status
-      const { error: updateError } = await supabase
-        .from('assignment_status')
-        .update(statusData)
-        .eq('id', existingStatus.id)
-        .eq('student_id', studentId)
-        .eq('assignment_id', assignment.id);
-
-      if (updateError) {
-        console.error('Error updating status:', updateError);
-        throw updateError;
-      }
-    } else {
-      // Insert new status
-      const { error: insertError } = await supabase
-        .from('assignment_status')
-        .insert({
-          ...statusData,
-          created_at: now
-        });
-
-      if (insertError) {
-        console.error('Error inserting status:', insertError);
-        throw insertError;
-      }
-    }
-
-    // 6. Verify the status update
-    const { data: verifyStatus, error: verifyError } = await supabase
-      .from('assignment_status')
-      .select('*')
-      .eq('assignment_id', assignment.id)
-      .eq('student_id', studentId)
-      .single();
-
-    if (verifyError) {
-      console.error('Error verifying status:', verifyError);
-      throw verifyError;
-    }
-
-    if (!verifyStatus || verifyStatus.status !== 'completed') {
-      throw new Error('Status verification failed: Status not updated to completed');
-    }
-
-    // 7. Log activity
+    // 6. Log activity
     await logActivity(
       'create',
       'assignments',
@@ -762,15 +961,22 @@ const submitAssignment = async (assignment: ProcessedAssignment) => {
         title: assignment.title,
         score: score,
         max_score: maxScore,
-        status: 'completed'
+        status: 'completed',
+        submitted_by: isTimerExpired ? 'timer_expired' : 'student'
       }
     );
 
     // Clear loading toast and show success
     toast.clear();
-    /*toast.success(`Assignment submitted successfully! Score: ${score}/${maxScore} (${Math.round(score/maxScore * 100)}%)`); */
+    
+    // Show different message based on submission type
+    if (isTimerExpired) {
+      toast.warning(`Time's up! Assignment auto-submitted. Score: ${score}/${maxScore} (${Math.round(score/maxScore * 100)}%)`);
+    } else {
+      toast.success(`Assignment submitted successfully! Score: ${score}/${maxScore} (${Math.round(score/maxScore * 100)}%)`);
+    }
 
-    // 8. Close modal and refresh data
+    // Close modal and refresh data
     assignmentModal.value?.hide();
     
     // Add a small delay before fetching updated data
@@ -781,14 +987,6 @@ const submitAssignment = async (assignment: ProcessedAssignment) => {
     console.error('Error in submitAssignment:', error);
     toast.clear();
     toast.error('Failed to submit assignment. Please try again.');
-    
-    // Log detailed error for debugging
-    console.error('Detailed submission error:', {
-      error,
-      assignmentId: assignment.id,
-      studentId: authStore.userRole?.id,
-      timestamp: new Date().toISOString()
-    });
   }
 }
 
@@ -799,44 +997,14 @@ const scrollToQuestion = (questionId: string) => {
   }
 }
 
-const handleOptionSelect = async (questionId: string, optionId: string) => {
-  if (!selectedAssignment.value) return;
-
-  // Find and update the question in the selectedAssignment
-  const question = selectedAssignment.value.questions.find(q => q.id === questionId);
-  if (question) {
-    question.student_response = {
-      id: `temp_${Date.now()}`, // Temporary ID for new responses
-      selected_option_id: optionId
-    };
-  }
-
-  // Update the navigation dot status
-  const questionElement = document.getElementById('question-' + questionId);
-  if (questionElement) {
-    const navDot = document.querySelector(`.nav-dot[data-question="${questionId}"]`);
-    if (navDot) {
-      navDot.classList.add('answered');
-    }
-  }
-
-  // Progress bar will automatically update through the computed property
-}
-
+// Update closeModal function
 const closeModal = async () => {
   try {
     // Only perform save operations if the assignment is pending
     if (selectedAssignment.value?.student_status === 'pending') {
-      // Get the student ID from auth store
       const studentId = authStore.userRole?.id;
       if (!studentId || !selectedAssignment.value) {
-        assignmentModal.value?.hide();
-        return;
-      }
-
-      // Get all answered questions
-      const answeredQuestions = selectedAssignment.value.questions.filter(q => q.student_response);
-      if (answeredQuestions.length === 0) {
+        stopTimer();
         assignmentModal.value?.hide();
         return;
       }
@@ -848,37 +1016,38 @@ const closeModal = async () => {
         closeButton: false
       });
 
-      // Get current UTC timestamp
       const now = new Date().toISOString();
 
-      // Prepare responses for saving
-      const responses = answeredQuestions.map(question => ({
-        student_id: studentId,
-        question_id: question.id,
-        selected_option_id: question.student_response?.selected_option_id,
-        created_at: now,
-        updated_at: now
-      }));
+      // Get all answered questions
+      const answeredQuestions = selectedAssignment.value.questions.filter(q => q.student_response);
+      
+      if (answeredQuestions.length > 0) {
+        // Save responses
+        const responses = answeredQuestions.map(question => ({
+          student_id: studentId,
+          question_id: question.id,
+          selected_option_id: question.student_response?.selected_option_id,
+          created_at: now,
+          updated_at: now
+        }));
 
-      // Save responses
-      const { error: submissionError } = await supabase
-        .from('student_responses')
-        .upsert(responses, {
-          onConflict: 'student_id,question_id'
-        });
+        const { error: submissionError } = await supabase
+          .from('student_responses')
+          .upsert(responses, {
+            onConflict: 'student_id,question_id'
+          });
 
-      if (submissionError) throw submissionError;
+        if (submissionError) throw submissionError;
+      }
 
-      // Only update assignment status if there are answered questions
-      // but don't mark it as completed
+      // Save assignment status with remaining time
       const { error: statusError } = await supabase
         .from('assignment_status')
         .upsert({
           assignment_id: selectedAssignment.value.id,
           student_id: studentId,
-          status: 'pending' as const,
-          submitted_at: null,
-          created_at: now,
+          status: 'pending',
+          remaining_time: remainingTime.value,
           updated_at: now
         }, {
           onConflict: 'assignment_id,student_id'
@@ -900,8 +1069,11 @@ const closeModal = async () => {
       toast.success('Progress saved successfully!');
     }
 
-    // Close the modal and refresh assignments
+    // Stop timer and close modal
+    stopTimer();
     assignmentModal.value?.hide();
+    
+    // Refresh assignments if needed
     if (selectedAssignment.value?.student_status === 'pending') {
       await fetchStudentData();
     }
@@ -912,25 +1084,33 @@ const closeModal = async () => {
   }
 }
 
-// Add a simple close function for the X button
+// Modify handleModalClose to handle timer
 const handleModalClose = () => {
+  stopTimer();  // Stop the timer when closing with X button
   assignmentModal.value?.hide();
 }
 
 // Update fetchStudentData function
 const fetchStudentData = async () => {
   try {
-    loading.value = true;
-    const schoolId = authStore.userRole?.school_id;
-    const studentId = authStore.userRole?.id;
+    loading.value = true
+    const schoolId = authStore.userRole?.school_id
+    const studentId = authStore.userRole?.id
+
+    console.log('Starting fetchStudentData:', { schoolId, studentId })
 
     if (!schoolId || !studentId) {
-      toast.error('Unable to fetch student data');
-      return;
+      toast.error('Unable to fetch student data')
+      return
     }
 
     // Add a small delay to ensure database updates are complete
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise(resolve => setTimeout(resolve, 1000))
+
+    // Fetch attendance data first
+    console.log('Fetching attendance data...')
+    await fetchAttendanceData()
+    console.log('Attendance data fetched')
 
     // Fetch class information
     const { data: userData, error: userError } = await supabase
@@ -1076,6 +1256,7 @@ const fetchStudentData = async () => {
       );
       }
     }
+
   } catch (error) {
     console.error('Error fetching student data:', error);
     toast.error('Failed to load student data');
@@ -1084,7 +1265,77 @@ const fetchStudentData = async () => {
   }
 };
 
-// Initialize
+// Add this to the fetchStudentData function, inside the try block
+const fetchAttendanceData = async () => {
+  // @ts-ignore - Accessing identification field which might not be in the type definition
+  const studentId = authStore.userRole?.identification
+  const schoolId = authStore.userRole?.school_id
+  
+  console.log('🔍 ATTENDANCE DEBUG:')
+  console.log('------------------------')
+  console.log('Student ID (identification):', studentId)
+  console.log('School ID:', schoolId)
+  console.log('------------------------')
+  
+  if (!studentId || !schoolId) {
+    console.log('❌ ERROR: Missing studentId or schoolId')
+    return
+  }
+
+  const { data: attendanceData, error: attendanceError } = await supabase
+    .from('attendances')
+    .select('*')
+    .eq('student_id', studentId)
+    .eq('school_id', schoolId)
+
+  if (attendanceError) {
+    console.error('❌ Database Error:', attendanceError)
+    return
+  }
+
+  console.log('📊 Query Results:', {
+    recordsFound: attendanceData?.length || 0,
+    data: attendanceData
+  })
+
+  if (attendanceData && attendanceData.length > 0) {
+    const present = attendanceData.filter(record => record.status === 'present').length
+    const total = attendanceData.length
+    
+    presentDays.value = present
+    absentDays.value = total - present
+    totalDays.value = total
+  } else {
+    console.log('❌ No attendance records found for this student')
+    presentDays.value = 0
+    absentDays.value = 0
+    totalDays.value = 0
+  }
+}
+
+// Make sure we're calling this at the right time
+onMounted(async () => {
+  console.log('[DEBUG] Component mounted, initializing attendance data...')
+  await fetchAttendanceData()
+})
+
+// Also call it when auth state changes
+watch(() => authStore.isAuthenticated, async (newValue) => {
+  console.log('[DEBUG] Auth state changed:', newValue)
+  if (newValue) {
+    await fetchAttendanceData()
+  }
+})
+
+// Watch for changes in userRole
+watch(() => authStore.userRole, async (newValue) => {
+  console.log('[DEBUG] UserRole changed:', newValue)
+  if (newValue?.id) {
+    await fetchAttendanceData()
+  }
+}, { deep: true })
+
+// Add beforeunload event handler
 onMounted(async () => {
   // Initialize Bootstrap modal
   const modalElement = document.getElementById('assignmentModal')
@@ -1095,16 +1346,48 @@ onMounted(async () => {
     })
   }
 
+  // Add page refresh/close handler
+  window.addEventListener('beforeunload', handlePageUnload);
+
   await fetchStudentData()
 })
 
-// Add cleanup in onUnmounted
+// Clean up timer and event listeners on component unmount
 onUnmounted(() => {
+  stopTimer();
+  window.removeEventListener('beforeunload', handlePageUnload);
   if (assignmentModal.value) {
     assignmentModal.value.dispose()
     assignmentModal.value = null
   }
 })
+
+// Add page unload handler
+const handlePageUnload = async (event: BeforeUnloadEvent) => {
+  if (selectedAssignment.value?.student_status === 'pending' && remainingTime.value) {
+    try {
+      // Save current timer state before page unload
+      const studentId = authStore.userRole?.id;
+      if (studentId && selectedAssignment.value) {
+        await supabase
+          .from('assignment_status')
+          .update({
+            remaining_time: remainingTime.value,
+            updated_at: new Date().toISOString()
+          })
+          .eq('assignment_id', selectedAssignment.value.id)
+          .eq('student_id', studentId);
+      }
+    } catch (error) {
+      console.error('Error saving timer state on page unload:', error);
+    }
+    
+    // Show warning message to user
+    event.preventDefault();
+    event.returnValue = 'You have an ongoing test. Are you sure you want to leave?';
+    return event.returnValue;
+  }
+};
 
 // Add these helper functions in the script section:
 const getScoreClass = (score: number, maxScore: number) => {
@@ -1131,6 +1414,11 @@ const getTimeDifference = (startDate: string, endDate: string) => {
     const hours = Math.floor((diffInMinutes % 1440) / 60);
     return `${days}d ${hours}h`;
   }
+};
+
+// Add computed property to check if assignment is expired
+const isAssignmentExpired = (dueDate: string) => {
+  return new Date(dueDate) < new Date();
 };
 </script>
 
@@ -1421,6 +1709,17 @@ const getTimeDifference = (startDate: string, endDate: string) => {
                 border-color: #42b883;
                 background: #f0fdf4;
               }
+
+              .timer {
+                color: #e11d48;
+                font-weight: 500;
+                border-color: #e11d48;
+                background: #fff1f2;
+                
+                i {
+                  color: #e11d48;
+                }
+              }
             }
           }
 
@@ -1649,29 +1948,149 @@ const getTimeDifference = (startDate: string, endDate: string) => {
       }
 
       .modal-title-wrapper {
-        .subject-badge, .due-badge {
-          display: inline-block;
-          padding: 0.25rem 0.75rem;
-          background: #f0fdf4;
-          color: #42b883;
-          border-radius: 1rem;
-          font-size: 0.875rem;
-          font-weight: 500;
+        flex: 1;
+        margin-right: 1rem;
+
+        .header-content {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 1.5rem;
+          width: 100%;
 
           @media (max-width: 768px) {
-            font-size: 0.75rem;
-            padding: 0.2rem 0.6rem;
+            flex-direction: column;
+            gap: 1rem;
           }
-        }
 
-        .modal-title {
-          font-size: 1.5rem;
-          font-weight: 600;
-          color: #1a1a1a;
-    margin: 0;
+          .title-section {
+            flex: 1;
+            min-width: 0;
 
-          @media (max-width: 768px) {
-            font-size: 1.25rem;
+            .modal-title {
+              font-size: 1.5rem;
+              font-weight: 600;
+              color: #1a1a1a;
+              margin: 0 0 0.75rem 0;
+              line-height: 1.2;
+
+              @media (max-width: 768px) {
+                font-size: 1.25rem;
+              }
+            }
+
+            .badges-container {
+              display: flex;
+              flex-wrap: wrap;
+              gap: 0.5rem;
+
+              .subject-badge,
+              .due-badge {
+                display: inline-flex;
+                align-items: center;
+                gap: 0.375rem;
+                padding: 0.375rem 0.75rem;
+                border-radius: 0.75rem;
+                font-size: 0.875rem;
+                font-weight: 500;
+                line-height: 1;
+                white-space: nowrap;
+              }
+
+              .subject-badge {
+                background: #f0fdf4;
+                color: #42b883;
+                border: 1.5px solid #42b883;
+              }
+
+              .due-badge {
+                background: #f1f5f9;
+                color: #64748b;
+                border: 1.5px solid #94a3b8;
+
+                i {
+                  color: #64748b;
+                }
+              }
+
+              @media (max-width: 768px) {
+                .subject-badge,
+                .due-badge {
+                  font-size: 0.75rem;
+                  padding: 0.25rem 0.625rem;
+                }
+              }
+            }
+          }
+
+          .timer-section {
+            .timer-countdown {
+              background: #fff1f2;
+              border: 2px solid #e11d48;
+              border-radius: 1rem;
+              padding: 0.75rem 1.25rem;
+              min-width: 180px;
+              box-shadow: 0 4px 6px rgba(225, 29, 72, 0.1);
+
+              .timer-label {
+                font-size: 0.75rem;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+                color: #e11d48;
+                margin-bottom: 0.25rem;
+                font-weight: 600;
+              }
+
+              .timer-value {
+                font-size: 1.5rem;
+                font-weight: 700;
+                color: #e11d48;
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+
+                i {
+                  font-size: 1.25rem;
+                }
+              }
+
+              &.time-warning {
+                animation: pulse 1.5s ease-in-out infinite;
+                background: #fecdd3;
+                border-color: #be123c;
+
+                .timer-value {
+                  color: #be123c;
+                }
+              }
+
+              @keyframes pulse {
+                0% {
+                  transform: scale(1);
+                }
+                50% {
+                  transform: scale(1.02);
+                  box-shadow: 0 6px 12px rgba(225, 29, 72, 0.2);
+                }
+                100% {
+                  transform: scale(1);
+                }
+              }
+
+              @media (max-width: 768px) {
+                width: 100%;
+                min-width: 0;
+                padding: 0.5rem 1rem;
+
+                .timer-value {
+                  font-size: 1.25rem;
+
+                  i {
+                    font-size: 1rem;
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -1716,6 +2135,54 @@ const getTimeDifference = (startDate: string, endDate: string) => {
                 color: #42b883;
     }
   }
+
+            .timer-countdown {
+              font-size: 0.875rem;
+              color: #e11d48;
+              display: inline-flex;
+              align-items: center;
+              gap: 0.5rem;
+              padding: 0.25rem 0.75rem;
+              background: #fff1f2;
+              border-radius: 1rem;
+              border: 1.5px solid #e11d48;
+              font-weight: 600;
+              box-shadow: 0 2px 4px rgba(225, 29, 72, 0.1);
+              transition: all 0.2s ease;
+              margin-left: auto;
+
+              i {
+                color: #e11d48;
+                font-size: 0.875rem;
+              }
+
+              &.time-warning {
+                animation: pulse 1.5s ease-in-out infinite;
+                background: #fecdd3;
+              }
+
+              @keyframes pulse {
+                0% {
+                  transform: scale(1);
+                }
+                50% {
+                  transform: scale(1.03);
+                  box-shadow: 0 4px 8px rgba(225, 29, 72, 0.2);
+                }
+                100% {
+                  transform: scale(1);
+                }
+              }
+
+              @media (max-width: 768px) {
+                font-size: 0.75rem;
+                padding: 0.25rem 0.5rem;
+                
+                i {
+                  font-size: 0.75rem;
+                }
+              }
+            }
 
             .progress-percentage {
               font-size: 0.875rem;
@@ -2376,5 +2843,66 @@ const getTimeDifference = (startDate: string, endDate: string) => {
   font-weight: 500;
   display: inline-flex;
   align-items: center;
+}
+
+.modal-title-wrapper {
+  .d-flex {
+    flex-wrap: wrap;
+    row-gap: 0.5rem;
+  }
+
+  .subject-badge, 
+  .due-badge {
+    white-space: nowrap;
+  }
+}
+
+// Add these styles
+.assignment-item {
+  &.expired {
+    background: #fee2e2;
+    border-color: #ef4444;
+    
+    .status-indicator {
+      background: #ef4444;
+    }
+    
+    .meta-info {
+      .due-date {
+        &.text-danger {
+          color: #dc2626;
+          border-color: #dc2626;
+          background: #fee2e2;
+          
+          i {
+            color: #dc2626;
+          }
+        }
+      }
+    }
+  }
+}
+
+.expired-badge {
+  background: #ef4444;
+  color: white;
+  padding: 0.25rem 0.5rem;
+  border-radius: 1rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+}
+
+.btn-action {
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    
+    &:hover {
+      transform: none;
+      background: inherit;
+    }
+  }
 }
 </style> 
