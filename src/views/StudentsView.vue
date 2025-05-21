@@ -1611,11 +1611,12 @@ const averageScore = computed(() => {
     overflow: hidden;
 
     &.assignments-section {
-      min-height: 600px;
+      height: 920px; /* Fixed height: 160px * 5 items + 120px (header + padding) */
 
       .card-body {
-        max-height: calc(3 * 160px + 1.5rem); // Height for 3 items plus padding
+        height: calc(100% - 80px); /* Subtract header height */
         overflow-y: auto;
+        padding: 1.5rem;
         
         /* Custom scrollbar styles */
         scrollbar-width: thin;
@@ -3008,8 +3009,8 @@ const averageScore = computed(() => {
 .performance-stats-card {
   position: sticky;
   top: 1rem;
-  height: 420px !important; // Force the height with !important
-  margin-bottom: 1rem;
+  height: 450px !important; // Half of assignments card (920px/2) - 10px for margin
+  margin-bottom: 20px; // Increased margin for better spacing
   display: flex;
   flex-direction: column;
 
@@ -3090,7 +3091,7 @@ const averageScore = computed(() => {
 
   // Add styles for upcoming tests card
   &.upcoming-tests-card {
-    height: 220px; // Reduced height
+    height: 450px; // Match performance stats card height
     display: flex;
     flex-direction: column;
     margin-bottom: 1rem;
@@ -3099,6 +3100,24 @@ const averageScore = computed(() => {
       flex: 1;
       overflow-y: auto;
       padding: 0.75rem;
+      
+      /* Custom scrollbar styles */
+      scrollbar-width: thin;
+      scrollbar-color: #42b883 #f8fafc;
+
+      &::-webkit-scrollbar {
+        width: 8px;
+      }
+
+      &::-webkit-scrollbar-track {
+        background: #f8fafc;
+      }
+
+      &::-webkit-scrollbar-thumb {
+        background-color: #42b883;
+        border-radius: 4px;
+        border: 2px solid #f8fafc;
+      }
     }
 
     .upcoming-tests {
