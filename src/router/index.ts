@@ -116,6 +116,24 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/teachers/schedule',
+    name: 'ClassSchedule',
+    component: () => import('@/views/ClassScheduleView.vue'),
+    meta: { requiresAuth: true },
+    beforeEnter: async (to, from, next) => {
+      const authStore = useAuthStore()
+      const toast = useToast()
+      
+      // Allow access to teachers and admins
+      if (['teacher', 'admin', 'superadmin'].includes(authStore.userRole?.role?.toLowerCase() || '')) {
+        return next()
+      }
+      
+      toast.error('Unauthorized access')
+      return next('/dashboard')
+    }
+  },
+  {
     path: '/students',
     name: 'Students',
     component: () => import('@/views/StudentsView.vue'),

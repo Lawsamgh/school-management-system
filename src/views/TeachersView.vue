@@ -109,6 +109,13 @@
                       Change {{ isSuperAdmin ? 'School/Class' : 'Class' }}
                     </button>
                     <button 
+                      class="btn btn-outline-primary btn-sm"
+                      @click="openClassScheduleModal"
+                    >
+                      <i class="fas fa-calendar-alt me-2"></i>
+                      Class Schedule
+                    </button>
+                    <button 
                       v-if="todayAttendance.length === 0"
                       class="btn btn-primary" 
                       @click="openTakeAttendanceModal"
@@ -1218,6 +1225,7 @@ import { logActivity } from '@/lib/auditLogger'
 import SchoolSelector from '@/components/SchoolSelector.vue'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import PromptModal from '@/components/PromptModal.vue'
+import { useRouter } from 'vue-router'
 
 // Initialize Bootstrap tabs
 onMounted(() => {
@@ -1230,6 +1238,7 @@ onMounted(() => {
 // Store and toast instances
 const authStore = useAuthStore()
 const toast = useToast()
+const router = useRouter()
 
 // Modal reference
 let attendanceModal: bootstrap.Modal | null = null
@@ -3103,6 +3112,10 @@ onMounted(() => {
 onUnmounted(() => {
   window.removeEventListener('hashchange', initializeTab)
 })
+
+const openClassScheduleModal = () => {
+  router.push({ name: 'ClassSchedule' })
+}
 
 </script>
 
