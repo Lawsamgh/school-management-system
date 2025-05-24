@@ -72,14 +72,6 @@
                   <i class="fas fa-list"></i>
                   <span>Manage Value List</span>
                 </div>
-                <div 
-                  class="settings-tab-item" 
-                  :class="{ active: activeTab === 'appearance' }"
-                  @click="activeTab = 'appearance'"
-                >
-                  <i class="fas fa-paint-brush"></i>
-                  <span>Appearance</span>
-                </div>
               </template>
               <!-- Show specific tabs for admin -->
               <template v-else-if="userRole === 'admin'">
@@ -106,6 +98,14 @@
                 >
                   <i class="fas fa-list"></i>
                   <span>Manage Value List</span>
+                </div>
+                <div 
+                  class="settings-tab-item" 
+                  :class="{ active: activeTab === 'appearance' }"
+                  @click="activeTab = 'appearance'"
+                >
+                  <i class="fas fa-paint-brush"></i>
+                  <span>Appearance</span>
                 </div>
               </template>
             </div>
@@ -548,8 +548,8 @@
             </div>
 
             <!-- Appearance Settings - Admin Only -->
-            <div v-if="userRole === 'superadmin'" v-show="activeTab === 'appearance'" class="settings-card">
-              <!-- ... existing appearance content ... -->
+            <div v-if="userRole === 'admin'" v-show="activeTab === 'appearance'">
+              <AppearanceSettings />
             </div>
 
             <!-- Access Package Settings - Superadmin Only -->
@@ -1512,6 +1512,7 @@ import PageLoader from '@/components/PageLoader.vue'
 import SettingsCardLoader from '@/components/SettingsCardLoader.vue'
 import SubjectModal from '@/components/SubjectModal.vue'
 import AcademicTermModal from '@/components/AcademicTermModal.vue'
+import AppearanceSettings from '@/components/AppearanceSettings.vue'
 
 const authStore = useAuthStore()
 const toast = useToast()
@@ -3897,19 +3898,19 @@ onMounted(() => {
       h2 {
         font-size: 1.25rem;
         margin: 0;
-        color: #2c3e50;
+        color: var(--text);
         display: flex;
         align-items: center;
         gap: 0.75rem;
 
         i {
-          color: #42b883;
+          color: var(--primary);
           font-size: 1.2rem;
         }
       }
 
       .save-btn {
-        background: #42b883;
+        background: var(--primary);
         border: none;
         padding: 0.5rem 1rem;
         font-weight: 500;
@@ -3918,11 +3919,12 @@ onMounted(() => {
         gap: 0.5rem;
 
         &:hover:not(:disabled) {
-          background: darken(#42b883, 5%);
+          background: var(--primary);
+          filter: brightness(90%);
         }
 
         &:disabled {
-          background: #42b883;
+          background: var(--primary);
           opacity: 0.7;
         }
       }
@@ -4731,15 +4733,15 @@ onMounted(() => {
   &:hover {
     transform: translateY(-3px);
     box-shadow: 0 8px 15px rgba(0, 0, 0, 0.08);
-    border-color: #42b883;
+    border-color: var(--primary);
     
     .value-card-icon {
-      background-color: #42b883;
+      background-color: var(--primary);
       color: white;
     }
     
     .btn-value-action {
-      background-color: #42b883;
+      background-color: var(--primary);
       color: white;
     }
   }
@@ -4747,12 +4749,12 @@ onMounted(() => {
   .value-card-icon {
     width: 3rem;
     height: 3rem;
-    background-color: #f1f9f5;
+    background-color: rgba(var(--primary-rgb), 0.1);
     border-radius: 0.5rem;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #42b883;
+    color: var(--primary);
     font-size: 1.2rem;
     transition: all 0.3s ease;
     flex-shrink: 0;
@@ -4762,7 +4764,7 @@ onMounted(() => {
     flex-grow: 1;
     
     h4 {
-      color: #1e293b;
+      color: var(--text);
       font-size: 1rem;
       font-weight: 600;
       margin-bottom: 0.25rem;
@@ -4778,7 +4780,7 @@ onMounted(() => {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      background-color: #42b883;
+      background-color: var(--primary);
       color: white;
       font-size: 0.7rem;
       font-weight: 600;
@@ -4797,8 +4799,8 @@ onMounted(() => {
       width: 2rem;
       height: 2rem;
       border-radius: 50%;
-      background-color: #f1f9f5;
-      color: #42b883;
+      background-color: rgba(var(--primary-rgb), 0.1);
+      color: var(--primary);
       border: none;
       display: flex;
       align-items: center;
@@ -4811,7 +4813,7 @@ onMounted(() => {
       }
       
       &:hover {
-        background-color: #42b883;
+        background-color: var(--primary);
         color: white;
         transform: scale(1.1);
       }

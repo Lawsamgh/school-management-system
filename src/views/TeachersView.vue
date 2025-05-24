@@ -3267,26 +3267,34 @@ $white: #ffffff;
   margin-bottom: 1.5rem;
 
   .nav-pills {
-    background-color: $white;
+    background-color: white;
     padding: 0.5rem;
     border-radius: 12px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     
     .nav-link {
-      color: $gray;
+      color: var(--text);
       border-radius: 8px;
       padding: 0.75rem 1.25rem;
-  font-weight: 500;
+      font-weight: 500;
       transition: all 0.15s ease;
       margin-right: 0.5rem;
 
       &.active {
-        background-color: $primary;
-        color: $white;
+        background-color: var(--primary);
+        color: white;
       }
 
       &:not(.active):hover {
-        background-color: $light-gray;
+        background-color: var(--background-light);
+      }
+
+      i {
+        color: var(--primary);
+      }
+
+      &.active i {
+        color: white;
       }
     }
   }
@@ -3526,22 +3534,21 @@ $white: #ffffff;
   padding: 0.5rem 1rem;
   
   &.btn-primary {
-    background-color: $primary;
-    border-color: $primary;
+    background-color: var(--primary) !important;
+    border-color: var(--primary) !important;
     
     &:hover, &:focus {
-      background-color: $primary-dark;
-      border-color: $primary-dark;
-}
+      filter: brightness(90%);
+    }
   }
   
   &.btn-outline-primary {
-    border-color: $primary;
-    color: $primary;
+    border-color: var(--primary) !important;
+    color: var(--primary) !important;
     
     &:hover, &:focus {
-      background-color: $primary;
-      color: $white;
+      background-color: var(--primary) !important;
+      color: white !important;
     }
   }
 }
@@ -5225,6 +5232,108 @@ $white: #ffffff;
 }
 
 // ... rest of existing styles ...
+
+.btn-outline-primary {
+  color: var(--primary);
+  border-color: var(--primary);
+  background: transparent;
+  transition: all 0.2s ease;
+
+  &:hover, &:focus {
+    background-color: var(--primary);
+    border-color: var(--primary);
+    color: white;
+  }
+
+  i {
+    color: var(--primary);
+  }
+
+  &:hover i {
+    color: white;
+  }
+}
+
+.btn-primary {
+  background-color: var(--primary);
+  border-color: var(--primary);
+  color: white;
+  transition: all 0.2s ease;
+
+  &:hover, &:focus {
+    background-color: var(--primary);
+    filter: brightness(90%);
+  }
+
+  i {
+    color: white;
+  }
+}
+
+// Class Schedule Modal
+.class-schedule-modal {
+  .modal-header {
+    border-bottom: 1px solid var(--border);
+    
+    .modal-title {
+      color: var(--text);
+      i {
+        color: var(--primary);
+      }
+    }
+  }
+
+  .schedule-card {
+    background: var(--background);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+
+    .schedule-header {
+      background: var(--primary);
+      color: white;
+      padding: 1rem;
+    }
+
+    .schedule-body {
+      padding: 1rem;
+    }
+  }
+}
+
+// Change Class Modal
+.class-selection-modal {
+  .modal-content {
+    background: var(--background);
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  }
+
+  .modal-header {
+    border-bottom: 1px solid var(--border);
+    
+    .modal-title {
+      color: var(--text);
+      i {
+        color: var(--primary);
+      }
+    }
+  }
+
+  .class-select-wrapper {
+    .form-select {
+      background-color: var(--background);
+      border-color: var(--border);
+      color: var(--text);
+
+      &:focus {
+        border-color: var(--primary);
+        box-shadow: 0 0 0 0.25rem rgba(var(--primary-rgb), 0.1);
+      }
+    }
+  }
+}
 
 </style> 
 

@@ -483,11 +483,11 @@ onMounted(async () => {
   display: grid;
   grid-template-columns: 80px repeat(5, minmax(160px, 1fr));
   gap: 2px;
-  background-color: #f8f9fa;
+  background-color: transparent;
   border-radius: 12px;
   overflow: hidden;
   margin: 0 auto;
-  border: 1px solid #e9ecef;
+  border: none;
   min-width: 900px; /* Ensure minimum width for scrolling */
 }
 
@@ -499,11 +499,11 @@ onMounted(async () => {
   padding: 0.75rem;
   text-align: center;
   font-weight: 600;
-  background: linear-gradient(to bottom, #f8f9fa, #ffffff);
-  border-bottom: 2px solid #e9ecef;
-  color: #1a237e;
+  background: linear-gradient(to bottom, var(--background), #ffffff);
+  border-bottom: none;
+  color: var(--text);
   font-size: 0.95rem;
-  height: 80px;  /* Updated height */
+  height: 80px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -512,20 +512,20 @@ onMounted(async () => {
 .time-slot {
   padding: 0.5rem;
   text-align: center;
-  border-bottom: 1px solid #e9ecef;
-  height: 80px;  /* Updated height */
+  border-bottom: none;
+  height: 80px;
   font-size: 0.875rem;
   color: #666;
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #fafbfc;
+  background-color: transparent;
 }
 
 .schedule-cell {
   padding: 0.5rem;
-  border-bottom: 1px solid #e9ecef;
-  height: 80px;  /* Updated height */
+  border-bottom: none;
+  height: 80px;
   transition: all 0.3s ease;
   cursor: pointer;
   position: relative;
@@ -534,11 +534,11 @@ onMounted(async () => {
 }
 
 .schedule-cell.has-class {
-  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+  background: linear-gradient(135deg, #ffffff 0%, var(--background) 100%);
   position: relative;
   z-index: 1;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-  border: 1px solid rgba(0, 0, 0, 0.05);
+  border: none;
   border-radius: 8px;
   margin: 2px;
   padding: 0.25rem;
@@ -579,6 +579,7 @@ onMounted(async () => {
   word-break: break-word;
   line-height: 1.2;
   position: relative;
+  border: none;
 }
 
 .subject-name {
@@ -635,16 +636,16 @@ onMounted(async () => {
 
 /* Header Card Styles */
 .header-card {
-  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+  background: linear-gradient(135deg, #ffffff 0%, var(--background) 100%);
   border-radius: 16px;
   padding: 2rem;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
   margin-bottom: 2rem;
-  border: 1px solid #e9ecef;
+  border: 1px solid var(--secondary);
 }
 
 .header-card h2 {
-  color: #1a237e;
+  color: var(--text);
   font-weight: 600;
   margin-bottom: 0;
 }
@@ -665,17 +666,19 @@ onMounted(async () => {
 }
 
 .btn-outline-secondary {
-  border: 1px solid #dee2e6;
+  border: 1px solid var(--secondary) !important;
+  color: var(--secondary) !important;
   padding: 0.75rem 1.5rem;
   font-weight: 500;
   border-radius: 12px;
   transition: all 0.3s ease;
-}
 
-.btn-outline-secondary:hover {
-  background-color: #f8f9fa;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  &:hover {
+    background-color: var(--secondary) !important;
+    color: white !important;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  }
 }
 
 /* Responsive adjustments */

@@ -67,6 +67,25 @@
           </div>
         </div>
 
+        <!-- Current Academic Term Display -->
+        <div class="col-12" v-if="isNotSuperAdmin" v-motion-slide-visible-once-bottom>
+          <div class="academic-term-card" :class="{ 'skeleton-loading': loading }">
+            <div class="content">
+              <template v-if="!loading">
+                <div class="term-info">
+                  <i class="fas fa-calendar-alt text-primary me-2"></i>
+                  <h3 class="mb-0">Current Academic Term: 
+                    <span class="text-primary">{{ currentTerm?.name || 'No Active Term' }}</span>
+                  </h3>
+                </div>
+              </template>
+              <template v-else>
+                <div class="skeleton-text skeleton-title"></div>
+              </template>
+            </div>
+          </div>
+        </div>
+
         <!-- Main Dashboard Content -->
         <div class="row g-3">
           <!-- Stats Cards -->
@@ -695,10 +714,11 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onBeforeUnmount } from 'vue'
+import { onMounted, onBeforeUnmount, ref, computed } from 'vue'
 import { useDashboard } from '@/composables/useDashboard'
 import ChangePasswordModal from '@/components/ChangePasswordModal.vue'
 import AddUserModal from '@/components/AddUserModal.vue'
+import { supabase } from '@/lib/supabase'
 
 // Use the dashboard composable
 const {
@@ -751,12 +771,54 @@ const {
   classTeachers
 } = useDashboard()
 
+interface AcademicTerm {
+  id: string
+  school_id: string
+  name: string
+  academic_year: string
+  term_number: number
+  start_date: string
+  end_date: string
+  is_current: boolean
+}
+
+// Update the ref with proper typing
+const currentTerm = ref<AcademicTerm | null>(null)
+
+// Fix userRole type checking
+const isNotSuperAdmin = computed(() => {
+  const role = userRole?.value
+  return typeof role === 'string' ? role.toLowerCase() !== 'superadmin' : false
+})
+
+// Add this to your existing functions
+const fetchCurrentTerm = async () => {
+  try {
+    if (!authStore.userRole?.school_id) return
+
+    const { data, error } = await supabase
+      .from('academic_terms')
+      .select('*')
+      .eq('school_id', authStore.userRole.school_id)
+      .eq('is_current', true)
+      .single()
+
+    if (error) throw error
+    currentTerm.value = data
+  } catch (error) {
+    console.error('Error fetching current term:', error)
+  }
+}
+
 // Initialize dashboard on mount
 onMounted(async () => {
   console.log('Component mounted')
   try {
     console.log('Current user role:', userRole.value)
     await initializeDashboard() // This will handle all role-specific initializations
+    if (isNotSuperAdmin.value) {
+      fetchCurrentTerm()
+    }
   } catch (error) {
     console.error('Error in onMounted:', error)
     loading.value = false
@@ -787,14 +849,14 @@ onBeforeUnmount(() => {
 }
 
 .welcome-card {
-  background: linear-gradient(135deg, #42b883 0%, #3aa876 100%);
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary) 100%);
   border-radius: 1rem;
   padding: 2rem;
   color: white;
   position: relative;
   overflow: hidden;
   margin-bottom: 1.5rem;
-  box-shadow: 0 4px 15px rgba(66, 184, 131, 0.2);
+  box-shadow: 0 4px 15px rgba(var(--primary-rgb), 0.2);
 
   .content {
     position: relative;
@@ -1203,7 +1265,7 @@ onBeforeUnmount(() => {
   border: none;
   background: #f8f9fa;
   border-radius: 0.5rem;
-  color: #2c3e50;
+  color: var(--text);
   transition: all 0.3s ease;
   cursor: pointer;
   flex: 0 0 auto;
@@ -1211,7 +1273,7 @@ onBeforeUnmount(() => {
   justify-content: center;
 
   &:hover {
-    background: #42b883;
+    background: var(--primary);
     color: white;
     transform: translateY(-5px);
   }
@@ -1915,6 +1977,42 @@ onBeforeUnmount(() => {
         }
       }
     }
+  }
+}
+
+.academic-term-card {
+  background: white;
+  border-radius: 1rem;
+  padding: 1.5rem;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+  margin-bottom: 1rem;
+
+  .content {
+    .term-info {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+
+      i {
+        font-size: 1.5rem;
+      }
+
+      h3 {
+        font-size: 1.25rem;
+        margin: 0;
+        color: #2c3e50;
+
+        span {
+          font-weight: 600;
+        }
+      }
+    }
+  }
+
+  &:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
   }
 }
 </style> 

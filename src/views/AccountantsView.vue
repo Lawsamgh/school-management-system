@@ -590,17 +590,22 @@
               
               <!-- School Header -->
               <div class="receipt-header">
-                <div class="school-logo">
-                  <i class="fas fa-graduation-cap fa-3x"></i>
-                </div>
                 <div class="school-info">
-                  <h2 class="school-name">{{ schoolInfo.name || 'Loading...' }}</h2>
-                  <p class="school-address">{{ schoolInfo.address || 'Loading...' }}</p>
-                  <p class="school-contact">
-                    Email: {{ schoolInfo.email || 'Loading...' }} | Phone: {{ schoolInfo.phone || 'Loading...' }}
-                  </p>
+                  <div class="school-logo">
+                    <img v-if="currentReceiptData.school_info.logo" :src="currentReceiptData.school_info.logo" alt="School logo" class="school-logo-img">
+                    <i v-else class="fas fa-graduation-cap fa-3x"></i>
+                  </div>
+                  <div class="school-details">
+                    <h2 class="school-name">{{ currentReceiptData.school_info.name || 'Loading...' }}</h2>
+                    <p class="school-address">{{ currentReceiptData.school_info.address || 'Loading...' }}</p>
+                    <p class="school-contacts">
+                      Email: {{ currentReceiptData.school_info.email || 'Loading...' }} | Phone: {{ currentReceiptData.school_info.phone || 'Loading...' }}
+                    </p>
+                  </div>
                 </div>
-               
+                <div class="receipt-number">
+                  <span>Receipt #: {{ currentReceiptData.receipt_number }}</span>
+                </div>
               </div>
               
               <!-- Receipt Title -->
@@ -1047,11 +1052,14 @@ const loadSavedSchoolSelection = () => {
 
 // Helper function to get the current school_id based on user role
 const getCurrentSchoolId = (): string | null => {
-  return userRole.value?.toLowerCase() === 'admin' 
-    ? authStore.userRole?.school_id || null
-    : userRole.value?.toLowerCase() === 'superadmin' && selectedSchoolId.value 
-      ? selectedSchoolId.value 
-      : null;
+  const role = userRole.value?.toLowerCase();
+  if (role === 'admin' || role === 'accountant') {
+    return authStore.userRole?.school_id || null;
+  }
+  if (role === 'superadmin' && selectedSchoolId.value) {
+    return selectedSchoolId.value;
+  }
+  return null;
 };
 
 // Payment form data
@@ -1275,7 +1283,7 @@ const showReceiptForPayment = async (payment: any) => {
     // Get payment history if reference_payment exists
     let paymentHistory = [];
     if (payment.reference_payment) {
-      paymentHistory = await getPaymentHistoryByReference(payment.reference_payment);
+      paymentHistory = await getPaymentHistoryByReference(payment.reference_payment, getCurrentSchoolId());
     }
     
     // Calculate total amount paid from payment history
@@ -1287,7 +1295,8 @@ const showReceiptForPayment = async (payment: any) => {
       receipt_number: payment.payment_id,
       timestamp: payment.payment_date,
       payment_history: paymentHistory,
-      total_amount_paid: totalAmountPaid || Number(payment.amount)
+      total_amount_paid: totalAmountPaid || Number(payment.amount),
+      school_info: { ...schoolInfo.value } // Include school info in receipt data
     };
     
     showReceiptModal();
@@ -1393,11 +1402,7 @@ const fetchRecentPayments = async () => {
     console.log('Fetching payments using API...');
     
     // Get the appropriate school_id based on user role
-    const schoolId = userRole.value === 'admin' 
-      ? authStore.userRole?.school_id 
-      : userRole.value === 'superadmin' 
-        ? selectedSchoolId.value 
-        : null;
+    const schoolId = getCurrentSchoolId();
     
     console.log('Fetching payments with school ID:', schoolId);
     
@@ -1722,7 +1727,8 @@ const submitPayment = async () => {
           const smsResponse = await sendPaymentConfirmationSMS({
             ...result,
             student_name: paymentForm.value.student_name,
-            identification: paymentForm.value.identification
+            identification: paymentForm.value.identification,
+            school_id: paymentForm.value.school_id
           });
           if (smsResponse.status === 0) {
             toast.success('Payment notification SMS sent');
@@ -1737,7 +1743,12 @@ const submitPayment = async () => {
       // Update remaining amount if needed
       if (isFollowUpPayment && selectedFollowUpPayment.value) {
         const newRemainingAmount = Number(selectedFollowUpPayment.value.amount_remaining) - payingAmount;
-        await updatePaymentRemaining(selectedFollowUpPayment.value.payment_id, newRemainingAmount, result.payment_id);
+        await updatePaymentRemaining(
+          selectedFollowUpPayment.value.payment_id, 
+          newRemainingAmount, 
+          result.payment_id,
+          getCurrentSchoolId()
+        );
       }
       
       // Get payment history if this is a follow-up payment
@@ -1745,7 +1756,7 @@ const submitPayment = async () => {
       let totalAmountPaid = Number(result.amount);
       
       if (isFollowUpPayment && referencePaymentId) {
-        paymentHistory = await getPaymentHistoryByReference(referencePaymentId);
+        paymentHistory = await getPaymentHistoryByReference(referencePaymentId, getCurrentSchoolId());
         // Add the current payment to history if not already included
         if (!paymentHistory.find(p => p.payment_id === result.payment_id)) {
           paymentHistory.push(result);
@@ -1760,7 +1771,8 @@ const submitPayment = async () => {
         receipt_number: result.payment_id,
         timestamp: result.payment_date,
         payment_history: paymentHistory,
-        total_amount_paid: totalAmountPaid
+        total_amount_paid: totalAmountPaid,
+        school_info: { ...schoolInfo.value } // Include school info in receipt data
       };
       
       // Close payment modal and show receipt
@@ -1783,7 +1795,12 @@ const submitPayment = async () => {
 const updatePaymentRemainingAmount = async (paymentId: string, newRemainingAmount: number) => {
   try {
     // Use the API function instead of direct Supabase call
-    const data = await updatePaymentRemaining(paymentId, newRemainingAmount);
+    const data = await updatePaymentRemaining(
+      paymentId, 
+      newRemainingAmount, 
+      undefined, 
+      getCurrentSchoolId()
+    );
     
     // Also update the local copy of the payment data
     const paymentIndex = recentPayments.value.findIndex(p => p.payment_id === paymentId);
@@ -2735,53 +2752,36 @@ const updatePaymentMode = () => {
 // Add schoolInfo ref
 const schoolInfo = ref({
   name: '',
-  address: '',
   email: '',
-  phone: ''
+  phone: '',
+  address: '',
+  logo: null as string | null
 });
 
 // Add fetchSchoolInfo function
 const fetchSchoolInfo = async () => {
   try {
-    console.log('Fetching school info...');
-    
-    // Get the appropriate school_id based on user role
-    const schoolId = userRole.value?.toLowerCase() === 'admin' 
-      ? authStore.userRole?.school_id 
-      : userRole.value?.toLowerCase() === 'superadmin' && selectedSchoolId.value 
-        ? selectedSchoolId.value 
-        : null;
-    
-    // Start building the query
-    let query = supabase.from('setup').select('school_name, school_contact1, school_email, school_address');
-    
-    // Add school_id filter if available
-    if (schoolId) {
-      query = query.eq('school_id', schoolId);
-    }
-    
-    // Execute the query and get the first result
-    const { data, error } = await query.limit(1);
-    
-    if (error) {
-      console.error('Error fetching school info:', error.message, error.details, error.hint);
-      throw error;
-    }
-    
-    console.log('Fetched school data:', data);
-    
+    const { data, error } = await supabase
+      .from('setup')
+      .select('school_name, school_contact1, school_email, school_address, school_logo')
+      .eq('school_id', authStore.userRole?.school_id)
+      .limit(1);
+
+    if (error) throw error;
+
     if (data && data.length > 0) {
       schoolInfo.value = {
         name: data[0].school_name || '',
         address: data[0].school_address || '',
         email: data[0].school_email || '',
-        phone: data[0].school_contact1 || ''
+        phone: data[0].school_contact1 || '',
+        logo: data[0].school_logo || null
       };
       console.log('Updated schoolInfo:', schoolInfo.value);
     }
   } catch (error) {
-    console.error('Failed to fetch school info:', error instanceof Error ? error.message : error);
-    toast.error('Failed to load school information. Please check database configuration.');
+    console.error('Error fetching school info:', error);
+    toast.error('Failed to load school information');
   }
 };
 
@@ -2981,12 +2981,12 @@ const handleSchoolChange = async (showNotification = true) => {
 }
 
 .header-card {
-  background: linear-gradient(135deg, #42b883 0%, #3aa876 100%);
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary) 100%);
   border-radius: 1rem;
   padding: 2rem;
   color: white;
   margin-bottom: 1rem;
-  box-shadow: 0 4px 15px rgba(66, 184, 131, 0.2);
+  box-shadow: 0 4px 15px rgba(var(--primary-rgb), 0.2);
   
   .welcome-header {
     display: flex;
@@ -3073,7 +3073,7 @@ const handleSchoolChange = async (showNotification = true) => {
       font-weight: 600;
       letter-spacing: 0.5px;
       background-color: rgba(255, 255, 255, 0.9);
-      color: #2c845e;
+      color: var(--primary);
       
       i {
         opacity: 0.8;
@@ -3713,29 +3713,56 @@ const handleSchoolChange = async (showNotification = true) => {
 .receipt-header {
   display: flex;
   align-items: center;
-  margin-bottom: 1.5rem;
-  padding-bottom: 1.5rem;
-  border-bottom: 1px dashed #e9ecef;
-  
-  .school-logo {
-    flex-shrink: 0;
-    margin-right: 1.5rem;
-    color: #42b883;
-  }
-  
+  padding-bottom: 2rem;
+  border-bottom: 1px solid #e9ecef;
+
   .school-info {
-    h2 {
-      font-size: 1.5rem;
-      font-weight: 700;
-      margin-bottom: 0.25rem;
-      color: #2c3e50;
+    display: flex;
+    align-items: center;
+    flex-grow: 1;
+
+    .school-logo {
+      flex-shrink: 0;
+      width: 80px;
+      height: 80px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-right: 1rem;
+      
+      .school-logo-img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+      }
+      
+      i {
+        color: #42b883;
+      }
     }
-    
-    p {
-      margin-bottom: 0.25rem;
-      color: #6c757d;
-      font-size: 0.9rem;
+
+    .school-details {
+      flex-grow: 1;
+      
+      .school-name {
+        margin: 0;
+        font-size: 1.5rem;
+        color: #2c3e50;
+      }
+      
+      .school-address,
+      .school-contacts {
+        margin: 0.25rem 0;
+        color: #6c757d;
+        font-size: 0.9rem;
+      }
     }
+  }
+
+  .receipt-number {
+    font-size: 1.1rem;
+    color: #2c3e50;
+    font-weight: 500;
   }
 }
 
@@ -4846,12 +4873,12 @@ const handleSchoolChange = async (showNotification = true) => {
     }
     
     &.btn-success {
-      background-color: #42b883;
-      border-color: #42b883;
+      background-color: var(--primary) !important;
+      border-color: var(--primary) !important;
       
       &:hover, &:focus {
-        background-color: #3aa876;
-        border-color: #3aa876;
+        background-color: var(--primary) !important;
+        filter: brightness(90%);
       }
     }
   }
@@ -5159,6 +5186,126 @@ const handleSchoolChange = async (showNotification = true) => {
       &:hover {
         background: #a8a8a8;
       }
+    }
+  }
+}
+
+.btn-success {
+  background-color: var(--primary) !important;
+  border-color: var(--primary) !important;
+  
+  &:hover, &:focus {
+    background-color: var(--primary) !important;
+    filter: brightness(90%);
+  }
+}
+
+.btn-primary {
+  background-color: var(--primary) !important;
+  border-color: var(--primary) !important;
+  
+  &:hover, &:focus {
+    background-color: var(--primary) !important;
+    filter: brightness(90%);
+  }
+}
+
+.btn-outline-primary {
+  border-color: var(--primary) !important;
+  color: var(--primary) !important;
+  
+  &:hover, &:focus {
+    background-color: var(--primary) !important;
+    color: white !important;
+  }
+}
+
+.school-icon {
+  color: var(--primary) !important;
+}
+
+.btn-icon {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background-color: var(--background) !important;
+  color: var(--text) !important;
+  border: none;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background-color: var(--background) !important;
+    color: var(--primary) !important;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    
+    &.text-danger {
+      color: #dc3545 !important;
+    }
+  }
+}
+
+.filter-pill {
+  &.active {
+    background-color: var(--primary) !important;
+    color: white !important;
+  }
+  
+  &:hover {
+    border-color: var(--primary) !important;
+    color: var(--primary) !important;
+  }
+}
+
+.pagination-controls {
+  .btn {
+    &:hover, &:active, &:focus {
+      color: var(--primary) !important;
+    }
+  }
+}
+
+.action-btn {
+  &.btn-success {
+    background-color: var(--primary) !important;
+    border-color: var(--primary) !important;
+    
+    &:hover, &:focus {
+      background-color: var(--primary) !important;
+      filter: brightness(90%);
+    }
+  }
+}
+
+.form-control:focus {
+  border-color: var(--primary) !important;
+  box-shadow: 0 0 0 0.25rem rgba(var(--primary-rgb), 0.25) !important;
+}
+
+.form-check-input:checked {
+  background-color: var(--primary) !important;
+  border-color: var(--primary) !important;
+}
+
+.modern-radio-option {
+  &.active {
+    background-color: rgba(var(--primary-rgb), 0.1) !important;
+    border-color: var(--primary) !important;
+    
+    .radio-icon {
+      border-color: var(--primary) !important;
+      
+      .radio-inner {
+        background-color: var(--primary) !important;
+      }
+    }
+    
+    .radio-label {
+      color: var(--primary) !important;
     }
   }
 }

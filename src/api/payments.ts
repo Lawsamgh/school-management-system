@@ -166,7 +166,7 @@ export const deletePayment = async (paymentId: string) => {
 }
 
 // Update the remaining amount of a payment
-export const updatePaymentRemaining = async (paymentId: string, newRemainingAmount: number, followUpPaymentId?: string) => {
+export const updatePaymentRemaining = async (paymentId: string, newRemainingAmount: number, followUpPaymentId?: string, schoolId?: string | null) => {
   try {
     const updateData: any = {
       amount_remaining: newRemainingAmount
@@ -175,27 +175,43 @@ export const updatePaymentRemaining = async (paymentId: string, newRemainingAmou
     // If amount is fully paid and we have a follow-up payment ID
     if (newRemainingAmount === 0 && followUpPaymentId) {
       // Get the follow-up payment to get its reference_payment value
-      const { data: followUpPayment, error: followUpError } = await admin
+      let query = admin
         .from('payments')
         .select('reference_payment')
-        .eq('payment_id', followUpPaymentId)
-        .single();
+        .eq('payment_id', followUpPaymentId);
+
+      // Add school_id filter if provided
+      if (schoolId) {
+        query = query.eq('school_id', schoolId);
+      }
+
+      const { data: followUpPayment, error: followUpError } = await query.maybeSingle();
 
       if (followUpError) throw followUpError;
+      if (!followUpPayment) throw new Error('Follow-up payment not found');
 
       // Set the original payment's reference_payment to match the follow-up payment's reference_payment
       updateData.reference_payment = followUpPayment.reference_payment;
     }
 
-    const { data, error } = await admin
+    // Update the payment and return all matching records
+    let updateQuery = admin
       .from('payments')
       .update(updateData)
-      .eq('payment_id', paymentId)
-      .select()
-      .single();
+      .eq('payment_id', paymentId);
+
+    // Add school_id filter if provided
+    if (schoolId) {
+      updateQuery = updateQuery.eq('school_id', schoolId);
+    }
+
+    const { data, error } = await updateQuery.select();
 
     if (error) throw error;
-    return data;
+    if (!data || data.length === 0) throw new Error('No payment was updated');
+    
+    // Return the first updated record
+    return data[0];
   } catch (error) {
     console.error('Error updating payment remaining amount:', error);
     throw error;
@@ -250,18 +266,25 @@ export const getRelatedPayments = async (paymentId: string) => {
 }
 
 // Get payment history by reference payment ID
-export const getPaymentHistoryByReference = async (referencePaymentId: string) => {
+export const getPaymentHistoryByReference = async (referencePaymentId: string, schoolId?: string | null) => {
   try {
-    const { data, error } = await admin
+    let query = admin
       .from('payments')
       .select('*')
       .eq('reference_payment', referencePaymentId)
-      .order('payment_date', { ascending: true })
+      .order('payment_date', { ascending: true });
     
-    if (error) throw error
-    return data || []
+    // Add school_id filter if provided
+    if (schoolId) {
+      query = query.eq('school_id', schoolId);
+    }
+    
+    const { data, error } = await query;
+    
+    if (error) throw error;
+    return data || [];
   } catch (error) {
-    console.error('Error in getPaymentHistoryByReference:', error)
-    throw error
+    console.error('Error in getPaymentHistoryByReference:', error);
+    throw error;
   }
-} 
+}; 

@@ -138,7 +138,7 @@ import { useMotion } from '@vueuse/motion'
     left: 0;
     width: 100%;
     height: 100%;
-    background: linear-gradient(45deg, transparent, rgba(66, 184, 131, 0.03));
+    background: linear-gradient(45deg, transparent, rgba(var(--primary-rgb), 0.03));
     opacity: 0;
     transition: all 0.3s ease;
   }
@@ -154,7 +154,7 @@ import { useMotion } from '@vueuse/motion'
 
     .icon-wrapper {
       transform: scale(1.1);
-      background-color: #42b883;
+      background-color: var(--primary);
       
       i {
         color: white;
@@ -163,7 +163,7 @@ import { useMotion } from '@vueuse/motion'
   }
 
   .card-title {
-    color: #2c3e50;
+    color: var(--text);
     font-weight: 600;
   }
 
@@ -171,7 +171,7 @@ import { useMotion } from '@vueuse/motion'
     width: 80px;
     height: 80px;
     border-radius: 50%;
-    background-color: rgba(66, 184, 131, 0.1);
+    background-color: rgba(var(--primary-rgb), 0.1);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -180,22 +180,23 @@ import { useMotion } from '@vueuse/motion'
     
     i {
       font-size: 2.5rem;
-      color: #42b883;
+      color: var(--primary);
       transition: all 0.3s ease;
     }
   }
 }
 
 .btn-primary {
-  background-color: #42b883;
-  border-color: #42b883;
-  box-shadow: 0 4px 6px rgba(66, 184, 131, 0.2);
+  background-color: var(--primary);
+  border-color: var(--primary);
+  box-shadow: 0 4px 6px rgba(var(--primary-rgb), 0.2);
 
   &:hover {
-    background-color: #3aa876;
-    border-color: #3aa876;
+    background-color: var(--primary);
+    border-color: var(--primary);
+    filter: brightness(90%);
     transform: translateY(-2px);
-    box-shadow: 0 6px 8px rgba(66, 184, 131, 0.3);
+    box-shadow: 0 6px 8px rgba(var(--primary-rgb), 0.3);
   }
 }
 </style> 

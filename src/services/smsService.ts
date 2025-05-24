@@ -1,3 +1,5 @@
+import { supabase } from '@/lib/supabase';
+
 interface SMSConfig {
   clientSecret: string;
   clientId: string;
@@ -14,7 +16,7 @@ interface SMSResponse {
 
 // Default configuration
 const defaultConfig: SMSConfig = {
-  clientSecret: 'vuwfkchd',
+  clientSecret: 'mpdpztfc',
   clientId: 'wcaginsj',
   sender: 'LawsamGH'
 };
@@ -94,6 +96,23 @@ export const sendSMS = async (
   }
 };
 
+// Get school name from the database
+const getSchoolName = async (schoolId: string): Promise<string> => {
+  try {
+    const { data, error } = await supabase
+      .from('schools')
+      .select('name')
+      .eq('id', schoolId)
+      .single();
+    
+    if (error) throw error;
+    return data?.name || 'School';
+  } catch (error) {
+    console.error('Error fetching school name:', error);
+    return 'School';
+  }
+};
+
 /**
  * Sends a payment confirmation SMS
  * @param paymentData - Payment data object
@@ -107,15 +126,21 @@ export const sendPaymentConfirmationSMS = async (paymentData: {
   payment_id: string;
   student_name: string;
   identification: string;
+  school_id?: string;
 }): Promise<SMSResponse> => {
   // Validate payment data
   if (!paymentData.phone || !paymentData.amount || !paymentData.payment_for || !paymentData.payment_id) {
     throw new Error('Invalid payment data: All fields are required');
   }
 
+  // Get school name if school_id is provided
+  const schoolName = paymentData.school_id ? 
+    await getSchoolName(paymentData.school_id) : 
+    'School';
+
   const formattedAmount = Number(paymentData.amount).toFixed(2);
-  // Updated message format with student info and thank you note
-  const message = `Payment: GHC${formattedAmount} received for ${paymentData.payment_for}. Student: ${paymentData.student_name}(${paymentData.identification}). Receipt:${paymentData.payment_id}. Thank you for choosing us!`;
+  // Updated message format with school name, student info and thank you note
+  const message = `[ ${schoolName} ] Payment: GHC${formattedAmount} received for ${paymentData.payment_for}. Student: ${paymentData.student_name}(${paymentData.identification}). Receipt:${paymentData.payment_id}. Thank you for choosing us!`;
   
   // Log message length for monitoring
   console.log('Message length:', message.length, 'characters');

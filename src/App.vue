@@ -1,321 +1,329 @@
 <template>
-  <nav class="navbar navbar-expand-lg navbar-light fixed-top glass-nav">
-    <div class="container">
-      <router-link class="navbar-brand" to="/">
-        <template v-if="isLoading">
-          Loading...
-        </template>
-        <template v-else>
-          <img 
-            v-if="isAuthenticated && schoolInfo.logo" 
-            :src="schoolInfo.logo" 
-            alt="School Logo" 
-            height="40" 
-            class="d-inline-block align-text-top me-2"
-          >
-          {{ schoolInfo.name || 'LS System' }}
-        </template>
-      </router-link>
-      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-        <span class="navbar-toggler-icon"></span>
-      </button>
-      <div class="collapse navbar-collapse" id="navbarNav">
-        <ul class="navbar-nav ms-auto gap-3">
-          <template v-if="!isLoading">
-            <template v-if="!isAuthenticated">
-              <li class="nav-item">
-                <a class="nav-link" @click="(e) => handleMenuItemClick('/', e)" :class="{ active: isRouteActive('/') }">
-                  Home
-                </a>
-              </li>
-              <li class="nav-item">
-                <a class="nav-link" @click="(e) => handleMenuItemClick('/contact', e)" :class="{ active: isRouteActive('/contact') }">Contact</a>
-              </li>
-            </template>
-            <template v-else>
-              <li class="nav-item">
-                <a class="nav-link" @click="(e) => handleMenuItemClick('/dashboard', e)" :class="{ active: isRouteActive('/dashboard') }">
-                  <i class="fas fa-tachometer-alt me-1"></i>
-                  Dashboard
-                </a>
-              </li>
-              <li class="nav-item dropdown position-static">
-                <a 
-                  class="nav-link dropdown-toggle-desktop d-none d-lg-flex align-items-center" 
-                  href="#" 
-                  id="menuDropdown" 
-                  role="button" 
-                  data-bs-toggle="dropdown" 
-                  data-bs-auto-close="outside"
-                  aria-expanded="false"
-                  @click="toggleMegaMenu"
-                >
-                  <i class="fas fa-bars me-1"></i>
-                  Menu
-                  <i class="fas fa-chevron-down ms-1 dropdown-arrow"></i>
-                </a>
-                <!-- Mobile View: Menu Toggle -->
-                <a class="nav-link d-lg-none mobile-menu-toggle" href="#" data-bs-toggle="collapse" data-bs-target="#mobileMenuContent">
-                  <i class="fas fa-bars me-1"></i>
-                  Menu
-                </a>
-                <!-- Desktop Mega Menu -->
-                <div class="dropdown-menu mega-menu w-100" aria-labelledby="menuDropdown">
-                  <div class="container py-4">
-                    <div class="mega-menu-horizontal" v-if="userRole">
-                      <!-- Dashboard First for All Users -->
-                      <a class="mega-menu-item" @click="navigateTo('/dashboard')">
-                          <div class="mega-menu-icon"><i class="fas fa-tachometer-alt"></i></div>
-                          <div class="mega-menu-content"><h6>Dashboard</h6><p>Overview & quick access</p></div>
-                      </a>
-
-                      <!-- Activities Menu Item -->
-                      <a class="mega-menu-item" @click="navigateTo('/activities')">
-                        <div class="mega-menu-icon"><i class="fas fa-calendar-alt"></i></div>
-                        <div class="mega-menu-content"><h6>Activities</h6><p>School activities and events</p></div>
-                      </a>
-
-                      <!-- Admin Menu Items -->
-                      <template v-if="userRole === 'superadmin' || userRole === 'admin'">
-                        <a class="mega-menu-item" @click="navigateTo('/onboard-school')" v-if="userRole === 'superadmin'">
-                          <div class="mega-menu-icon"><i class="fas fa-school"></i></div>
-                          <div class="mega-menu-content"><h6>Onboard School</h6><p>Register new school</p></div>
+  <div 
+    id="app" 
+    :class="{ 
+      'school-theme': isSchoolUser && currentSchoolId,
+      [`school-${currentSchoolId}`]: isSchoolUser && currentSchoolId 
+    }"
+  >
+    <nav class="navbar navbar-expand-lg navbar-light fixed-top glass-nav">
+      <div class="container">
+        <router-link class="navbar-brand" to="/">
+          <template v-if="isLoading">
+            Loading...
+          </template>
+          <template v-else>
+            <img 
+              v-if="isAuthenticated && schoolInfo.logo" 
+              :src="schoolInfo.logo" 
+              alt="School Logo" 
+              height="40" 
+              class="d-inline-block align-text-top me-2"
+            >
+            {{ schoolInfo.name || 'LS System' }}
+          </template>
+        </router-link>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+          <ul class="navbar-nav ms-auto gap-3">
+            <template v-if="!isLoading">
+              <template v-if="!isAuthenticated">
+                <li class="nav-item">
+                  <a class="nav-link" @click="(e) => handleMenuItemClick('/', e)" :class="{ active: isRouteActive('/') }">
+                    Home
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link" @click="(e) => handleMenuItemClick('/contact', e)" :class="{ active: isRouteActive('/contact') }">Contact</a>
+                </li>
+              </template>
+              <template v-else>
+                <li class="nav-item">
+                  <a class="nav-link" @click="(e) => handleMenuItemClick('/dashboard', e)" :class="{ active: isRouteActive('/dashboard') }">
+                    <i class="fas fa-tachometer-alt me-1"></i>
+                    Dashboard
+                  </a>
+                </li>
+                <li class="nav-item dropdown position-static">
+                  <a 
+                    class="nav-link dropdown-toggle-desktop d-none d-lg-flex align-items-center" 
+                    href="#" 
+                    id="menuDropdown" 
+                    role="button" 
+                    data-bs-toggle="dropdown" 
+                    data-bs-auto-close="outside"
+                    aria-expanded="false"
+                    @click="toggleMegaMenu"
+                  >
+                    <i class="fas fa-bars me-1"></i>
+                    Menu
+                    <i class="fas fa-chevron-down ms-1 dropdown-arrow"></i>
+                  </a>
+                  <!-- Mobile View: Menu Toggle -->
+                  <a class="nav-link d-lg-none mobile-menu-toggle" href="#" data-bs-toggle="collapse" data-bs-target="#mobileMenuContent">
+                    <i class="fas fa-bars me-1"></i>
+                    Menu
+                  </a>
+                  <!-- Desktop Mega Menu -->
+                  <div class="dropdown-menu mega-menu w-100" aria-labelledby="menuDropdown">
+                    <div class="container py-4">
+                      <div class="mega-menu-horizontal" v-if="userRole">
+                        <!-- Dashboard First for All Users -->
+                        <a class="mega-menu-item" @click="navigateTo('/dashboard')">
+                            <div class="mega-menu-icon"><i class="fas fa-tachometer-alt"></i></div>
+                            <div class="mega-menu-content"><h6>Dashboard</h6><p>Overview & quick access</p></div>
                         </a>
-                        <a class="mega-menu-item" @click="navigateTo('/users')">
-                          <div class="mega-menu-icon"><i class="fas fa-users"></i></div>
-                          <div class="mega-menu-content"><h6>Users</h6><p>Manage all users</p></div>
+
+                        <!-- Activities Menu Item -->
+                        <a class="mega-menu-item" @click="navigateTo('/activities')">
+                          <div class="mega-menu-icon"><i class="fas fa-calendar-alt"></i></div>
+                          <div class="mega-menu-content"><h6>Activities</h6><p>School activities and events</p></div>
+                        </a>
+
+                        <!-- Admin Menu Items -->
+                        <template v-if="userRole === 'superadmin' || userRole === 'admin'">
+                          <a class="mega-menu-item" @click="navigateTo('/onboard-school')" v-if="userRole === 'superadmin'">
+                            <div class="mega-menu-icon"><i class="fas fa-school"></i></div>
+                            <div class="mega-menu-content"><h6>Onboard School</h6><p>Register new school</p></div>
+                          </a>
+                          <a class="mega-menu-item" @click="navigateTo('/users')">
+                            <div class="mega-menu-icon"><i class="fas fa-users"></i></div>
+                            <div class="mega-menu-content"><h6>Users</h6><p>Manage all users</p></div>
+                          </a>
+                          <a 
+                            v-if="userRole === 'superadmin' || teacherPortalEnabled"
+                            class="mega-menu-item"
+                            @click="navigateTo('/teachers')"
+                          >
+                            <div class="mega-menu-icon"><i class="fas fa-chalkboard-teacher"></i></div>
+                            <div class="mega-menu-content"><h6>Teachers</h6><p>Manage teaching staff</p></div>
+                          </a>
+                          <a 
+                            v-if="(userRole === 'superadmin' || userRole === 'admin') && (userRole === 'superadmin' || studentPortalEnabled)"
+                            class="mega-menu-item"
+                            @click="navigateTo('/students')"
+                          >
+                            <div class="mega-menu-icon"><i class="fas fa-user-graduate"></i></div>
+                            <div class="mega-menu-content"><h6>Students</h6><p>Manage student records</p></div>
+                          </a>
+                          <a 
+                            v-if="userRole === 'superadmin' || parentPortalEnabled"
+                            class="mega-menu-item"
+                            @click="navigateTo('/parents')"
+                          >
+                            <div class="mega-menu-icon"><i class="fas fa-user-friends"></i></div>
+                            <div class="mega-menu-content"><h6>Parents</h6><p>Manage parent accounts</p></div>
+                          </a>
+                          <a 
+                            v-if="showFinanceMenu"
+                            class="mega-menu-item"
+                            @click="navigateTo('/accountants')"
+                          >
+                            <div class="mega-menu-icon"><i class="fas fa-calculator"></i></div>
+                            <div class="mega-menu-content"><h6>Accountants</h6><p>Manage accounting staff</p></div>
+                          </a>
+                          <a 
+                            v-if="userRole === 'superadmin' || userRole === 'admin'"
+                            class="mega-menu-item"
+                            @click="navigateTo('/settings')"
+                          >
+                            <div class="mega-menu-icon"><i class="fas fa-cog"></i></div>
+                            <div class="mega-menu-content"><h6>Settings</h6><p>School configuration</p></div>
+                          </a>
+                          <a 
+                            v-if="userRole === 'superadmin' || userRole === 'admin'"
+                            class="mega-menu-item"
+                            @click="navigateTo('/audit-logs')"
+                          >
+                            <div class="mega-menu-icon"><i class="fas fa-history"></i></div>
+                            <div class="mega-menu-content"><h6>Audit Logs</h6><p>System activity tracking</p></div>
+                          </a>
+                        </template>
+                        
+                        <!-- Other Role-Specific Menu Items -->
+                        <template v-else-if="userRole === 'accountant' && authStore.financeModuleEnabled">
+                          <a class="mega-menu-item" @click="navigateTo('/accountants')">
+                            <div class="mega-menu-icon"><i class="fas fa-calculator"></i></div>
+                            <div class="mega-menu-content"><h6>Accountants</h6><p>Manage accounting staff</p></div>
+                          </a>
+                        </template>
+                        <template v-else-if="userRole === 'teacher' && teacherPortalEnabled">
+                          <a class="mega-menu-item" @click="navigateTo('/teachers')">
+                            <div class="mega-menu-icon"><i class="fas fa-chalkboard-teacher"></i></div>
+                            <div class="mega-menu-content"><h6>Teachers</h6><p>Manage teaching staff</p></div>
+                          </a>
+                        </template>
+                        <template v-else-if="userRole === 'student' && studentPortalEnabled">
+                          <a class="mega-menu-item" @click="navigateTo('/students')">
+                            <div class="mega-menu-icon"><i class="fas fa-user-graduate"></i></div>
+                            <div class="mega-menu-content"><h6>Students</h6><p>Manage student records</p></div>
+                          </a>
+                        </template>
+                        <template v-else-if="userRole === 'parent' && parentPortalEnabled">
+                          <a class="mega-menu-item" @click="navigateTo('/parents')">
+                            <div class="mega-menu-icon"><i class="fas fa-user-friends"></i></div>
+                            <div class="mega-menu-content"><h6>Parents</h6><p>Manage parent accounts</p></div>
+                          </a>
+                        </template>
+                        <template v-else-if="userRole === 'registrar'">
+                          <a class="mega-menu-item" @click="navigateTo('/users')">
+                            <div class="mega-menu-icon"><i class="fas fa-users"></i></div>
+                            <div class="mega-menu-content"><h6>New Enrollment</h6><p>Enroll a new student and parent</p></div>
+                          </a>
+                        </template>
+                        <template v-else-if="userRole === 'admin'">
+                          <a class="dropdown-item" href="/dashboard">Dashboard</a>
+                          <a class="dropdown-item" href="/admin">Admin</a>
+                        </template>
+                      </div>
+                    </div>
+                  </div>
+                  <!-- Mobile Menu Items -->
+                  <div class="collapse mobile-menu-items" id="mobileMenuContent">
+                    <div class="mobile-menu-section" v-if="userRole">
+                      <!-- Dashboard First -->
+                      <a class="dropdown-item" @click="handleMenuItemClick('/dashboard')">
+                        <i class="fas fa-tachometer-alt me-2"></i>Dashboard
+                      </a>
+                      
+                      <!-- Activities Menu Item -->
+                      <a class="dropdown-item" @click="handleMenuItemClick('/activities')">
+                        <i class="fas fa-calendar-alt me-2"></i>Activities
+                      </a>
+                      
+                      <!-- Role-Specific Mobile Menu Items -->
+                      <template v-if="userRole === 'superadmin' || userRole === 'admin'">
+                        <a v-if="userRole === 'superadmin'" class="dropdown-item" @click="handleMenuItemClick('/onboard-school')">
+                          <i class="fas fa-school me-2"></i>Onboard School
+                        </a>
+                        <a class="dropdown-item" @click="handleMenuItemClick('/users')">
+                          <i class="fas fa-users me-2"></i>Users
                         </a>
                         <a 
                           v-if="userRole === 'superadmin' || teacherPortalEnabled"
-                          class="mega-menu-item"
-                          @click="navigateTo('/teachers')"
+                          class="dropdown-item" 
+                          @click="handleMenuItemClick('/teachers')"
                         >
-                          <div class="mega-menu-icon"><i class="fas fa-chalkboard-teacher"></i></div>
-                          <div class="mega-menu-content"><h6>Teachers</h6><p>Manage teaching staff</p></div>
+                          <i class="fas fa-chalkboard-teacher me-2"></i>Teachers
                         </a>
                         <a 
                           v-if="(userRole === 'superadmin' || userRole === 'admin') && (userRole === 'superadmin' || studentPortalEnabled)"
-                          class="mega-menu-item"
-                          @click="navigateTo('/students')"
+                          class="dropdown-item" 
+                          @click="handleMenuItemClick('/students')"
                         >
-                          <div class="mega-menu-icon"><i class="fas fa-user-graduate"></i></div>
-                          <div class="mega-menu-content"><h6>Students</h6><p>Manage student records</p></div>
+                          <i class="fas fa-user-graduate me-2"></i>Students
                         </a>
                         <a 
                           v-if="userRole === 'superadmin' || parentPortalEnabled"
-                          class="mega-menu-item"
-                          @click="navigateTo('/parents')"
+                          class="dropdown-item" 
+                          @click="handleMenuItemClick('/parents')"
                         >
-                          <div class="mega-menu-icon"><i class="fas fa-user-friends"></i></div>
-                          <div class="mega-menu-content"><h6>Parents</h6><p>Manage parent accounts</p></div>
+                          <i class="fas fa-user-friends me-2"></i>Parents
                         </a>
                         <a 
                           v-if="showFinanceMenu"
-                          class="mega-menu-item"
-                          @click="navigateTo('/accountants')"
+                          class="dropdown-item" 
+                          @click="handleMenuItemClick('/accountants')"
                         >
-                          <div class="mega-menu-icon"><i class="fas fa-calculator"></i></div>
-                          <div class="mega-menu-content"><h6>Accountants</h6><p>Manage accounting staff</p></div>
+                          <i class="fas fa-calculator me-2"></i>Accountants
                         </a>
                         <a 
                           v-if="userRole === 'superadmin' || userRole === 'admin'"
-                          class="mega-menu-item"
-                          @click="navigateTo('/settings')"
+                          class="dropdown-item" 
+                          @click="handleMenuItemClick('/settings')"
                         >
-                          <div class="mega-menu-icon"><i class="fas fa-cog"></i></div>
-                          <div class="mega-menu-content"><h6>Settings</h6><p>School configuration</p></div>
-                        </a>
-                        <a 
-                          v-if="userRole === 'superadmin' || userRole === 'admin'"
-                          class="mega-menu-item"
-                          @click="navigateTo('/audit-logs')"
-                        >
-                          <div class="mega-menu-icon"><i class="fas fa-history"></i></div>
-                          <div class="mega-menu-content"><h6>Audit Logs</h6><p>System activity tracking</p></div>
+                          <i class="fas fa-cog me-2"></i>Settings
                         </a>
                       </template>
-                      
-                      <!-- Other Role-Specific Menu Items -->
                       <template v-else-if="userRole === 'accountant' && authStore.financeModuleEnabled">
-                        <a class="mega-menu-item" @click="navigateTo('/accountants')">
-                          <div class="mega-menu-icon"><i class="fas fa-calculator"></i></div>
-                          <div class="mega-menu-content"><h6>Accountants</h6><p>Manage accounting staff</p></div>
+                        <a class="dropdown-item" @click="handleMenuItemClick('/accountants')">
+                          <i class="fas fa-calculator me-2"></i>Accountants
                         </a>
                       </template>
                       <template v-else-if="userRole === 'teacher' && teacherPortalEnabled">
-                        <a class="mega-menu-item" @click="navigateTo('/teachers')">
-                          <div class="mega-menu-icon"><i class="fas fa-chalkboard-teacher"></i></div>
-                          <div class="mega-menu-content"><h6>Teachers</h6><p>Manage teaching staff</p></div>
+                        <a class="dropdown-item" @click="handleMenuItemClick('/teachers')">
+                          <i class="fas fa-chalkboard-teacher me-2"></i>Teachers
                         </a>
                       </template>
                       <template v-else-if="userRole === 'student' && studentPortalEnabled">
-                        <a class="mega-menu-item" @click="navigateTo('/students')">
-                          <div class="mega-menu-icon"><i class="fas fa-user-graduate"></i></div>
-                          <div class="mega-menu-content"><h6>Students</h6><p>Manage student records</p></div>
+                        <a class="dropdown-item" @click="handleMenuItemClick('/students')">
+                          <i class="fas fa-user-graduate me-2"></i>Students
                         </a>
                       </template>
                       <template v-else-if="userRole === 'parent' && parentPortalEnabled">
-                        <a class="mega-menu-item" @click="navigateTo('/parents')">
-                          <div class="mega-menu-icon"><i class="fas fa-user-friends"></i></div>
-                          <div class="mega-menu-content"><h6>Parents</h6><p>Manage parent accounts</p></div>
+                        <a class="dropdown-item" @click="handleMenuItemClick('/parents')">
+                          <i class="fas fa-user-friends me-2"></i>Parents
                         </a>
                       </template>
                       <template v-else-if="userRole === 'registrar'">
-                        <a class="mega-menu-item" @click="navigateTo('/users')">
-                          <div class="mega-menu-icon"><i class="fas fa-users"></i></div>
-                          <div class="mega-menu-content"><h6>New Enrollment</h6><p>Enroll a new student and parent</p></div>
+                        <a class="dropdown-item" @click="handleMenuItemClick('/users')">
+                          <i class="fas fa-users me-2"></i>New Enrollment
                         </a>
                       </template>
                       <template v-else-if="userRole === 'admin'">
-                        <a class="dropdown-item" href="/dashboard">Dashboard</a>
-                        <a class="dropdown-item" href="/admin">Admin</a>
+                        <a class="dropdown-item" @click="handleMenuItemClick('/dashboard')">Dashboard</a>
+                        <a class="dropdown-item" @click="handleMenuItemClick('/admin')">Admin</a>
                       </template>
                     </div>
                   </div>
-                </div>
-                <!-- Mobile Menu Items -->
-                <div class="collapse mobile-menu-items" id="mobileMenuContent">
-                  <div class="mobile-menu-section" v-if="userRole">
-                    <!-- Dashboard First -->
-                    <a class="dropdown-item" @click="handleMenuItemClick('/dashboard')">
-                      <i class="fas fa-tachometer-alt me-2"></i>Dashboard
-                    </a>
-                    
-                    <!-- Activities Menu Item -->
-                    <a class="dropdown-item" @click="handleMenuItemClick('/activities')">
-                      <i class="fas fa-calendar-alt me-2"></i>Activities
-                    </a>
-                    
-                    <!-- Role-Specific Mobile Menu Items -->
-                    <template v-if="userRole === 'superadmin' || userRole === 'admin'">
-                      <a v-if="userRole === 'superadmin'" class="dropdown-item" @click="handleMenuItemClick('/onboard-school')">
-                        <i class="fas fa-school me-2"></i>Onboard School
-                      </a>
-                      <a class="dropdown-item" @click="handleMenuItemClick('/users')">
-                        <i class="fas fa-users me-2"></i>Users
-                      </a>
-                      <a 
-                        v-if="userRole === 'superadmin' || teacherPortalEnabled"
-                        class="dropdown-item" 
-                        @click="handleMenuItemClick('/teachers')"
-                      >
-                        <i class="fas fa-chalkboard-teacher me-2"></i>Teachers
-                      </a>
-                      <a 
-                        v-if="(userRole === 'superadmin' || userRole === 'admin') && (userRole === 'superadmin' || studentPortalEnabled)"
-                        class="dropdown-item" 
-                        @click="handleMenuItemClick('/students')"
-                      >
-                        <i class="fas fa-user-graduate me-2"></i>Students
-                      </a>
-                      <a 
-                        v-if="userRole === 'superadmin' || parentPortalEnabled"
-                        class="dropdown-item" 
-                        @click="handleMenuItemClick('/parents')"
-                      >
-                        <i class="fas fa-user-friends me-2"></i>Parents
-                      </a>
-                      <a 
-                        v-if="showFinanceMenu"
-                        class="dropdown-item" 
-                        @click="handleMenuItemClick('/accountants')"
-                      >
-                        <i class="fas fa-calculator me-2"></i>Accountants
-                      </a>
-                      <a 
-                        v-if="userRole === 'superadmin' || userRole === 'admin'"
-                        class="dropdown-item" 
-                        @click="handleMenuItemClick('/settings')"
-                      >
-                        <i class="fas fa-cog me-2"></i>Settings
-                      </a>
-                    </template>
-                    <template v-else-if="userRole === 'accountant' && authStore.financeModuleEnabled">
-                      <a class="dropdown-item" @click="handleMenuItemClick('/accountants')">
-                        <i class="fas fa-calculator me-2"></i>Accountants
-                      </a>
-                    </template>
-                    <template v-else-if="userRole === 'teacher' && teacherPortalEnabled">
-                      <a class="dropdown-item" @click="handleMenuItemClick('/teachers')">
-                        <i class="fas fa-chalkboard-teacher me-2"></i>Teachers
-                      </a>
-                    </template>
-                    <template v-else-if="userRole === 'student' && studentPortalEnabled">
-                      <a class="dropdown-item" @click="handleMenuItemClick('/students')">
-                        <i class="fas fa-user-graduate me-2"></i>Students
-                      </a>
-                    </template>
-                    <template v-else-if="userRole === 'parent' && parentPortalEnabled">
-                      <a class="dropdown-item" @click="handleMenuItemClick('/parents')">
-                        <i class="fas fa-user-friends me-2"></i>Parents
-                      </a>
-                    </template>
-                    <template v-else-if="userRole === 'registrar'">
-                      <a class="dropdown-item" @click="handleMenuItemClick('/users')">
-                        <i class="fas fa-users me-2"></i>New Enrollment
-                      </a>
-                    </template>
-                    <template v-else-if="userRole === 'admin'">
-                      <a class="dropdown-item" @click="handleMenuItemClick('/dashboard')">Dashboard</a>
-                      <a class="dropdown-item" @click="handleMenuItemClick('/admin')">Admin</a>
-                    </template>
-                  </div>
-                </div>
+                </li>
+              </template>
+              <li class="nav-item ms-lg-3">
+                <template v-if="!isAuthenticated">
+                  <a class="nav-link login-btn" @click="(e) => handleMenuItemClick('/login', e)" :class="{ active: isRouteActive('/login') }">
+                    <i class="fas fa-sign-in-alt"></i>
+                    Login
+                  </a>
+                </template>
+                <template v-else>
+                  <button class="nav-link login-btn" @click="handleLogout">
+                    <i class="fas fa-sign-out-alt"></i>
+                    Logout
+                  </button>
+                </template>
               </li>
             </template>
-            <li class="nav-item ms-lg-3">
-              <template v-if="!isAuthenticated">
-                <a class="nav-link login-btn" @click="(e) => handleMenuItemClick('/login', e)" :class="{ active: isRouteActive('/login') }">
-                  <i class="fas fa-sign-in-alt"></i>
-                  Login
-                </a>
-              </template>
-              <template v-else>
-                <button class="nav-link login-btn" @click="handleLogout">
-                  <i class="fas fa-sign-out-alt"></i>
-                  Logout
-                </button>
-              </template>
-            </li>
-          </template>
-        </ul>
-      </div>
-    </div>
-  </nav>
-
-  <!-- Spacer for fixed navbar -->
-  <div class="nav-spacer"></div>
-
-  <router-view v-slot="{ Component }" :key="route.fullPath">
-    <transition name="page" mode="out-in">
-      <component :is="Component" />
-    </transition>
-  </router-view>
-
-  <AppFooter v-if="!isAuthenticated && !isLoading && route.path !== '/login'" />
-
-  <!-- Modern Logout Confirmation -->
-  <Transition name="fade">
-    <div v-if="showLogoutPrompt" class="modern-prompt-overlay">
-      <div class="modern-prompt-container">
-        <div class="modern-prompt-icon">
-          <i class="fas fa-sign-out-alt"></i>
-        </div>
-        <h3>Ready to Leave?</h3>
-        <p>Are you sure you want to log out?</p>
-        <div class="modern-prompt-actions">
-          <button class="modern-btn cancel-btn" @click="cancelLogout">
-            <i class="fas fa-times"></i>
-            Cancel
-          </button>
-          <button class="modern-btn confirm-btn" @click="confirmLogout" :disabled="logoutLoading">
-            <i class="fas fa-check"></i>
-            {{ logoutLoading ? 'Logging out...' : 'Confirm' }}
-          </button>
+          </ul>
         </div>
       </div>
-    </div>
-  </Transition>
+    </nav>
+
+    <!-- Spacer for fixed navbar -->
+    <div class="nav-spacer"></div>
+
+    <router-view v-slot="{ Component }" :key="route.fullPath">
+      <transition name="page" mode="out-in">
+        <component :is="Component" />
+      </transition>
+    </router-view>
+
+    <AppFooter v-if="!isAuthenticated && !isLoading && route.path !== '/login'" />
+
+    <!-- Modern Logout Confirmation -->
+    <Transition name="fade">
+      <div v-if="showLogoutPrompt" class="modern-prompt-overlay">
+        <div class="modern-prompt-container">
+          <div class="modern-prompt-icon">
+            <i class="fas fa-sign-out-alt"></i>
+          </div>
+          <h3>Ready to Leave?</h3>
+          <p>Are you sure you want to log out?</p>
+          <div class="modern-prompt-actions">
+            <button class="modern-btn cancel-btn" @click="cancelLogout">
+              <i class="fas fa-times"></i>
+              Cancel
+            </button>
+            <button class="modern-btn confirm-btn" @click="confirmLogout" :disabled="logoutLoading">
+              <i class="fas fa-check"></i>
+              {{ logoutLoading ? 'Logging out...' : 'Confirm' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Transition>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -359,6 +367,15 @@ const schoolInfo = ref<SchoolInfo>({
 
 const showLogoutPrompt = ref(false)
 const logoutLoading = ref(false)
+
+const currentSchoolId = computed(() => {
+  return authStore.userRole?.school_id || authStore.getSelectedSchoolId
+})
+
+const isSchoolUser = computed(() => {
+  const role = authStore.userRole?.role?.toLowerCase()
+  return role === 'admin' || role === 'teacher' || role === 'student'
+})
 
 // Watch for changes in authentication state
 watch(
@@ -819,6 +836,72 @@ const toggleMegaMenu = (event: Event) => {
     megaMenu.classList.add('show')
   }
 }
+
+const applySchoolTheme = async (schoolId: string) => {
+  try {
+    const { data: theme } = await supabase
+      .from('school_themes')
+      .select('*')
+      .eq('school_id', schoolId)
+      .single()
+
+    if (theme) {
+      const schoolClass = `.school-${schoolId}`
+      const root = document.documentElement
+      const styleSheet = document.createElement('style')
+      
+      // Convert hex to RGB for rgba() usage
+      const hexToRgb = (hex: string) => {
+        const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
+        return result ? {
+          r: parseInt(result[1], 16),
+          g: parseInt(result[2], 16),
+          b: parseInt(result[3], 16)
+        } : null
+      }
+
+      const primaryRgb = hexToRgb(theme.primary_color)
+      const secondaryRgb = hexToRgb(theme.secondary_color)
+
+      styleSheet.textContent = `
+        ${schoolClass} {
+          --primary: ${theme.primary_color};
+          --secondary: ${theme.secondary_color};
+          --accent: ${theme.accent_color};
+          --text: ${theme.text_color};
+          --background: ${theme.background_color};
+          --primary-rgb: ${primaryRgb ? `${primaryRgb.r}, ${primaryRgb.g}, ${primaryRgb.b}` : '66, 184, 131'};
+          --secondary-rgb: ${secondaryRgb ? `${secondaryRgb.r}, ${secondaryRgb.g}, ${secondaryRgb.b}` : '53, 73, 94'};
+        }
+      `
+      
+      // Remove any existing style for this school
+      const existingStyle = document.querySelector(`style[data-school-id="${schoolId}"]`)
+      if (existingStyle) {
+        existingStyle.remove()
+      }
+
+      // Add the new style
+      styleSheet.setAttribute('data-school-id', schoolId)
+      document.head.appendChild(styleSheet)
+    }
+  } catch (error) {
+    console.error('Error applying school theme:', error)
+  }
+}
+
+// Watch for school changes
+watch(currentSchoolId, (newSchoolId) => {
+  if (newSchoolId && isSchoolUser.value) {
+    applySchoolTheme(newSchoolId)
+  }
+})
+
+onMounted(() => {
+  if (currentSchoolId.value && isSchoolUser.value) {
+    applySchoolTheme(currentSchoolId.value)
+  }
+})
 </script>
 
 <style lang="scss">
@@ -838,10 +921,10 @@ const toggleMegaMenu = (event: Event) => {
 }
 
 .glass-nav {
-  background: rgba(255, 255, 255, 0.8) !important;
+  background: var(--background);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+  border-bottom: 1px solid var(--border);
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
   transition: all 0.3s ease;
 
@@ -851,8 +934,8 @@ const toggleMegaMenu = (event: Event) => {
   }
 
   .navbar-brand {
-    font-weight: bold;
-    color: #2c3e50;
+    font-weight: 600;
+    color: var(--text);
     transition: color 0.3s ease;
     display: flex;
     align-items: center;
@@ -863,7 +946,7 @@ const toggleMegaMenu = (event: Event) => {
     }
 
     &:hover {
-      color: #42b883;
+      color: var(--primary);
     }
   }
 
@@ -872,7 +955,7 @@ const toggleMegaMenu = (event: Event) => {
     font-weight: 500;
     padding: 0.5rem 0;
     margin: 0 0.25rem;
-    color: #2c3e50;
+    color: var(--text);
     transition: color 0.3s ease;
     cursor: pointer;
 
@@ -883,13 +966,13 @@ const toggleMegaMenu = (event: Event) => {
       left: 50%;
       width: 0;
       height: 2px;
-      background-color: #42b883;
+      background-color: var(--primary);
       transition: all 0.3s ease;
       transform: translateX(-50%);
     }
 
     &:hover {
-      color: #42b883;
+      color: var(--primary);
     }
 
     &:hover::after,
@@ -898,14 +981,14 @@ const toggleMegaMenu = (event: Event) => {
     }
 
     &.active {
-      color: #42b883;
+      color: var(--primary);
     }
 
     &.login-btn {
       background-color: transparent;
-      color: #42b883;
+      color: var(--primary);
       padding: 0.6rem 1.5rem;
-      border: 2px solid #42b883;
+      border: 2px solid var(--primary);
       border-radius: 8px;
       font-weight: 500;
       transition: all 0.3s ease;
@@ -919,7 +1002,7 @@ const toggleMegaMenu = (event: Event) => {
       }
 
       &:hover, &.active {
-        background-color: #42b883;
+        background-color: var(--primary);
         color: white;
         transform: translateY(-2px);
         box-shadow: 0 4px 12px rgba(66, 184, 131, 0.2);
@@ -935,7 +1018,7 @@ const toggleMegaMenu = (event: Event) => {
 
       &.active {
         transform: none;
-        background-color: #42b883;
+        background-color: var(--primary);
         color: white;
       }
 
@@ -990,7 +1073,7 @@ html {
       }
       
       &.show .nav-link {
-        color: #42b883;
+        color: var(--primary);
       }
     }
   }
@@ -1037,7 +1120,7 @@ html {
   position: absolute;
   left: 0;
   right: 0;
-  background: white;
+  background: var(--background);
   z-index: 1050;
   padding: 1.5rem;
   display: none;
@@ -1366,6 +1449,214 @@ html {
     
     i {
       transition: transform 0.2s ease;
+    }
+  }
+}
+
+// Default theme (for superadmin and fallback)
+:root {
+  --primary: #42b883;
+  --secondary: #35495e;
+  --accent: #42b883;
+  --text: #2c3e50;
+  --background: #ffffff;
+  --primary-rgb: 66, 184, 131;
+  --secondary-rgb: 53, 73, 94;
+}
+
+.mega-menu-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: var(--background);
+  z-index: 1050;
+  padding: 1.5rem;
+  border-bottom-left-radius: 12px;
+  border-bottom-right-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--border);
+  border-top: none;
+
+  .menu-section {
+    h6 {
+      color: var(--text);
+      font-weight: 600;
+      margin-bottom: 1rem;
+      font-size: 0.875rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .menu-item {
+      display: flex;
+      align-items: center;
+      padding: 0.75rem;
+      border-radius: 8px;
+      color: var(--text);
+      transition: all 0.2s ease;
+      text-decoration: none;
+
+      i {
+        color: var(--primary);
+        margin-right: 0.75rem;
+        font-size: 1.1rem;
+        opacity: 0.8;
+        transition: all 0.2s ease;
+      }
+
+      &:hover {
+        background: rgba(var(--primary-rgb), 0.1);
+        color: var(--primary);
+
+        i {
+          opacity: 1;
+          transform: scale(1.1);
+        }
+      }
+
+      .item-title {
+        font-weight: 500;
+        margin-bottom: 0.25rem;
+      }
+
+      .item-description {
+        font-size: 0.875rem;
+        color: var(--text-light);
+        margin: 0;
+      }
+    }
+  }
+
+  .featured-section {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary) 100%);
+    border-radius: 12px;
+    padding: 1.5rem;
+    color: white;
+
+    h5 {
+      font-weight: 600;
+      margin-bottom: 1rem;
+    }
+
+    p {
+      opacity: 0.9;
+      margin-bottom: 1.5rem;
+    }
+
+    .btn-light {
+      background: white;
+      color: var(--primary);
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      font-weight: 500;
+      transition: all 0.2s ease;
+
+      &:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      }
+    }
+  }
+}
+
+.user-dropdown {
+  min-width: 280px;
+  padding: 0;
+  border: none;
+  border-radius: 12px;
+  background: var(--background);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--border);
+  overflow: hidden;
+
+  .user-header {
+    padding: 1.25rem;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary) 100%);
+    color: white;
+
+    .user-name {
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+    }
+
+    .user-role {
+      opacity: 0.9;
+      font-size: 0.875rem;
+    }
+  }
+
+  .dropdown-item {
+    padding: 0.75rem 1.25rem;
+    color: var(--text);
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+
+    i {
+      color: var(--primary);
+      font-size: 1rem;
+      opacity: 0.8;
+      transition: all 0.2s ease;
+    }
+
+    &:hover {
+      background: rgba(var(--primary-rgb), 0.1);
+      color: var(--primary);
+
+      i {
+        opacity: 1;
+        transform: scale(1.1);
+      }
+    }
+
+    &.danger {
+      color: var(--danger);
+      border-top: 1px solid var(--border);
+
+      i {
+        color: var(--danger);
+      }
+
+      &:hover {
+        background: rgba(var(--danger-rgb), 0.1);
+        color: var(--danger);
+      }
+    }
+  }
+
+  .school-selector {
+    padding: 1rem 1.25rem;
+    border-top: 1px solid var(--border);
+    background: var(--background-light);
+
+    label {
+      display: block;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 0.5rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    select {
+      width: 100%;
+      padding: 0.5rem;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--background);
+      color: var(--text);
+      font-size: 0.875rem;
+      transition: all 0.2s ease;
+
+      &:focus {
+        border-color: var(--primary);
+        box-shadow: 0 0 0 2px rgba(var(--primary-rgb), 0.1);
+      }
     }
   }
 }

@@ -442,12 +442,13 @@ const closeModal = () => {
     transition: all 0.3s ease;
 
     &-secondary {
-      background: #f8f9fa;
-      border: 1px solid #dee2e6;
-      color: #2c3e50;
+      background: var(--secondary);
+      border: none;
+      color: white;
 
       &:hover {
-        background: #e9ecef;
+        background: var(--secondary);
+        filter: brightness(90%);
       }
     }
 

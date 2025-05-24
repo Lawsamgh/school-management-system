@@ -314,7 +314,7 @@ const show = (scheduleData?: any, selectedDay?: string, selectedTime?: string) =
       room_number: scheduleData.room_number,
       is_active: scheduleData.is_active
     }
-  } else {
+      } else {
     resetForm()
     // Auto-populate day of week and start time if provided
     if (selectedDay) {
