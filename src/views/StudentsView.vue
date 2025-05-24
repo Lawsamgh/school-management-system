@@ -133,25 +133,29 @@
           <div class="content-card upcoming-tests-card mb-4">
             <div class="card-header">
               <h2>
-                <i class="fas fa-clipboard-list me-2"></i>
-                Upcoming Tests
+                <i class="fas fa-calendar-alt me-2"></i>
+                Class Schedule
               </h2>
             </div>
             <div class="card-body">
               <div class="upcoming-tests">
-                <div v-for="test in upcomingTests" :key="test.id" class="test-item">
+                <div v-if="classSchedules.length > 0" v-for="schedule in classSchedules" :key="schedule.id" class="test-item">
                   <div class="test-date">
-                    <span class="day">{{ formatDay(test.date) }}</span>
-                    <span class="month">{{ formatMonth(test.date) }}</span>
+                    <span class="day">{{ schedule.day_of_week }}</span>
+                    <span class="month">{{ formatTime(schedule.start_time) }}</span>
                   </div>
                   <div class="test-details">
-                    <h4>{{ test.subject }}</h4>
-                    <p>{{ test.topic }}</p>
+                    <h4>{{ schedule.subject_name }}</h4>
+                    <p>{{ schedule.teacher_name }}</p>
                     <span class="time">
                       <i class="far fa-clock me-1"></i>
-                      {{ test.time }}
+                      {{ formatTime(schedule.start_time) }} - {{ formatTime(schedule.end_time) }}
                     </span>
                   </div>
+                </div>
+                <div v-else class="empty-schedule">
+                  <i class="fas fa-calendar-day"></i>
+                  <p>No Class Schedule for Today</p>
                 </div>
               </div>
             </div>
@@ -544,6 +548,15 @@ interface ProcessedAssignment extends Omit<Assignment, 'assignment_questions'> {
   })[]
 }
 
+interface ClassSchedule {
+  id: string
+  subject_name: string
+  teacher_name: string
+  day_of_week: string
+  start_time: string
+  end_time: string
+}
+
 // Initialize
 const toast = useToast()
 const authStore = useAuthStore()
@@ -559,6 +572,8 @@ const selectedAssignment = ref<ProcessedAssignment | null>(null)
 const assignmentModal = ref<Modal | null>(null)
 const remainingTime = ref<number | null>(null)
 const timerInterval = ref<number | null>(null)
+
+const classSchedules = ref<ClassSchedule[]>([])
 
 // Mock data for demo (replace with actual data fetching)
 const upcomingTests = ref([
@@ -587,6 +602,7 @@ const totalDays = ref(0)
 onMounted(async () => {
   console.log('Component mounted, initializing data...')
   await fetchAttendanceData()
+  fetchClassSchedules()
 })
 
 // Attendance data
@@ -1478,6 +1494,51 @@ const averageScore = computed(() => {
   )
   
   return Math.round(totalScore / completedWithScores.length)
+})
+
+// Format time from 24-hour to 12-hour format
+const formatTime = (time: string) => {
+  if (!time) return ''
+  const [hours, minutes] = time.split(':').map(Number)
+  const period = hours >= 12 ? 'PM' : 'AM'
+  const hour12 = hours % 12 || 12
+  return `${hour12}:${minutes.toString().padStart(2, '0')} ${period}`
+}
+
+// Fetch class schedules
+const fetchClassSchedules = async () => {
+  try {
+    const schoolId = authStore.userRole?.school_id || authStore.getSelectedSchoolId
+    const classId = authStore.userRole?.class_id
+
+    if (!schoolId || !classId) {
+      console.error('Missing school_id or class_id')
+      return
+    }
+
+    // Get current day of week
+    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+    const currentDay = days[new Date().getDay()]
+
+    const { data, error } = await supabase
+      .from('class_schedules')
+      .select('id, subject_name, teacher_name, day_of_week, start_time, end_time')
+      .eq('school_id', schoolId)
+      .eq('class_id', classId)
+      .eq('day_of_week', currentDay)
+      .eq('is_active', true)
+      .order('start_time', { ascending: true })
+
+    if (error) throw error
+
+    classSchedules.value = data || []
+  } catch (error) {
+    console.error('Error fetching class schedules:', error)
+  }
+}
+
+onMounted(() => {
+  fetchClassSchedules()
 })
 </script>
 
@@ -3190,5 +3251,30 @@ const averageScore = computed(() => {
 
 .completed-assignments {
   height: 100%;
+}
+
+.empty-schedule {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  text-align: center;
+  color: #6b7280;
+  background: #f8f9fa;
+  border-radius: 12px;
+  border: 2px dashed #e5e7eb;
+
+  i {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+    color: #42b883;
+    opacity: 0.5;
+  }
+
+  p {
+    font-size: 0.9375rem;
+    margin: 0;
+  }
 }
 </style> 

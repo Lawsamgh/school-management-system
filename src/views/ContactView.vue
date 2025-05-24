@@ -10,7 +10,7 @@
           
           <div class="row g-4">
             <!-- Contact Information -->
-            <div class="col-md-5" v-motion-slide-visible-once-left>
+            <div class="col-md-12" v-motion-slide-visible-once-left>
               <div class="contact-info p-4 rounded-4">
                 <h3 class="h4 mb-4 text-white">Contact Information</h3>
                 <div class="d-flex flex-column gap-4">
@@ -68,7 +68,7 @@
             </div>
             
             <!-- Contact Form -->
-            <div class="col-md-7" v-motion-slide-visible-once-right>
+            <div class="col-md-12" v-motion-slide-visible-once-right>
               <form @submit.prevent="handleSubmit" class="contact-form p-4 rounded-4">
                 <div class="row g-3">
                   <div class="col-md-6">

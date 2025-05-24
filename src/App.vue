@@ -40,7 +40,16 @@
                 </a>
               </li>
               <li class="nav-item dropdown position-static">
-                <a class="nav-link dropdown-toggle-desktop d-none d-lg-flex align-items-center" href="#" id="menuDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                <a 
+                  class="nav-link dropdown-toggle-desktop d-none d-lg-flex align-items-center" 
+                  href="#" 
+                  id="menuDropdown" 
+                  role="button" 
+                  data-bs-toggle="dropdown" 
+                  data-bs-auto-close="outside"
+                  aria-expanded="false"
+                  @click="toggleMegaMenu"
+                >
                   <i class="fas fa-bars me-1"></i>
                   Menu
                   <i class="fas fa-chevron-down ms-1 dropdown-arrow"></i>
@@ -55,107 +64,107 @@
                   <div class="container py-4">
                     <div class="mega-menu-horizontal" v-if="userRole">
                       <!-- Dashboard First for All Users -->
-                        <router-link to="/dashboard" class="mega-menu-item">
+                      <a class="mega-menu-item" @click="navigateTo('/dashboard')">
                           <div class="mega-menu-icon"><i class="fas fa-tachometer-alt"></i></div>
                           <div class="mega-menu-content"><h6>Dashboard</h6><p>Overview & quick access</p></div>
-                      </router-link>
+                      </a>
 
                       <!-- Activities Menu Item -->
-                      <router-link to="/activities" class="mega-menu-item">
+                      <a class="mega-menu-item" @click="navigateTo('/activities')">
                         <div class="mega-menu-icon"><i class="fas fa-calendar-alt"></i></div>
                         <div class="mega-menu-content"><h6>Activities</h6><p>School activities and events</p></div>
-                      </router-link>
+                      </a>
 
                       <!-- Admin Menu Items -->
                       <template v-if="userRole === 'superadmin' || userRole === 'admin'">
-                        <router-link to="/onboard-school" class="mega-menu-item" v-if="userRole === 'superadmin'">
+                        <a class="mega-menu-item" @click="navigateTo('/onboard-school')" v-if="userRole === 'superadmin'">
                           <div class="mega-menu-icon"><i class="fas fa-school"></i></div>
                           <div class="mega-menu-content"><h6>Onboard School</h6><p>Register new school</p></div>
-                        </router-link>
-                        <router-link to="/users" class="mega-menu-item">
+                        </a>
+                        <a class="mega-menu-item" @click="navigateTo('/users')">
                           <div class="mega-menu-icon"><i class="fas fa-users"></i></div>
                           <div class="mega-menu-content"><h6>Users</h6><p>Manage all users</p></div>
-                        </router-link>
-                        <router-link 
+                        </a>
+                        <a 
                           v-if="userRole === 'superadmin' || teacherPortalEnabled"
-                          to="/teachers" 
                           class="mega-menu-item"
+                          @click="navigateTo('/teachers')"
                         >
                           <div class="mega-menu-icon"><i class="fas fa-chalkboard-teacher"></i></div>
                           <div class="mega-menu-content"><h6>Teachers</h6><p>Manage teaching staff</p></div>
-                        </router-link>
-                        <router-link 
+                        </a>
+                        <a 
                           v-if="(userRole === 'superadmin' || userRole === 'admin') && (userRole === 'superadmin' || studentPortalEnabled)"
-                          to="/students" 
                           class="mega-menu-item"
+                          @click="navigateTo('/students')"
                         >
                           <div class="mega-menu-icon"><i class="fas fa-user-graduate"></i></div>
                           <div class="mega-menu-content"><h6>Students</h6><p>Manage student records</p></div>
-                        </router-link>
-                        <router-link 
+                        </a>
+                        <a 
                           v-if="userRole === 'superadmin' || parentPortalEnabled"
-                          to="/parents" 
                           class="mega-menu-item"
+                          @click="navigateTo('/parents')"
                         >
                           <div class="mega-menu-icon"><i class="fas fa-user-friends"></i></div>
                           <div class="mega-menu-content"><h6>Parents</h6><p>Manage parent accounts</p></div>
-                        </router-link>
-                        <router-link 
+                        </a>
+                        <a 
                           v-if="showFinanceMenu"
-                          to="/accountants" 
                           class="mega-menu-item"
+                          @click="navigateTo('/accountants')"
                         >
                           <div class="mega-menu-icon"><i class="fas fa-calculator"></i></div>
                           <div class="mega-menu-content"><h6>Accountants</h6><p>Manage accounting staff</p></div>
-                        </router-link>
-                        <router-link 
+                        </a>
+                        <a 
                           v-if="userRole === 'superadmin' || userRole === 'admin'"
-                          to="/settings" 
                           class="mega-menu-item"
+                          @click="navigateTo('/settings')"
                         >
                           <div class="mega-menu-icon"><i class="fas fa-cog"></i></div>
                           <div class="mega-menu-content"><h6>Settings</h6><p>School configuration</p></div>
-                        </router-link>
-                        <router-link 
+                        </a>
+                        <a 
                           v-if="userRole === 'superadmin' || userRole === 'admin'"
-                          to="/audit-logs" 
                           class="mega-menu-item"
+                          @click="navigateTo('/audit-logs')"
                         >
                           <div class="mega-menu-icon"><i class="fas fa-history"></i></div>
                           <div class="mega-menu-content"><h6>Audit Logs</h6><p>System activity tracking</p></div>
-                        </router-link>
+                        </a>
                       </template>
                       
                       <!-- Other Role-Specific Menu Items -->
                       <template v-else-if="userRole === 'accountant' && authStore.financeModuleEnabled">
-                        <router-link to="/accountants" class="mega-menu-item">
+                        <a class="mega-menu-item" @click="navigateTo('/accountants')">
                           <div class="mega-menu-icon"><i class="fas fa-calculator"></i></div>
                           <div class="mega-menu-content"><h6>Accountants</h6><p>Manage accounting staff</p></div>
-                        </router-link>
+                        </a>
                       </template>
                       <template v-else-if="userRole === 'teacher' && teacherPortalEnabled">
-                        <router-link to="/teachers" class="mega-menu-item">
+                        <a class="mega-menu-item" @click="navigateTo('/teachers')">
                           <div class="mega-menu-icon"><i class="fas fa-chalkboard-teacher"></i></div>
                           <div class="mega-menu-content"><h6>Teachers</h6><p>Manage teaching staff</p></div>
-                        </router-link>
+                        </a>
                       </template>
                       <template v-else-if="userRole === 'student' && studentPortalEnabled">
-                        <router-link to="/students" class="mega-menu-item">
+                        <a class="mega-menu-item" @click="navigateTo('/students')">
                           <div class="mega-menu-icon"><i class="fas fa-user-graduate"></i></div>
                           <div class="mega-menu-content"><h6>Students</h6><p>Manage student records</p></div>
-                        </router-link>
+                        </a>
                       </template>
                       <template v-else-if="userRole === 'parent' && parentPortalEnabled">
-                        <router-link to="/parents" class="mega-menu-item">
+                        <a class="mega-menu-item" @click="navigateTo('/parents')">
                           <div class="mega-menu-icon"><i class="fas fa-user-friends"></i></div>
                           <div class="mega-menu-content"><h6>Parents</h6><p>Manage parent accounts</p></div>
-                        </router-link>
+                        </a>
                       </template>
                       <template v-else-if="userRole === 'registrar'">
-                        <router-link to="/users" class="mega-menu-item">
+                        <a class="mega-menu-item" @click="navigateTo('/users')">
                           <div class="mega-menu-icon"><i class="fas fa-users"></i></div>
                           <div class="mega-menu-content"><h6>New Enrollment</h6><p>Enroll a new student and parent</p></div>
-                        </router-link>
+                        </a>
                       </template>
                       <template v-else-if="userRole === 'admin'">
                         <a class="dropdown-item" href="/dashboard">Dashboard</a>
@@ -168,92 +177,87 @@
                 <div class="collapse mobile-menu-items" id="mobileMenuContent">
                   <div class="mobile-menu-section" v-if="userRole">
                     <!-- Dashboard First -->
-                    <a class="dropdown-item" @click="(e) => handleMenuItemClick('/dashboard', e)" :class="{ active: isRouteActive('/dashboard') }">
+                    <a class="dropdown-item" @click="handleMenuItemClick('/dashboard')">
                       <i class="fas fa-tachometer-alt me-2"></i>Dashboard
                     </a>
                     
                     <!-- Activities Menu Item -->
-                    <a class="dropdown-item" @click="(e) => handleMenuItemClick('/activities', e)" :class="{ active: isRouteActive('/activities') }">
+                    <a class="dropdown-item" @click="handleMenuItemClick('/activities')">
                       <i class="fas fa-calendar-alt me-2"></i>Activities
                     </a>
                     
                     <!-- Role-Specific Mobile Menu Items -->
                     <template v-if="userRole === 'superadmin' || userRole === 'admin'">
-                      <a v-if="userRole === 'superadmin'" class="dropdown-item" @click="(e) => handleMenuItemClick('/onboard-school', e)" :class="{ active: isRouteActive('/onboard-school') }">
+                      <a v-if="userRole === 'superadmin'" class="dropdown-item" @click="handleMenuItemClick('/onboard-school')">
                         <i class="fas fa-school me-2"></i>Onboard School
                       </a>
-                      <a class="dropdown-item" @click="(e) => handleMenuItemClick('/users', e)" :class="{ active: isRouteActive('/users') }">
+                      <a class="dropdown-item" @click="handleMenuItemClick('/users')">
                         <i class="fas fa-users me-2"></i>Users
                       </a>
                       <a 
                         v-if="userRole === 'superadmin' || teacherPortalEnabled"
                         class="dropdown-item" 
-                        @click="(e) => handleMenuItemClick('/teachers', e)" 
-                        :class="{ active: isRouteActive('/teachers') }"
+                        @click="handleMenuItemClick('/teachers')"
                       >
                         <i class="fas fa-chalkboard-teacher me-2"></i>Teachers
                       </a>
                       <a 
                         v-if="(userRole === 'superadmin' || userRole === 'admin') && (userRole === 'superadmin' || studentPortalEnabled)"
                         class="dropdown-item" 
-                        @click="(e) => handleMenuItemClick('/students', e)" 
-                        :class="{ active: isRouteActive('/students') }"
+                        @click="handleMenuItemClick('/students')"
                       >
                         <i class="fas fa-user-graduate me-2"></i>Students
                       </a>
                       <a 
                         v-if="userRole === 'superadmin' || parentPortalEnabled"
                         class="dropdown-item" 
-                        @click="(e) => handleMenuItemClick('/parents', e)" 
-                        :class="{ active: isRouteActive('/parents') }"
+                        @click="handleMenuItemClick('/parents')"
                       >
                         <i class="fas fa-user-friends me-2"></i>Parents
                       </a>
                       <a 
                         v-if="showFinanceMenu"
                         class="dropdown-item" 
-                        @click="(e) => handleMenuItemClick('/accountants', e)" 
-                        :class="{ active: isRouteActive('/accountants') }"
+                        @click="handleMenuItemClick('/accountants')"
                       >
                         <i class="fas fa-calculator me-2"></i>Accountants
                       </a>
                       <a 
                         v-if="userRole === 'superadmin' || userRole === 'admin'"
                         class="dropdown-item" 
-                        @click="(e) => handleMenuItemClick('/settings', e)" 
-                        :class="{ active: isRouteActive('/settings') }"
+                        @click="handleMenuItemClick('/settings')"
                       >
                         <i class="fas fa-cog me-2"></i>Settings
                       </a>
                     </template>
                     <template v-else-if="userRole === 'accountant' && authStore.financeModuleEnabled">
-                      <a class="dropdown-item" @click="(e) => handleMenuItemClick('/accountants', e)" :class="{ active: isRouteActive('/accountants') }">
+                      <a class="dropdown-item" @click="handleMenuItemClick('/accountants')">
                         <i class="fas fa-calculator me-2"></i>Accountants
                       </a>
                     </template>
                     <template v-else-if="userRole === 'teacher' && teacherPortalEnabled">
-                      <a class="dropdown-item" @click="(e) => handleMenuItemClick('/teachers', e)" :class="{ active: isRouteActive('/teachers') }">
+                      <a class="dropdown-item" @click="handleMenuItemClick('/teachers')">
                         <i class="fas fa-chalkboard-teacher me-2"></i>Teachers
                       </a>
                     </template>
                     <template v-else-if="userRole === 'student' && studentPortalEnabled">
-                      <a class="dropdown-item" @click="(e) => handleMenuItemClick('/students', e)" :class="{ active: isRouteActive('/students') }">
+                      <a class="dropdown-item" @click="handleMenuItemClick('/students')">
                         <i class="fas fa-user-graduate me-2"></i>Students
                       </a>
                     </template>
                     <template v-else-if="userRole === 'parent' && parentPortalEnabled">
-                      <a class="dropdown-item" @click="(e) => handleMenuItemClick('/parents', e)" :class="{ active: isRouteActive('/parents') }">
+                      <a class="dropdown-item" @click="handleMenuItemClick('/parents')">
                         <i class="fas fa-user-friends me-2"></i>Parents
                       </a>
                     </template>
                     <template v-else-if="userRole === 'registrar'">
-                      <a class="dropdown-item" @click="(e) => handleMenuItemClick('/users', e)" :class="{ active: isRouteActive('/users') }">
+                      <a class="dropdown-item" @click="handleMenuItemClick('/users')">
                         <i class="fas fa-users me-2"></i>New Enrollment
                       </a>
                     </template>
                     <template v-else-if="userRole === 'admin'">
-                      <a class="dropdown-item" @click="(e) => handleMenuItemClick('/dashboard', e)" :class="{ active: isRouteActive('/dashboard') }">Dashboard</a>
-                      <a class="dropdown-item" @click="(e) => handleMenuItemClick('/admin', e)" :class="{ active: isRouteActive('/admin') }">Admin</a>
+                      <a class="dropdown-item" @click="handleMenuItemClick('/dashboard')">Dashboard</a>
+                      <a class="dropdown-item" @click="handleMenuItemClick('/admin')">Admin</a>
                     </template>
                   </div>
                 </div>
@@ -489,31 +493,19 @@ const collapseMobileMenu = (route = null) => {
   }
 }
 
-// Specific handler for menu item clicks
+// Update the handleMenuItemClick function
 const handleMenuItemClick = async (route: string, event: Event | null = null) => {
   if (event) {
-    event.preventDefault();
+    event.preventDefault()
   }
   
-  // Close any open dropdowns
-  const dropdowns = document.querySelectorAll('.dropdown-menu.show')
-  dropdowns.forEach(dropdown => {
-    const bsDropdown = window.bootstrap.Dropdown.getInstance(dropdown.previousElementSibling as HTMLElement)
-    if (bsDropdown) {
-      bsDropdown.hide()
-    }
-  })
+  // Close mega menu if open
+  closeMegaMenu()
   
-  // Close mobile menu if open
-  const mobileMenuContent = document.getElementById('mobileMenuContent')
-  if (mobileMenuContent && mobileMenuContent.classList.contains('show')) {
-    const menuToggle = document.querySelector('a[data-bs-target="#mobileMenuContent"]') as HTMLElement
-    if (menuToggle) {
-      menuToggle.click()
-    }
-  }
+  // Close mobile menu
+  closeMobileMenu()
   
-  // Close navbar if open
+  // Close the navbar collapse
   const navbarCollapse = document.getElementById('navbarNav')
   if (navbarCollapse && navbarCollapse.classList.contains('show')) {
     const navbarToggler = document.querySelector('.navbar-toggler') as HTMLElement
@@ -530,25 +522,15 @@ const handleMenuItemClick = async (route: string, event: Event | null = null) =>
   }
 }
 
+// Update the navigateTo function
 const navigateTo = async (path: string) => {
   // Close mega menu dropdown if open
-  const megaMenuDropdown = document.querySelector('.mega-menu.show')
-  if (megaMenuDropdown) {
-    const dropdownToggle = megaMenuDropdown.previousElementSibling as HTMLElement
-    const bsDropdown = window.bootstrap.Dropdown.getInstance(dropdownToggle)
-    if (bsDropdown) {
-      bsDropdown.hide()
-    }
-  }
+  closeMegaMenu()
 
   // Close mobile menu if open
-  const mobileMenu = document.getElementById('mobileMenuContent')
-  if (mobileMenu && mobileMenu.classList.contains('show')) {
-    const bsCollapse = new bootstrap.Collapse(mobileMenu)
-    bsCollapse.hide()
-  }
+  closeMobileMenu()
 
-  // Close navbar if open
+  // Close the navbar collapse
   const navbarCollapse = document.getElementById('navbarNav')
   if (navbarCollapse && navbarCollapse.classList.contains('show')) {
     const navbarToggler = document.querySelector('.navbar-toggler') as HTMLElement
@@ -565,6 +547,35 @@ const navigateTo = async (path: string) => {
   }
 }
 
+// Update the closeMobileMenu function
+const closeMobileMenu = () => {
+  const mobileMenu = document.getElementById('mobileMenuContent')
+  const navbarCollapse = document.getElementById('navbarNav')
+  
+  // Close mobile menu dropdown
+  if (mobileMenu && mobileMenu.classList.contains('show')) {
+    const bsCollapse = new bootstrap.Collapse(mobileMenu)
+    bsCollapse.hide()
+  }
+  
+  // Close navbar collapse
+  if (navbarCollapse && navbarCollapse.classList.contains('show')) {
+    const bsCollapse = new bootstrap.Collapse(navbarCollapse)
+    bsCollapse.hide()
+  }
+}
+
+// Add this function to close mega menu
+const closeMegaMenu = () => {
+  const megaMenu = document.querySelector('.mega-menu')
+  const menuToggle = document.querySelector('.dropdown-toggle-desktop')
+  
+  if (megaMenu && menuToggle) {
+    megaMenu.classList.remove('show')
+    menuToggle.setAttribute('aria-expanded', 'false')
+  }
+}
+
 // Update the style for mega menu items
 const style = document.createElement('style')
 style.textContent = `
@@ -578,15 +589,51 @@ style.textContent = `
 `
 document.head.appendChild(style)
 
-// Initialize auth state and Bootstrap components
+// Add click outside handler
 onMounted(async () => {
   document.body.classList.add('bg-light')
   isLoading.value = true
   
+  // Add click outside handler
+  document.addEventListener('click', (event) => {
+    const megaMenu = document.querySelector('.mega-menu')
+    const menuToggle = document.querySelector('.dropdown-toggle-desktop')
+    
+    if (megaMenu && menuToggle) {
+      const clickedElement = event.target as HTMLElement
+      const isClickInside = megaMenu.contains(clickedElement) || menuToggle.contains(clickedElement)
+      
+      if (!isClickInside && megaMenu.classList.contains('show')) {
+        megaMenu.classList.remove('show')
+        menuToggle.setAttribute('aria-expanded', 'false')
+      }
+    }
+  })
+  
   // Initialize Bootstrap components
-  const dropdownElementList = document.querySelectorAll('.dropdown-toggle')
+  const initializeDropdowns = () => {
+    const dropdownElementList = document.querySelectorAll('[data-bs-toggle="dropdown"]')
   dropdownElementList.forEach(dropdownToggleEl => {
-    new bootstrap.Dropdown(dropdownToggleEl)
+      // Remove existing dropdown instance if it exists
+      const existingDropdown = bootstrap.Dropdown.getInstance(dropdownToggleEl)
+      if (existingDropdown) {
+        existingDropdown.dispose()
+      }
+      // Create new dropdown instance
+      new bootstrap.Dropdown(dropdownToggleEl, {
+        autoClose: 'outside'
+      })
+    })
+  }
+
+  // Initial initialization
+  initializeDropdowns()
+
+  // Re-initialize dropdowns when route changes
+  router.afterEach(() => {
+    nextTick(() => {
+      initializeDropdowns()
+    })
   })
   
   try {
@@ -607,6 +654,23 @@ onMounted(async () => {
     isLoading.value = false
   }
 })
+
+// Add watch for route changes to reinitialize dropdowns
+watch(
+  () => route.path,
+  () => {
+    nextTick(() => {
+      const dropdownElementList = document.querySelectorAll('[data-bs-toggle="dropdown"]')
+      dropdownElementList.forEach(dropdownToggleEl => {
+        if (!bootstrap.Dropdown.getInstance(dropdownToggleEl)) {
+          new bootstrap.Dropdown(dropdownToggleEl, {
+            autoClose: 'outside'
+          })
+        }
+      })
+    })
+  }
+)
 
 // Function to fetch the school info, including student_portal setting
 const fetchSchoolInfo = async (schoolId?: string) => {
@@ -739,6 +803,22 @@ const showFinanceMenu = computed(() => {
   // For other roles, check if finance module is enabled
   return authStore.financeModuleEnabled && ['admin', 'accountant'].includes(role)
 })
+
+// Add this function to handle menu toggle
+const toggleMegaMenu = (event: Event) => {
+  event.preventDefault()
+  const dropdownToggle = event.currentTarget as HTMLElement
+  const megaMenu = document.querySelector('.mega-menu') as HTMLElement
+  const isExpanded = dropdownToggle.getAttribute('aria-expanded') === 'true'
+  
+  if (isExpanded) {
+    dropdownToggle.setAttribute('aria-expanded', 'false')
+    megaMenu.classList.remove('show')
+  } else {
+    dropdownToggle.setAttribute('aria-expanded', 'true')
+    megaMenu.classList.add('show')
+  }
+}
 </script>
 
 <style lang="scss">
@@ -949,51 +1029,68 @@ html {
 
 // Keep only the necessary mega menu styles for the admin menu
 .mega-menu {
+  margin-top: 0.5rem;
   border: none;
-  border-radius: 0 0 1rem 1rem;
-  margin-top: 0;
-  padding: 0;
-  background: rgba(255, 255, 255, 0.98);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
-  border-top: 3px solid #42b883;
-  transform-origin: top;
-  animation: megaMenuOpen 0.3s ease;
+  border-radius: 0 0 12px 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  animation: slideDown 0.3s ease forwards;
+  position: absolute;
+  left: 0;
+  right: 0;
+  background: white;
+  z-index: 1050;
+  padding: 1.5rem;
+  display: none;
+  opacity: 0;
+  transform: translateY(-10px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  top: calc(100% + 0.5rem); /* Position it slightly lower */
+
+  &.show {
+    display: block;
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-@keyframes megaMenuOpen {
+@keyframes slideDown {
   from {
     opacity: 0;
-    transform: translateY(-10px) scaleY(0.95);
+    transform: translateY(-10px);
   }
   to {
     opacity: 1;
-    transform: translateY(0) scaleY(1);
+    transform: translateY(0);
   }
 }
 
 .mega-menu-horizontal {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   gap: 1.5rem;
   padding: 1rem;
+  
+  @media (min-width: 992px) {
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  }
 }
 
 .mega-menu-item {
   display: flex;
   align-items: center;
-  padding: 1rem;
+  padding: 1.25rem;
   background: white;
-  border-radius: 0.75rem;
+  border-radius: 12px;
   text-decoration: none;
   transition: all 0.3s ease;
   border: 1px solid rgba(66, 184, 131, 0.1);
+  color: inherit;
 
   &:hover {
-    transform: translateY(-5px);
+    transform: translateY(-2px);
     background: rgba(66, 184, 131, 0.05);
     border-color: #42b883;
+    box-shadow: 0 4px 12px rgba(66, 184, 131, 0.1);
   }
 
   .mega-menu-icon {
@@ -1005,6 +1102,7 @@ html {
     background: rgba(66, 184, 131, 0.1);
     border-radius: 12px;
     margin-right: 1rem;
+    flex-shrink: 0;
 
     i {
       font-size: 1.5rem;
@@ -1013,17 +1111,46 @@ html {
   }
 
   .mega-menu-content {
+    flex-grow: 1;
+    
     h6 {
       color: #2c3e50;
       margin: 0;
       font-weight: 600;
+      font-size: 1rem;
     }
 
     p {
       color: #666;
       margin: 0.25rem 0 0;
       font-size: 0.875rem;
+      opacity: 0.8;
     }
+  }
+}
+
+// Update dropdown toggle styles
+.dropdown-toggle-desktop {
+  position: relative;
+  padding: 0.5rem 1rem !important;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+
+  &:hover {
+    background: rgba(66, 184, 131, 0.1);
+  }
+
+  &[aria-expanded="true"] {
+    background: rgba(66, 184, 131, 0.15);
+    color: #42b883;
+
+    .dropdown-arrow {
+      transform: rotate(180deg);
+    }
+  }
+
+  .dropdown-arrow {
+    transition: transform 0.3s ease;
   }
 }
 
@@ -1204,5 +1331,42 @@ html {
 .fade-enter-to,
 .fade-leave-from {
   opacity: 1;
+}
+
+.dropdown-toggle-desktop {
+  &[aria-expanded="true"] {
+    .dropdown-arrow {
+      transform: rotate(180deg);
+    }
+  }
+  
+  .dropdown-arrow {
+    transition: transform 0.2s ease;
+  }
+}
+
+// Mobile menu item styles
+.mobile-menu-items {
+  .dropdown-item {
+    cursor: pointer;
+    transition: all 0.2s ease;
+    
+    &:active {
+      transform: scale(0.98);
+    }
+    
+    &:hover {
+      background-color: rgba(66, 184, 131, 0.1);
+      color: #42b883;
+      
+      i {
+        transform: translateX(2px);
+      }
+    }
+    
+    i {
+      transition: transform 0.2s ease;
+    }
+  }
 }
 </style> 

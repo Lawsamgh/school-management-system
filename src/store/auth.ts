@@ -9,6 +9,7 @@ interface UserRole {
   role: 'superadmin' | 'admin' | 'teacher' | 'student' | 'parent' | 'accountant'
   created_at: string
   school_id: string | null
+  class_id?: number | null
 }
 
 interface School {

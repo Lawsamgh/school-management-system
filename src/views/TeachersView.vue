@@ -196,7 +196,7 @@
                       </div>
                       <div class="analytics-data">
                         <h4>{{ totalStudents }}</h4>
-                        <p>Total Students</p>
+                        <p>Students</p>
                       </div>
                     </div>
                   </div>

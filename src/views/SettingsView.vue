@@ -479,10 +479,11 @@
                         <p>Manage academic subjects</p>
                       </div>
                       <div class="value-card-actions">
-                        <button class="btn-value-action">
+                        <button class="btn-value-action" @click="openSubjectModal">
                           <i class="fas fa-chevron-right"></i>
                         </button>
                       </div>
+                      <span class="value-list-badge" v-if="subjects.length > 0">{{ subjects.length }}</span>
                     </div>
                   </div>
 
@@ -497,10 +498,11 @@
                         <p>Manage terms and semesters</p>
                       </div>
                       <div class="value-card-actions">
-                        <button class="btn-value-action">
+                        <button class="btn-value-action" @click="openAcademicTermModal">
                           <i class="fas fa-chevron-right"></i>
                         </button>
                       </div>
+                      <span class="value-list-badge" v-if="academicTerms.length > 0">{{ academicTerms.length }}</span>
                     </div>
                   </div>
 
@@ -1480,6 +1482,22 @@
         </div>
       </div>
     </div>
+
+    <!-- Subject Modal -->
+    <SubjectModal
+      v-if="isSubjectModalOpen"
+      ref="subjectModalRef"
+      @close="closeSubjectModal"
+    />
+
+    <!-- Academic Term Modal -->
+    <AcademicTermModal
+      v-if="isAcademicTermModalOpen"
+      @close="closeAcademicTermModal"
+      @term-added="fetchAcademicTerms"
+      @term-updated="fetchAcademicTerms"
+      @term-deleted="fetchAcademicTerms"
+    />
   </div>
 </template>
 
@@ -1492,6 +1510,8 @@ import SchoolSelector from '@/components/SchoolSelector.vue'
 import { logActivity } from '@/lib/auditLogger'
 import PageLoader from '@/components/PageLoader.vue'
 import SettingsCardLoader from '@/components/SettingsCardLoader.vue'
+import SubjectModal from '@/components/SubjectModal.vue'
+import AcademicTermModal from '@/components/AcademicTermModal.vue'
 
 const authStore = useAuthStore()
 const toast = useToast()
@@ -3613,6 +3633,71 @@ watch(() => activeTab.value, (newTab) => {
   // Save the active tab to localStorage whenever it changes
   localStorage.setItem('settings_active_tab', newTab)
   console.log('Settings tab saved:', newTab)
+})
+
+// Add Subject Modal state and functions
+const isSubjectModalOpen = ref(false)
+const subjectModalRef = ref()
+const subjects = ref<any[]>([])
+
+const isAcademicTermModalOpen = ref(false)
+const academicTerms = ref<any[]>([])
+
+const openSubjectModal = async () => {
+  isSubjectModalOpen.value = true
+}
+
+const closeSubjectModal = () => {
+  isSubjectModalOpen.value = false
+  fetchSubjects()
+}
+
+const openAcademicTermModal = async () => {
+  isAcademicTermModalOpen.value = true
+}
+
+const closeAcademicTermModal = () => {
+  isAcademicTermModalOpen.value = false
+  fetchAcademicTerms()
+}
+
+const fetchSubjects = async () => {
+  try {
+    const schoolId = authStore.userRole?.school_id || authStore.getSelectedSchoolId
+    if (!schoolId) return
+
+    const { data, error } = await supabase
+      .from('subjects')
+      .select('id')
+      .eq('school_id', schoolId)
+
+    if (error) throw error
+    subjects.value = data || []
+  } catch (error) {
+    console.error('Error fetching subjects:', error)
+  }
+}
+
+const fetchAcademicTerms = async () => {
+  try {
+    const schoolId = authStore.userRole?.school_id || authStore.getSelectedSchoolId
+    if (!schoolId) return
+
+    const { data, error } = await supabase
+      .from('academic_terms')
+      .select('id')
+      .eq('school_id', schoolId)
+
+    if (error) throw error
+    academicTerms.value = data || []
+  } catch (error) {
+    console.error('Error fetching academic terms:', error)
+  }
+}
+
+onMounted(() => {
+  fetchSubjects()
+  fetchAcademicTerms()
 })
 </script>
 
