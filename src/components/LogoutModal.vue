@@ -1,33 +1,35 @@
 <template>
-  <Transition name="modal">
-    <div v-if="show" class="modal-backdrop">
-      <div class="modal-container" @click.stop>
-        <div class="modal-content">
-          <div class="modal-icon">
-            <i class="fas fa-sign-out-alt"></i>
-          </div>
-          <h3 class="modal-title">Confirm Logout</h3>
-          <p class="modal-text">Are you sure you want to log out? You'll need to sign in again to access your account.</p>
-          <div class="modal-actions">
-            <button 
-              class="btn btn-outline-secondary" 
-              @click="$emit('cancel')"
-            >
-              Cancel
-            </button>
-            <button 
-              class="btn btn-danger" 
-              @click="$emit('confirm')"
-              :disabled="loading"
-            >
-              <span v-if="loading" class="spinner-border spinner-border-sm me-2"></span>
-              {{ loading ? 'Logging out...' : 'Logout' }}
-            </button>
+  <Teleport to="#app">
+    <Transition name="modal">
+      <div v-if="show" class="modal-backdrop">
+        <div class="modal-container" @click.stop>
+          <div class="modal-content">
+            <div class="modal-icon">
+              <i class="fas fa-sign-out-alt"></i>
+            </div>
+            <h3 class="modal-title">Confirm Logout</h3>
+            <p class="modal-text">Are you sure you want to log out? You'll need to sign in again to access your account.</p>
+            <div class="modal-actions">
+              <button 
+                class="btn btn-outline-secondary" 
+                @click="$emit('cancel')"
+              >
+                Cancel
+              </button>
+              <button 
+                class="btn btn-primary" 
+                @click="$emit('confirm')"
+                :disabled="loading"
+              >
+                <span v-if="loading" class="spinner-border spinner-border-sm me-2"></span>
+                {{ loading ? 'Logging out...' : 'Logout' }}
+              </button>
+            </div>
           </div>
         </div>
       </div>
-    </div>
-  </Transition>
+    </Transition>
+  </Teleport>
 </template>
 
 <script setup lang="ts">
@@ -58,7 +60,7 @@ defineEmits<{
 }
 
 .modal-container {
-  background: white;
+  background: var(--background, white);
   border-radius: 16px;
   width: 90%;
   max-width: 400px;
@@ -77,7 +79,7 @@ defineEmits<{
 .modal-icon {
   width: 64px;
   height: 64px;
-  background: #dc3545;
+  background: var(--primary, #42b883);
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -93,12 +95,13 @@ defineEmits<{
 .modal-title {
   font-size: 1.5rem;
   font-weight: 600;
-  color: #2c3e50;
+  color: var(--text, #2c3e50);
   margin-bottom: 1rem;
 }
 
 .modal-text {
-  color: #6b7280;
+  color: var(--text, #6b7280);
+  opacity: 0.8;
   margin-bottom: 1.5rem;
   line-height: 1.5;
 }
@@ -113,13 +116,24 @@ defineEmits<{
     padding: 0.625rem 1.25rem;
     font-weight: 500;
     
-    &.btn-danger {
-      background-color: #dc3545;
-      border-color: #dc3545;
+    &.btn-outline-secondary {
+      border: 1px solid var(--border, #e2e8f0);
+      color: var(--text, #6b7280);
+      background-color: transparent;
       
       &:hover:not(:disabled) {
-        background-color: darken(#dc3545, 5%);
-        border-color: darken(#dc3545, 5%);
+        background-color: rgba(var(--secondary-rgb, 53, 73, 94), 0.05);
+        color: var(--text, #2c3e50);
+      }
+    }
+    
+    &.btn-primary {
+      background-color: var(--primary, #42b883);
+      border-color: var(--primary, #42b883);
+      color: white;
+      
+      &:hover:not(:disabled) {
+        filter: brightness(90%);
       }
       
       &:disabled {

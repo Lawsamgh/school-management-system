@@ -62,35 +62,58 @@
                      }"
                 >
                   <div class="assignment-content">
-                    <div class="status-indicator"></div>
+                    <div class="status-badge" 
+                         :class="{
+                           'status-completed': assignment.student_status === 'completed',
+                           'status-pending': assignment.student_status === 'pending' && !isAssignmentExpired(assignment.due_date),
+                           'status-expired': isAssignmentExpired(assignment.due_date) && assignment.student_status === 'pending'
+                         }">
+                      <i class="fas" 
+                         :class="{
+                           'fa-check-circle': assignment.student_status === 'completed',
+                           'fa-hourglass-half': assignment.student_status === 'pending' && !isAssignmentExpired(assignment.due_date),
+                           'fa-exclamation-circle': isAssignmentExpired(assignment.due_date) && assignment.student_status === 'pending'
+                         }">
+                      </i>
+                      <span>{{ 
+                        assignment.student_status === 'completed' ? 'Completed' : 
+                        isAssignmentExpired(assignment.due_date) ? 'Expired' : 'Pending' 
+                      }}</span>
+                    </div>
+                    
                     <div class="assignment-details">
-                      <div class="d-flex align-items-center gap-2">
+                      <div class="assignment-header">
                         <h3>{{ assignment.title }}</h3>
-                        <span v-if="!assignment.assignment_status?.length" 
-                              class="new-badge">New</span>
-                        <span v-if="isAssignmentExpired(assignment.due_date) && assignment.student_status === 'pending'"
-                              class="expired-badge">Expired</span>
+                        <div class="assignment-badges">
+                          <span v-if="!assignment.assignment_status?.length" 
+                                class="new-badge">New</span>
+                        </div>
                       </div>
-                      <p>{{ assignment.description }}</p>
+                      
+                      <p class="description">{{ assignment.description }}</p>
+                      
                       <div class="meta-info">
-                        <span class="due-date" :class="{ 'text-danger': isAssignmentExpired(assignment.due_date) }">
-                          <i class="far fa-calendar-alt me-1"></i>
-                          Due: {{ formatDate(assignment.due_date) }}
-                        </span>
-                        <span class="subject">
-                          <i class="fas fa-book me-1"></i>
-                          {{ assignment.subject }}
-                        </span>
-                        <span class="points">
-                          <i class="fas fa-star me-1"></i>
-                          {{ assignment.total_points }} points
-                        </span>
-                        <span v-if="assignment.has_timer" class="timer">
-                          <i class="fas fa-clock me-1"></i>
-                          {{ assignment.time_limit }} minutes
-                        </span>
+                        <div class="meta-item">
+                          <i class="far fa-calendar-alt"></i>
+                          <span :class="{ 'text-danger': isAssignmentExpired(assignment.due_date) }">
+                            Due: {{ formatDate(assignment.due_date) }}
+                          </span>
+                        </div>
+                        <div class="meta-item">
+                          <i class="fas fa-book"></i>
+                          <span>{{ assignment.subject }}</span>
+                        </div>
+                        <div class="meta-item">
+                          <i class="fas fa-star"></i>
+                          <span>{{ assignment.total_points }} points</span>
+                        </div>
+                        <div v-if="assignment.has_timer" class="meta-item">
+                          <i class="fas fa-clock"></i>
+                          <span>{{ assignment.time_limit }} minutes</span>
+                        </div>
                       </div>
                     </div>
+                    
                     <div class="assignment-actions">
                       <button class="btn-action btn-view" 
                               @click="viewAssignment(assignment)"
@@ -1741,34 +1764,250 @@ onMounted(() => {
   .assignments-section {
     .assignments-list {
       .assignment-item {
-        height: 160px;
-        background: var(--background-light);
+        background: white;
         border-radius: 1rem;
-        margin-bottom: 1rem;
+        margin-bottom: 1.5rem;
         border: 1px solid var(--border);
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        transition: all 0.3s ease;
+        overflow: hidden;
+        
+        &:hover {
+          transform: translateY(-3px);
+          box-shadow: 0 8px 15px rgba(0, 0, 0, 0.08);
+        }
 
         &.completed {
-          background: var(--success-light);
-          border-color: var(--primary);
+          border-left: 5px solid var(--primary);
           
-          .status-indicator {
-            background: var(--primary);
+          .assignment-content {
+            border-left: none;
+          }
+        }
+        
+        &.expired {
+          border-left: 5px solid var(--danger);
+          
+          .assignment-content {
+            border-left: none;
           }
         }
 
         .assignment-content {
           padding: 1.5rem;
-          display: flex;
+          display: grid;
+          grid-template-columns: auto 1fr auto;
           gap: 1.5rem;
-          align-items: flex-start;
+          align-items: start;
+          
+          .status-badge {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 0.75rem;
+            border-radius: 0.75rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            min-width: 90px;
+            
+            i {
+              font-size: 1.25rem;
+              margin-bottom: 0.5rem;
+            }
+            
+            &.status-completed {
+              background-color: rgba(var(--primary-rgb), 0.1);
+              color: var(--primary);
+            }
+            
+            &.status-pending {
+              background-color: rgba(var(--info-rgb), 0.1);
+              color: var(--info);
+            }
+            
+            &.status-expired {
+              background-color: rgba(var(--danger-rgb), 0.1);
+              color: var(--danger);
+            }
+          }
+          
+          .assignment-details {
+            display: flex;
+            flex-direction: column;
+            
+            .assignment-header {
+              display: flex;
+              align-items: center;
+              gap: 1rem;
+              margin-bottom: 0.5rem;
+              
+              h3 {
+                font-size: 1.15rem;
+                font-weight: 600;
+                color: var(--text);
+                margin: 0;
+              }
+              
+              .assignment-badges {
+                display: flex;
+                gap: 0.5rem;
+                
+                .new-badge {
+                  background: #3b82f6;
+                  color: white;
+                  padding: 0.25rem 0.5rem;
+                  border-radius: 1rem;
+                  font-size: 0.75rem;
+                  font-weight: 600;
+                  display: inline-flex;
+                  align-items: center;
+                  box-shadow: 0 2px 4px rgba(59, 130, 246, 0.4);
+                  letter-spacing: 0.5px;
+                  text-transform: uppercase;
+                  animation: pulse-badge 2s infinite;
+                }
 
-          .status-indicator {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: var(--primary);
-            margin-top: 0.5rem;
-            flex-shrink: 0;
+                @keyframes pulse-badge {
+                  0% {
+                    transform: scale(1);
+                  }
+                  50% {
+                    transform: scale(1.05);
+                  }
+                  100% {
+                    transform: scale(1);
+                  }
+                }
+              }
+            }
+            
+            .description {
+              color: var(--text-light);
+              font-size: 0.9rem;
+              line-height: 1.5;
+              margin-bottom: 1rem;
+              display: -webkit-box;
+              -webkit-line-clamp: 2;
+              -webkit-box-orient: vertical;
+              overflow: hidden;
+              text-overflow: ellipsis;
+            }
+            
+            .meta-info {
+              display: flex;
+              flex-wrap: wrap;
+              gap: 1rem;
+              margin-top: auto;
+              
+              .meta-item {
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                font-size: 0.8rem;
+                color: var(--text-light);
+                background: var(--background-light);
+                padding: 0.35rem 0.75rem;
+                border-radius: 2rem;
+                
+                i {
+                  color: var(--primary);
+                  font-size: 0.85rem;
+                }
+                
+                .text-danger {
+                  color: var(--danger) !important;
+                  
+                  & + i {
+                    color: var(--danger);
+                  }
+                }
+              }
+            }
+          }
+          
+          .assignment-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            
+            .btn-action {
+              border: none;
+              padding: 0.75rem 1.25rem;
+              border-radius: 0.5rem;
+              font-weight: 500;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              gap: 0.5rem;
+              transition: all 0.2s ease;
+              font-size: 0.85rem;
+              min-width: 110px;
+              
+              i {
+                font-size: 0.9rem;
+              }
+              
+              &.btn-view {
+                background: white;
+                color: var(--primary);
+                border: 2px solid var(--primary);
+                font-weight: 600;
+                box-shadow: 0 2px 4px rgba(var(--primary-rgb), 0.2);
+                
+                i {
+                  color: var(--primary);
+                }
+                
+                &:disabled {
+                  opacity: 0.6;
+                  cursor: not-allowed;
+                }
+              }
+              
+              &.btn-submit {
+                background: var(--primary);
+                color: white;
+                
+                &:disabled {
+                  background: var(--danger-light);
+                  color: var(--danger);
+                  opacity: 0.8;
+                  cursor: not-allowed;
+                }
+              }
+            }
+          }
+        }
+        
+        @media (max-width: 768px) {
+          .assignment-content {
+            grid-template-columns: 1fr;
+            padding: 1rem;
+            gap: 1rem;
+            
+            .status-badge {
+              flex-direction: row;
+              width: 100%;
+              min-width: 0;
+              padding: 0.5rem 0.75rem;
+              
+              i {
+                margin-bottom: 0;
+                margin-right: 0.5rem;
+              }
+            }
+            
+            .assignment-actions {
+              flex-direction: row;
+              width: 100%;
+              
+              .btn-action {
+                flex: 1;
+              }
+            }
           }
         }
       }
@@ -1925,6 +2164,22 @@ onMounted(() => {
 
       @media (max-width: 768px) {
         padding: 1rem 1.25rem;
+      }
+
+      // Make close button white
+      .btn-close {
+        background-color: var(--primary) !important;
+        color: white;
+        opacity: 1;
+        padding: 0.75rem;
+        border-radius: 50%;
+        
+        &::before {
+          color: white;
+        }
+        
+        // Create a white X
+        background: var(--primary) url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='white'%3e%3cpath d='M.293.293a1 1 0 011.414 0L8 6.586 14.293.293a1 1 0 111.414 1.414L9.414 8l6.293 6.293a1 1 0 01-1.414 1.414L8 9.414l-6.293 6.293a1 1 0 01-1.414-1.414L6.586 8 .293 1.707a1 1 0 010-1.414z'/%3e%3c/svg%3e") center/0.75em auto no-repeat;
       }
 
       .modal-title-wrapper {
@@ -2544,16 +2799,20 @@ onMounted(() => {
               transition: all 0.2s ease;
 
               &.btn-secondary {
-                background: #f8fafc;
-                border: 1px solid #e5e7eb;
-                color: #4b5563;
-
+                background-color: var(--primary);
+                color: white;
+                border-color: var(--primary);
+                
+                i {
+                  color: white;
+                }
+                
                 &:hover {
-                  background: #f1f5f9;
-                  border-color: #d1d5db;
-    }
-  }
-  
+                  background-color: darken(#42b883, 10%);
+                  border-color: darken(#42b883, 10%);
+                }
+              }
+
               &.btn-primary {
                 background: #42b883;
                 border: none;
@@ -2820,9 +3079,25 @@ onMounted(() => {
   padding: 0.25rem 0.5rem;
   border-radius: 1rem;
   font-size: 0.75rem;
-  font-weight: 500;
+  font-weight: 600;
   display: inline-flex;
   align-items: center;
+  box-shadow: 0 2px 4px rgba(59, 130, 246, 0.4);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  animation: pulse-badge 2s infinite;
+}
+
+@keyframes pulse-badge {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 
 .modal-title-wrapper {

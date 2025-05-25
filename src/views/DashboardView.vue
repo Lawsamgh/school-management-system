@@ -515,6 +515,7 @@
           <div 
             class="col-md-12" 
             v-motion-slide-visible-once-bottom
+            v-if="userRole?.toLowerCase() !== 'student'"
           >
             <div class="dashboard-card" :class="{ 'skeleton-loading': loading }">
               <div class="card-header">
@@ -683,9 +684,45 @@
             <PaymentChart />
           </div>
 
+          <!-- Student Calendar View (only visible for students) -->
+          <div class="col-12" v-if="userRole?.toLowerCase() === 'student'" v-motion-slide-visible-once-bottom>
+            <div class="dashboard-card calendar-dashboard-card">
+              <div class="card-header">
+                <h2>My Calendar</h2>
+                <div class="calendar-actions">
+                  <button class="btn btn-outline-primary btn-sm" @click="calendarView = 'month'" :class="{ active: calendarView === 'month' }">
+                    <i class="fas fa-calendar-alt me-1"></i>
+                    <span class="d-none d-sm-inline">Month</span>
+                  </button>
+                  <button class="btn btn-outline-primary btn-sm" @click="calendarView = 'week'" :class="{ active: calendarView === 'week' }">
+                    <i class="fas fa-calendar-week me-1"></i>
+                    <span class="d-none d-sm-inline">Week</span>
+                  </button>
+                  <button class="btn btn-outline-primary btn-sm" @click="calendarView = 'day'" :class="{ active: calendarView === 'day' }">
+                    <i class="fas fa-calendar-day me-1"></i>
+                    <span class="d-none d-sm-inline">Day</span>
+                  </button>
+                </div>
+              </div>
+              <div class="card-body p-0 calendar-wrapper">
+                <div class="calendar-container">
+                  <div 
+                    ref="calendarEl" 
+                    class="full-calendar"
+                  ></div>
+                  <div v-if="studentEvents.length === 0" class="empty-calendar-state">
+                    <i class="fas fa-calendar-alt"></i>
+                    <h4>No Events Found</h4>
+                    <p>You don't have any scheduled events or assignments yet.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- Student/Parent View -->
           <div class="row g-4" v-if="isStudentOrParent">
-            <!-- Student/Parent specific content -->
+            <!-- Student/Parent specific content (other than calendar) -->
           </div>
 
           <!-- Stats Section -->
@@ -714,11 +751,17 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onBeforeUnmount, ref, computed } from 'vue'
+import { onMounted, onBeforeUnmount, ref, computed, watch } from 'vue'
 import { useDashboard } from '@/composables/useDashboard'
 import ChangePasswordModal from '@/components/ChangePasswordModal.vue'
 import AddUserModal from '@/components/AddUserModal.vue'
 import { supabase } from '@/lib/supabase'
+// Import FullCalendar and required plugins
+import { Calendar } from '@fullcalendar/core'
+import dayGridPlugin from '@fullcalendar/daygrid'
+import timeGridPlugin from '@fullcalendar/timegrid'
+import listPlugin from '@fullcalendar/list'
+import interactionPlugin from '@fullcalendar/interaction'
 
 // Use the dashboard composable
 const {
@@ -810,6 +853,258 @@ const fetchCurrentTerm = async () => {
   }
 }
 
+// Define event type interfaces
+interface CalendarEventExtendedProps {
+  type: 'assignment' | 'class';
+  id: string | number;
+  description?: string;
+  status?: string;
+  teacher?: string;
+  room?: string | null;
+}
+
+interface CalendarEvent {
+  id: string;
+  title: string;
+  start: string;
+  end?: string;
+  allDay?: boolean;
+  backgroundColor: string;
+  borderColor: string;
+  textColor: string;
+  extendedProps: CalendarEventExtendedProps;
+}
+
+// Student Calendar
+const calendarView = ref('month')
+const calendarEl = ref<HTMLElement | null>(null)
+const calendarInstance = ref<any>(null)
+const studentEvents = ref<CalendarEvent[]>([])
+
+// Initialize the calendar
+const initializeCalendar = () => {
+  if (calendarEl.value) {
+    // Determine if we're on a mobile device
+    const isMobile = window.innerWidth < 768
+    
+    calendarInstance.value = new Calendar(calendarEl.value, {
+      plugins: [dayGridPlugin, timeGridPlugin, listPlugin, interactionPlugin],
+      initialView: isMobile ? 'listWeek' : 
+                  calendarView.value === 'month' ? 'dayGridMonth' : 
+                  calendarView.value === 'week' ? 'timeGridWeek' : 'timeGridDay',
+      headerToolbar: {
+        left: isMobile ? 'prev,next' : 'prev,next today',
+        center: '', // Remove title from center
+        right: 'title' // Position title on the right
+      },
+      events: studentEvents.value,
+      eventClick: handleEventClick,
+      eventTimeFormat: {
+        hour: '2-digit',
+        minute: '2-digit',
+        meridiem: 'short'
+      },
+      height: 'auto',
+      dayMaxEvents: isMobile ? 2 : 3,
+      eventDisplay: 'block',
+      slotMinTime: '07:00:00',
+      slotMaxTime: '19:00:00',
+      // Prevent overflow with better sizing
+      contentHeight: isMobile ? 450 : 550,
+      aspectRatio: 1.35,
+      expandRows: true,
+      handleWindowResize: true,
+      // Better mobile settings
+      views: {
+        listWeek: {
+          titleFormat: { year: 'numeric', month: 'short' },
+          eventTimeFormat: { hour: '2-digit', minute: '2-digit', meridiem: 'short' },
+          noEventsContent: 'No events to display'
+        },
+        timeGridDay: {
+          titleFormat: { year: 'numeric', month: 'short', day: 'numeric' }
+        },
+        timeGridWeek: {
+          titleFormat: { year: 'numeric', month: 'short' },
+          dayHeaderFormat: { weekday: isMobile ? 'narrow' : 'short' }
+        },
+        dayGridMonth: {
+          titleFormat: { year: 'numeric', month: 'long' },
+          dayHeaderFormat: { weekday: isMobile ? 'narrow' : 'short' }
+        }
+      }
+    })
+    
+    calendarInstance.value.render()
+    
+    // Add window resize handler
+    window.addEventListener('resize', handleResize)
+  }
+}
+
+// Handle window resize
+const handleResize = () => {
+  if (calendarInstance.value) {
+    const isMobile = window.innerWidth < 768
+    
+    // Switch to more appropriate view on mobile
+    if (isMobile && calendarView.value === 'month') {
+      calendarInstance.value.changeView('listWeek')
+    } else {
+      // Restore the selected view when not on mobile
+      if (!isMobile) {
+        if (calendarView.value === 'month') {
+          calendarInstance.value.changeView('dayGridMonth')
+        } else if (calendarView.value === 'week') {
+          calendarInstance.value.changeView('timeGridWeek')
+        } else {
+          calendarInstance.value.changeView('timeGridDay')
+        }
+      }
+    }
+    
+    // Force re-render to adjust to new size
+    calendarInstance.value.updateSize()
+  }
+}
+
+// Watch for view changes to update calendar
+watch(calendarView, () => {
+  if (calendarInstance.value) {
+    const isMobile = window.innerWidth < 768
+    
+    // For mobile devices, always use list view for better readability
+    if (isMobile) {
+      calendarInstance.value.changeView('listWeek')
+    } else {
+      if (calendarView.value === 'month') {
+        calendarInstance.value.changeView('dayGridMonth')
+      } else if (calendarView.value === 'week') {
+        calendarInstance.value.changeView('timeGridWeek')
+      } else {
+        calendarInstance.value.changeView('timeGridDay')
+      }
+    }
+  }
+})
+
+// Watch for student events changes
+watch(studentEvents, () => {
+  if (calendarInstance.value) {
+    calendarInstance.value.removeAllEvents()
+    calendarInstance.value.addEventSource(studentEvents.value)
+  }
+})
+
+// Handle clicking on calendar events
+const handleEventClick = (info: any) => {
+  // Get the event data
+  const eventData = info.event.extendedProps as CalendarEventExtendedProps
+  
+  // Handle different event types
+  if (eventData.type === 'assignment') {
+    // Navigate to assignment details or show modal
+    // Example: router.push(`/student/assignments/${eventData.id}`)
+    console.log('Assignment clicked:', eventData)
+  } else if (eventData.type === 'class') {
+    // Show class details
+    console.log('Class clicked:', eventData)
+  }
+}
+
+// Fetch student calendar data
+const fetchStudentCalendarData = async () => {
+  if (userRole.value?.toLowerCase() !== 'student') return
+  
+  try {
+    // Fetch assignments
+    const { data: assignments, error: assignmentsError } = await supabase
+      .from('assignments')
+      .select('*, class_id')
+      .eq('school_id', authStore.userRole?.school_id || '')
+      
+    if (assignmentsError) throw assignmentsError
+    
+    // Fetch class schedule
+    const { data: schedules, error: schedulesError } = await supabase
+      .from('class_schedules')
+      .select('*')
+      .eq('class_id', studentClassId.value || '')
+      
+    if (schedulesError) throw schedulesError
+    
+    // Format the events for the calendar
+    const formattedEvents: CalendarEvent[] = []
+    
+    // Add assignments to events
+    if (assignments) {
+      assignments.forEach(assignment => {
+        formattedEvents.push({
+          id: `assignment-${assignment.id}`,
+          title: assignment.title || 'Assignment',
+          start: assignment.due_date,
+          allDay: true,
+          backgroundColor: '#f59e0b',
+          borderColor: '#d97706',
+          textColor: '#ffffff',
+          extendedProps: {
+            type: 'assignment',
+            id: assignment.id,
+            description: assignment.description,
+            status: assignment.status
+          }
+        })
+      })
+    }
+    
+    // Add class schedules to events
+    if (schedules) {
+      const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
+      const today = new Date()
+      const startOfWeek = new Date(today)
+      startOfWeek.setDate(today.getDate() - today.getDay()) // Set to Sunday
+      
+      schedules.forEach(schedule => {
+        const dayIndex = days.indexOf(schedule.day_of_week.toLowerCase())
+        if (dayIndex > -1) {
+          // Create recurring events for the next 4 weeks
+          for (let week = 0; week < 4; week++) {
+            const eventDate = new Date(startOfWeek)
+            eventDate.setDate(startOfWeek.getDate() + dayIndex + (week * 7))
+            
+            // Format the date and times
+            const eventDateStr = eventDate.toISOString().split('T')[0]
+            const startDateTime = `${eventDateStr}T${schedule.start_time}`
+            const endDateTime = `${eventDateStr}T${schedule.end_time}`
+            
+            formattedEvents.push({
+              id: `class-${schedule.id}-week-${week}`,
+              title: schedule.subject_name,
+              start: startDateTime,
+              end: endDateTime,
+              backgroundColor: '#4f46e5',
+              borderColor: '#4338ca',
+              textColor: '#ffffff',
+              extendedProps: {
+                type: 'class',
+                id: schedule.id,
+                teacher: schedule.teacher_name,
+                room: schedule.room_number
+              }
+            })
+          }
+        }
+      })
+    }
+    
+    // Update the events
+    studentEvents.value = formattedEvents
+    
+  } catch (error) {
+    console.error('Error fetching calendar data:', error)
+  }
+}
+
 // Initialize dashboard on mount
 onMounted(async () => {
   console.log('Component mounted')
@@ -818,6 +1113,15 @@ onMounted(async () => {
     await initializeDashboard() // This will handle all role-specific initializations
     if (isNotSuperAdmin.value) {
       fetchCurrentTerm()
+    }
+    
+    // Fetch calendar data for students
+    if (userRole.value?.toLowerCase() === 'student') {
+      await fetchStudentCalendarData()
+      // Initialize the calendar after fetching the data
+      setTimeout(() => {
+        initializeCalendar()
+      }, 100)
     }
   } catch (error) {
     console.error('Error in onMounted:', error)
@@ -828,6 +1132,15 @@ onMounted(async () => {
 // Clean up on unmount
 onBeforeUnmount(() => {
   cleanUp()
+  
+  // Remove window resize listener
+  window.removeEventListener('resize', handleResize)
+  
+  // Clean up the calendar instance
+  if (calendarInstance.value) {
+    calendarInstance.value.destroy()
+    calendarInstance.value = null
+  }
 })
 </script>
 
@@ -1160,7 +1473,8 @@ onBeforeUnmount(() => {
   height: 100%;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
   margin-bottom: 0.5rem;
-
+  overflow: hidden; // Ensure content doesn't overflow the card
+  
   .card-header {
     padding: 1.25rem;
     border-bottom: 1px solid #eee;
@@ -2013,6 +2327,384 @@ onBeforeUnmount(() => {
   &:hover {
     transform: translateY(-3px);
     box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+  }
+}
+
+// Calendar styles
+.calendar-wrapper {
+  position: relative;
+  overflow: hidden; // Contain the calendar contents
+}
+
+.calendar-container {
+  padding: 1rem;
+  background: white;
+  position: relative;
+  min-height: 400px;
+  overflow: hidden; // Prevent calendar content from overflowing
+  
+  .full-calendar {
+    height: 600px;
+    max-width: 100%; // Ensure calendar doesn't exceed container width
+    
+    @media (max-width: 768px) {
+      height: 500px;
+    }
+    
+    @media (max-width: 576px) {
+      height: 450px;
+    }
+  }
+  
+  .fc {
+    max-width: 100%; // Ensure FullCalendar doesn't overflow
+    overflow: visible; // Allow popups to be visible
+    --fc-border-color: #eaecef;
+    --fc-button-bg-color: var(--primary);
+    --fc-button-border-color: var(--primary);
+    --fc-button-hover-bg-color: var(--primary-dark);
+    --fc-button-hover-border-color: var(--primary-dark);
+    --fc-button-active-bg-color: var(--primary-dark);
+    --fc-button-active-border-color: var(--primary-dark);
+    --fc-event-bg-color: var(--primary);
+    --fc-event-border-color: var(--primary);
+    --fc-today-bg-color: rgba(var(--primary-rgb), 0.05);
+    
+    // Make scrollbars nicer and more consistent
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    
+    ::-webkit-scrollbar-track {
+      background: #f1f1f1;
+      border-radius: 4px;
+    }
+    
+    ::-webkit-scrollbar-thumb {
+      background: #c1c1c1;
+      border-radius: 4px;
+    }
+    
+    ::-webkit-scrollbar-thumb:hover {
+      background: #a8a8a8;
+    }
+    
+    // Add horizontal scroll to tables if needed
+    table {
+      width: 100%;
+    }
+    
+    .fc-scrollgrid {
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    
+    .fc-scroller {
+      overflow-y: auto !important; // Ensure scrollbar appears when needed
+    }
+    
+    // Make the calendar more responsive
+    font-size: 0.9rem;
+    
+    @media (max-width: 576px) {
+      font-size: 0.8rem;
+    }
+    
+    .fc-button-primary {
+      background-color: var(--primary);
+      border-color: var(--primary);
+      color: white;
+      
+      &:hover {
+        background-color: darken(#42b883, 10%);
+        border-color: darken(#42b883, 10%);
+      }
+      
+      &:focus {
+        box-shadow: 0 0 0 0.2rem rgba(66, 184, 131, 0.25);
+      }
+      
+      @media (max-width: 576px) {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.8rem;
+      }
+    }
+    
+    .fc-toolbar {
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 0.5rem;
+      margin-bottom: 1rem !important;
+      
+      @media (max-width: 576px) {
+        flex-direction: column;
+        align-items: center;
+      }
+    }
+    
+    .fc-toolbar-title {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: var(--text);
+      
+      @media (max-width: 768px) {
+        font-size: 1.1rem;
+      }
+      
+      @media (max-width: 576px) {
+        font-size: 1rem;
+        text-align: center;
+        width: 100%;
+      }
+    }
+    
+    .fc-today-button {
+      font-weight: 500;
+    }
+    
+    .fc-daygrid-day-top {
+      justify-content: center;
+      padding-top: 0.5rem;
+    }
+    
+    .fc-daygrid-day-number {
+      font-weight: 500;
+      color: var(--text);
+    }
+    
+    .fc-day-today {
+      .fc-daygrid-day-number {
+        width: 24px;
+        height: 24px;
+        background-color: var(--primary);
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto;
+      }
+    }
+    
+    .fc-daygrid-event {
+      border-radius: 4px;
+      padding: 2px 4px;
+      
+      @media (max-width: 576px) {
+        padding: 1px 2px;
+        font-size: 0.75rem;
+      }
+    }
+    
+    .fc-h-event {
+      background-color: var(--primary);
+      border-color: var(--primary);
+    }
+    
+    .fc-timegrid-event {
+      border-radius: 4px;
+    }
+    
+    // Hide less important elements on small screens
+    @media (max-width: 576px) {
+      .fc-timegrid-axis-cushion,
+      .fc-timegrid-slot-label-cushion {
+        font-size: 0.7rem;
+      }
+      
+      .fc-daygrid-day-number {
+        font-size: 0.8rem;
+      }
+    }
+    
+    // List view styles for mobile
+    .fc-list {
+      border: none;
+      
+      .fc-list-day-cushion {
+        background-color: rgba(var(--primary-rgb), 0.05);
+        
+        .fc-list-day-text,
+        .fc-list-day-side-text {
+          color: var(--primary);
+          font-weight: 600;
+        }
+      }
+      
+      .fc-list-event {
+        cursor: pointer;
+        transition: background-color 0.2s;
+        
+        &:hover td {
+          background-color: rgba(var(--primary-rgb), 0.05);
+        }
+        
+        .fc-list-event-dot {
+          border-color: var(--primary);
+        }
+        
+        .fc-list-event-title {
+          font-weight: 500;
+        }
+        
+        .fc-list-event-time {
+          font-weight: 400;
+          color: #666;
+        }
+      }
+      
+      .fc-list-empty {
+        background-color: transparent;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem;
+        
+        &::after {
+          content: '😊';
+          font-size: 2rem;
+          margin-top: 1rem;
+        }
+      }
+    }
+  }
+  
+  .empty-calendar-state {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    padding: 2rem;
+    
+    i {
+      font-size: 3rem;
+      color: #e2e8f0;
+      margin-bottom: 1rem;
+    }
+    
+    h4 {
+      font-size: 1.5rem;
+      color: #4b5563;
+      margin-bottom: 0.5rem;
+      
+      @media (max-width: 576px) {
+        font-size: 1.2rem;
+      }
+    }
+    
+    p {
+      color: #6b7280;
+      max-width: 250px;
+      margin: 0 auto;
+      
+      @media (max-width: 576px) {
+        font-size: 0.9rem;
+        max-width: 200px;
+      }
+    }
+  }
+}
+
+.calendar-actions {
+  display: flex;
+  gap: 0.5rem;
+  
+  .btn {
+    font-size: 0.875rem;
+    padding: 0.375rem 0.75rem;
+    border-radius: 0.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    
+    &.active {
+      background-color: var(--primary);
+      color: white;
+    }
+    
+    i {
+      font-size: 0.875rem;
+    }
+    
+    @media (max-width: 576px) {
+      padding: 0.375rem 0.5rem;
+      min-width: auto;
+    }
+  }
+  
+  @media (max-width: 576px) {
+    gap: 0.25rem;
+  }
+}
+
+// Add style for calendar dashboard card
+.calendar-dashboard-card {
+  width: 100%;
+  max-width: 100%;
+  margin: 0 auto 1.5rem;
+  border-radius: 1rem;
+  overflow: hidden;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+  
+  .card-header {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark, darken(#42b883, 10%)) 100%);
+    color: white;
+    
+    h2 {
+      color: white;
+    }
+    
+    .calendar-actions .btn {
+      background: rgba(255, 255, 255, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      color: white;
+      
+      &:hover {
+        background: rgba(255, 255, 255, 0.3);
+      }
+      
+      &.active {
+        background: white;
+        color: var(--primary);
+        border-color: white;
+      }
+    }
+  }
+  
+  // Style calendar navigation buttons with school theme
+  :deep(.fc-prev-button),
+  :deep(.fc-next-button),
+  :deep(.fc-today-button) {
+    background-color: var(--primary) !important;
+    border-color: var(--primary) !important;
+    color: white !important;
+    box-shadow: none !important;
+    
+    &:hover, &:focus, &:active {
+      background-color: var(--primary-dark, darken(#42b883, 10%)) !important;
+      border-color: var(--primary-dark, darken(#42b883, 10%)) !important;
+      color: white !important;
+    }
+  }
+  
+  // Align title to the right
+  :deep(.fc-toolbar-title) {
+    text-align: right;
+    margin-right: 0.5rem;
+    font-size: 1.2rem;
+    font-weight: 600;
+    
+    @media (max-width: 768px) {
+      text-align: center; // Center on mobile
+    }
+  }
+  
+  // Fix toolbar alignment
+  :deep(.fc-toolbar) {
+    justify-content: space-between !important;
   }
 }
 </style> 

@@ -88,6 +88,10 @@
                             <div class="mega-menu-icon"><i class="fas fa-school"></i></div>
                             <div class="mega-menu-content"><h6>Onboard School</h6><p>Register new school</p></div>
                           </a>
+                          <a class="mega-menu-item" @click="navigateTo('/schools')" v-if="userRole === 'superadmin'">
+                            <div class="mega-menu-icon"><i class="fas fa-school"></i></div>
+                            <div class="mega-menu-content"><h6>All Schools</h6><p>Manage all schools</p></div>
+                          </a>
                           <a class="mega-menu-item" @click="navigateTo('/users')">
                             <div class="mega-menu-icon"><i class="fas fa-users"></i></div>
                             <div class="mega-menu-content"><h6>Users</h6><p>Manage all users</p></div>
@@ -197,6 +201,9 @@
                       <template v-if="userRole === 'superadmin' || userRole === 'admin'">
                         <a v-if="userRole === 'superadmin'" class="dropdown-item" @click="handleMenuItemClick('/onboard-school')">
                           <i class="fas fa-school me-2"></i>Onboard School
+                        </a>
+                        <a v-if="userRole === 'superadmin'" class="dropdown-item" @click="handleMenuItemClick('/schools')">
+                          <i class="fas fa-school me-2"></i>All Schools
                         </a>
                         <a class="dropdown-item" @click="handleMenuItemClick('/users')">
                           <i class="fas fa-users me-2"></i>Users

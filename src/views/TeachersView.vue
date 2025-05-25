@@ -942,13 +942,19 @@
                           <!-- Subject -->
                           <div class="form-group">
                             <label class="form-label">Subject <span class="text-danger">*</span></label>
-                            <input 
-                              type="text" 
-                              class="form-control" 
+                            <select
+                              class="form-select"
                               v-model="newAssignment.subject"
-                              placeholder="Enter subject"
                               required
                             >
+                              <option value="" disabled selected>Select subject</option>
+                              <option v-for="subject in subjectsList" :key="subject.id" :value="subject.name">
+                                {{ subject.name }}
+                              </option>
+                            </select>
+                            <div v-if="loadingSubjects" class="mt-2 text-muted small">
+                              <i class="fas fa-spinner fa-spin me-1"></i> Loading subjects...
+                            </div>
                           </div>
                         </div>
                         <div class="col-md-12">
@@ -1245,6 +1251,10 @@ let attendanceModal: bootstrap.Modal | null = null
 let attendanceExistsModal: bootstrap.Modal | null = null
 let editAttendanceModal: bootstrap.Modal | null = null
 let datePickerModal: bootstrap.Modal | null = null
+
+// Add this ref for subjects dropdown in the assignment modal
+const subjectsList = ref<any[]>([])
+const loadingSubjects = ref(false)
 
 // Define status options first
 const statusOptions = ['present', 'absent', 'late', 'excused'] as const
@@ -2509,6 +2519,9 @@ const openCreateAssignmentModal = async () => {
       questions: []
     }
 
+    // Fetch subjects for the dropdown
+    await fetchSubjects()
+
     // Show modal
     createAssignmentModal?.show()
   } catch (error) {
@@ -2815,6 +2828,38 @@ const fetchAssignments = async () => {
   } catch (error) {
     console.error('Error fetching assignments:', error)
     toast.error('Failed to fetch assignments')
+  }
+}
+
+// Add fetchSubjects function to get subjects for the dropdown
+const fetchSubjects = async () => {
+  try {
+    loadingSubjects.value = true
+    
+    // Get school_id and class_id
+    const schoolId = authStore.getSelectedSchoolId || authStore.userRole?.school_id
+    const classIdToUse = selectedClassId.value || authStore.userRole?.class_id
+    
+    if (!schoolId || !classIdToUse) {
+      console.error('School ID or Class ID is missing, cannot fetch subjects.')
+      return
+    }
+    
+    const { data, error } = await supabase
+      .from('subjects')
+      .select('id, name')
+      .eq('school_id', schoolId)
+      .eq('class_id', classIdToUse)
+      .order('name', { ascending: true })
+    
+    if (error) throw error
+    
+    subjectsList.value = data || []
+  } catch (error) {
+    console.error('Error fetching subjects:', error)
+    toast.error('Failed to load subjects. Please try again.')
+  } finally {
+    loadingSubjects.value = false
   }
 }
 
