@@ -1891,6 +1891,7 @@ onMounted(() => {
               margin-bottom: 1rem;
               display: -webkit-box;
               -webkit-line-clamp: 2;
+              line-clamp: 2;
               -webkit-box-orient: vertical;
               overflow: hidden;
               text-overflow: ellipsis;
@@ -3227,33 +3228,40 @@ onMounted(() => {
   .stats-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    gap: 0.5rem;
+    gap: 0.75rem;
     width: 100%;
+    padding: 0.5rem;
 
     .stat-item {
-      background: var(--background-light);
-      border-radius: 0.5rem;
-      padding: 0.75rem;
+      background: white;
+      border-radius: 0.75rem;
+      padding: 1.25rem 0.75rem;
       text-align: center;
-      transition: all 0.3s ease;
-      border: 1px solid var(--border);
+      border: 2px solid var(--border);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
       display: flex;
       flex-direction: column;
       justify-content: center;
       min-height: 0; // Important for flex child
+      position: relative;
+      overflow: hidden;
 
-      &:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-        border-color: var(--primary);
+      &::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 4px;
+        background: linear-gradient(90deg, var(--primary) 0%, var(--primary-dark, darken(#42b883, 10%)) 100%);
       }
 
       .stat-value {
         font-size: 2.25rem;
         font-weight: 700;
         color: var(--text);
-        margin-bottom: 0.25rem;
-        background: linear-gradient(135deg, var(--primary) 0%, var(--primary) 100%);
+        margin-bottom: 0.5rem;
+        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark, darken(#42b883, 10%)) 100%);
         -webkit-background-clip: text;
         background-clip: text;
         -webkit-text-fill-color: transparent;
@@ -3261,10 +3269,10 @@ onMounted(() => {
       }
 
       .stat-label {
-        color: var(--text-light);
-        font-size: 1rem;
+        color: var(--text);
+        font-size: 0.9rem;
         font-weight: 500;
-        line-height: 1;
+        line-height: 1.2;
       }
     }
   }

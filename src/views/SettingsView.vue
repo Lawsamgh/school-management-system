@@ -216,6 +216,37 @@
                       ></textarea>
                     </div>
                   </div>
+                  <!-- Add date fields for superadmin only -->
+                  <div v-if="userRole === 'superadmin'" class="col-md-6 mt-3">
+                    <div class="form-group">
+                      <label for="startDate">Start Date <span class="text-muted small">(School active period start)</span></label>
+                      <input
+                        type="date"
+                        id="startDate"
+                        v-model="schoolInfo.start_date"
+                        class="form-control"
+                        placeholder="School active period start date"
+                      >
+                      <div class="form-text text-muted">
+                        The date from which the school account becomes active
+                      </div>
+                    </div>
+                  </div>
+                  <div v-if="userRole === 'superadmin'" class="col-md-6 mt-3">
+                    <div class="form-group">
+                      <label for="endDate">End Date <span class="text-muted small">(School active period end)</span></label>
+                      <input
+                        type="date"
+                        id="endDate"
+                        v-model="schoolInfo.end_date"
+                        class="form-control"
+                        placeholder="School active period end date"
+                      >
+                      <div class="form-text text-muted">
+                        The date until which the school account remains active
+                      </div>
+                    </div>
+                  </div>
                   <!-- Add refresh message -->
                   <div v-if="showRefreshMessage" class="col-12 mt-3">
                     <div class="alert alert-info d-flex align-items-center" role="alert">
@@ -1540,7 +1571,9 @@ const schoolInfo = ref({
   name: '',
   email: '',
   phone: '',
-  address: ''
+  address: '',
+  start_date: '',
+  end_date: ''
 })
 
 const educationalPrograms = ref({
@@ -1667,9 +1700,21 @@ const fetchSchoolInfo = async () => {
       return
     }
 
+    // First get school data from schools table
+    const { data: schoolData, error: schoolError } = await supabase
+      .from('schools')
+      .select('start_date, end_date')
+      .eq('id', schoolId)
+      .single()
+
+    if (schoolError && schoolError.code !== 'PGRST116') {
+      console.error('Error fetching school data:', schoolError)
+    }
+
+    // Then get setup data
     let query = supabase
       .from('setup')
-      .select('school_name, school_email, school_contact1, school_address, school_logo')
+      .select('school_name, school_email, school_contact1, school_address, school_logo, start_date, end_date')
       .eq('school_id', schoolId)
 
     const { data, error } = await query.single()
@@ -1687,10 +1732,17 @@ const fetchSchoolInfo = async () => {
         name: data.school_name || '',
         email: data.school_email || '',
         phone: data.school_contact1 || '',
-        address: data.school_address || ''
+        address: data.school_address || '',
+        // Use date from setup table if available, otherwise from schools table
+        start_date: data.start_date || (schoolData?.start_date || ''),
+        end_date: data.end_date || (schoolData?.end_date || '')
       }
       currentLogoUrl.value = data.school_logo || null
       schoolLogoPreview.value = data.school_logo || null
+    } else if (schoolData) {
+      // If we only have data from schools table
+      schoolInfo.value.start_date = schoolData.start_date || ''
+      schoolInfo.value.end_date = schoolData.end_date || ''
     }
   } catch (error: any) {
     console.error('Error fetching school info:', error)
@@ -1766,7 +1818,9 @@ const saveSchoolInfo = async () => {
           name: schoolInfo.value.name,
           email: schoolInfo.value.email,
           phone: schoolInfo.value.phone,
-          address: schoolInfo.value.address
+          address: schoolInfo.value.address,
+          start_date: schoolInfo.value.start_date,
+          end_date: schoolInfo.value.end_date
         })
         .eq('id', schoolId)
 
@@ -1786,7 +1840,9 @@ const saveSchoolInfo = async () => {
       school_contact1: schoolInfo.value.phone,
       school_address: schoolInfo.value.address,
       school_logo: logoUrl,
-      school_id: schoolId
+      school_id: schoolId,
+      start_date: schoolInfo.value.start_date,
+      end_date: schoolInfo.value.end_date
     }
 
     let result
@@ -2419,7 +2475,9 @@ const handleSchoolSelected = async (schoolId: string) => {
       name: '',
       email: '',
       phone: '',
-      address: ''
+      address: '',
+      start_date: '',
+      end_date: ''
     }
     schoolLogoPreview.value = null
     currentLogoUrl.value = null
@@ -2465,7 +2523,9 @@ watch(
         name: '',
         email: '',
         phone: '',
-        address: ''
+        address: '',
+        start_date: '',
+        end_date: ''
       }
       schoolLogoPreview.value = null
       currentLogoUrl.value = null

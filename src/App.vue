@@ -308,28 +308,13 @@
 
     <AppFooter v-if="!isAuthenticated && !isLoading && route.path !== '/login'" />
 
-    <!-- Modern Logout Confirmation -->
-    <Transition name="fade">
-      <div v-if="showLogoutPrompt" class="modern-prompt-overlay">
-        <div class="modern-prompt-container">
-          <div class="modern-prompt-icon">
-            <i class="fas fa-sign-out-alt"></i>
-          </div>
-          <h3>Ready to Leave?</h3>
-          <p>Are you sure you want to log out?</p>
-          <div class="modern-prompt-actions">
-            <button class="modern-btn cancel-btn" @click="cancelLogout">
-              <i class="fas fa-times"></i>
-              Cancel
-            </button>
-            <button class="modern-btn confirm-btn" @click="confirmLogout" :disabled="logoutLoading">
-              <i class="fas fa-check"></i>
-              {{ logoutLoading ? 'Logging out...' : 'Confirm' }}
-            </button>
-          </div>
-        </div>
-      </div>
-    </Transition>
+    <!-- Use the LogoutModal component -->
+    <LogoutModal 
+      :show="showLogoutPrompt" 
+      :loading="logoutLoading" 
+      @confirm="confirmLogout"
+      @cancel="cancelLogout"
+    />
   </div>
 </template>
 
@@ -341,6 +326,7 @@ import { useToast } from 'vue-toastification'
 import { supabase } from '@/lib/supabase'
 import { logActivity } from '@/lib/auditLogger'
 import AppFooter from '@/components/AppFooter.vue'
+import LogoutModal from '@/components/LogoutModal.vue'
 import 'bootstrap/dist/css/bootstrap.min.css'
 import * as bootstrap from 'bootstrap'
 import '@fortawesome/fontawesome-free/css/all.css'
@@ -608,7 +594,7 @@ style.textContent = `
   }
   
   .mega-menu-item[role="button"]:hover {
-    background-color: rgba(66, 184, 131, 0.05);
+    background-color: rgba(var(--primary-rgb), 0.05);
 }
 `
 document.head.appendChild(style)
@@ -1169,18 +1155,18 @@ html {
   display: flex;
   align-items: center;
   padding: 1.25rem;
-  background: white;
+  background: var(--background);
   border-radius: 12px;
   text-decoration: none;
   transition: all 0.3s ease;
-  border: 1px solid rgba(66, 184, 131, 0.1);
+  border: 1px solid rgba(var(--primary-rgb), 0.1);
   color: inherit;
 
   &:hover {
     transform: translateY(-2px);
-    background: rgba(66, 184, 131, 0.05);
-    border-color: #42b883;
-    box-shadow: 0 4px 12px rgba(66, 184, 131, 0.1);
+    background: rgba(var(--primary-rgb), 0.05);
+    border-color: var(--primary);
+    box-shadow: 0 4px 12px rgba(var(--primary-rgb), 0.1);
   }
 
   .mega-menu-icon {
@@ -1189,14 +1175,14 @@ html {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(66, 184, 131, 0.1);
+    background: rgba(var(--primary-rgb), 0.1);
     border-radius: 12px;
     margin-right: 1rem;
     flex-shrink: 0;
 
     i {
       font-size: 1.5rem;
-      color: #42b883;
+      color: var(--primary);
     }
   }
 
@@ -1204,14 +1190,14 @@ html {
     flex-grow: 1;
     
     h6 {
-      color: #2c3e50;
+      color: var(--text);
       margin: 0;
       font-weight: 600;
       font-size: 1rem;
     }
 
     p {
-      color: #666;
+      color: var(--text-light, #666);
       margin: 0.25rem 0 0;
       font-size: 0.875rem;
       opacity: 0.8;
@@ -1219,7 +1205,7 @@ html {
   }
 }
 
-// Update dropdown toggle styles
+// Dropdown toggle desktop styles
 .dropdown-toggle-desktop {
   position: relative;
   padding: 0.5rem 1rem !important;
@@ -1227,204 +1213,13 @@ html {
   transition: all 0.3s ease;
 
   &:hover {
-    background: rgba(66, 184, 131, 0.1);
+    background: rgba(var(--primary-rgb), 0.1);
   }
 
   &[aria-expanded="true"] {
-    background: rgba(66, 184, 131, 0.15);
-    color: #42b883;
+    background: rgba(var(--primary-rgb), 0.15);
+    color: var(--primary);
 
-    .dropdown-arrow {
-      transform: rotate(180deg);
-    }
-  }
-
-  .dropdown-arrow {
-    transition: transform 0.3s ease;
-  }
-}
-
-// Mobile menu adjustments
-@media (max-width: 991.98px) {
-  .nav-link, 
-  .dropdown-item, 
-  .mobile-menu-toggle {
-    cursor: pointer !important;
-    
-    &:active {
-      opacity: 0.7;
-    }
-  }
-  
-  .mobile-menu-section {
-    .dropdown-item {
-      display: flex;
-      align-items: center;
-      padding: 0.75rem 1rem;
-      cursor: pointer;
-      
-      i {
-        width: 24px;
-        color: #42b883;
-      }
-    }
-  }
-  
-  .mobile-menu-toggle {
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    user-select: none;
-    -webkit-tap-highlight-color: transparent;
-    
-    &:active {
-      opacity: 0.7;
-    }
-  }
-}
-
-.mega-menu-item.router-link-active,
-.mega-menu-item.router-link-exact-active {
-  background: #e6f7f0;
-  border-color: #42b883;
-  box-shadow: 0 2px 8px rgba(66, 184, 131, 0.08);
-  color: #42b883;
-}
-
-.dropdown-item.router-link-active,
-.dropdown-item.router-link-exact-active {
-  background: #42b883;
-  color: #fff;
-}
-
-.navbar-nav a, 
-.dropdown-toggle-desktop,
-.mobile-menu-toggle,
-.dropdown-item,
-.nav-link {
-  cursor: pointer !important;
-}
-
-// Modern Prompt Styles
-.modern-prompt-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(4px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1060;
-}
-
-.modern-prompt-container {
-  background: white;
-  border-radius: 16px;
-  padding: 2rem;
-  width: 90%;
-  max-width: 400px;
-  text-align: center;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-  transform: translateY(0);
-  transition: transform 0.3s ease;
-}
-
-.modern-prompt-icon {
-  width: 64px;
-  height: 64px;
-  background: #42b883;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0 auto 1.5rem;
-  
-  i {
-    font-size: 28px;
-    color: white;
-  }
-}
-
-.modern-prompt-container h3 {
-  color: #2c3e50;
-  font-size: 1.5rem;
-  font-weight: 600;
-  margin-bottom: 0.5rem;
-}
-
-.modern-prompt-container p {
-  color: #6b7280;
-  margin-bottom: 1.5rem;
-}
-
-.modern-prompt-actions {
-  display: flex;
-  gap: 1rem;
-  justify-content: center;
-}
-
-.modern-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1.5rem;
-  border-radius: 8px;
-  font-weight: 500;
-  transition: all 0.3s ease;
-  border: none;
-  cursor: pointer;
-  
-  i {
-    font-size: 0.875rem;
-  }
-  
-  &:disabled {
-    opacity: 0.7;
-    cursor: not-allowed;
-  }
-}
-
-.cancel-btn {
-  background: #f3f4f6;
-  color: #4b5563;
-  
-  &:hover:not(:disabled) {
-    background: #e5e7eb;
-    transform: translateY(-1px);
-  }
-}
-
-.confirm-btn {
-  background: #42b883;
-  color: white;
-  
-  &:hover:not(:disabled) {
-    background: darken(#42b883, 5%);
-    transform: translateY(-1px);
-  }
-}
-
-// Fade transition
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.3s ease;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
-
-.fade-enter-to,
-.fade-leave-from {
-  opacity: 1;
-}
-
-.dropdown-toggle-desktop {
-  &[aria-expanded="true"] {
     .dropdown-arrow {
       transform: rotate(180deg);
     }
@@ -1446,8 +1241,8 @@ html {
     }
     
     &:hover {
-      background-color: rgba(66, 184, 131, 0.1);
-      color: #42b883;
+      background-color: rgba(var(--primary-rgb), 0.1);
+      color: var(--primary);
       
       i {
         transform: translateX(2px);
@@ -1471,103 +1266,7 @@ html {
   --secondary-rgb: 53, 73, 94;
 }
 
-.mega-menu-dropdown {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  background: var(--background);
-  z-index: 1050;
-  padding: 1.5rem;
-  border-bottom-left-radius: 12px;
-  border-bottom-right-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-  border: 1px solid var(--border);
-  border-top: none;
-
-  .menu-section {
-    h6 {
-      color: var(--text);
-      font-weight: 600;
-      margin-bottom: 1rem;
-      font-size: 0.875rem;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-
-    .menu-item {
-      display: flex;
-      align-items: center;
-      padding: 0.75rem;
-      border-radius: 8px;
-      color: var(--text);
-      transition: all 0.2s ease;
-      text-decoration: none;
-
-      i {
-        color: var(--primary);
-        margin-right: 0.75rem;
-        font-size: 1.1rem;
-        opacity: 0.8;
-        transition: all 0.2s ease;
-      }
-
-      &:hover {
-        background: rgba(var(--primary-rgb), 0.1);
-        color: var(--primary);
-
-        i {
-          opacity: 1;
-          transform: scale(1.1);
-        }
-      }
-
-      .item-title {
-        font-weight: 500;
-        margin-bottom: 0.25rem;
-      }
-
-      .item-description {
-        font-size: 0.875rem;
-        color: var(--text-light);
-        margin: 0;
-      }
-    }
-  }
-
-  .featured-section {
-    background: linear-gradient(135deg, var(--primary) 0%, var(--primary) 100%);
-    border-radius: 12px;
-    padding: 1.5rem;
-    color: white;
-
-    h5 {
-      font-weight: 600;
-      margin-bottom: 1rem;
-    }
-
-    p {
-      opacity: 0.9;
-      margin-bottom: 1.5rem;
-    }
-
-    .btn-light {
-      background: white;
-      color: var(--primary);
-      border: none;
-      padding: 0.5rem 1rem;
-      border-radius: 6px;
-      font-weight: 500;
-      transition: all 0.2s ease;
-
-      &:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-      }
-    }
-  }
-}
-
+// User dropdown styles
 .user-dropdown {
   min-width: 280px;
   padding: 0;

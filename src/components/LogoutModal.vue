@@ -2,7 +2,12 @@
   <Teleport to="#app">
     <Transition name="modal">
       <div v-if="show" class="modal-backdrop">
-        <div class="modal-container" @click.stop>
+        <div 
+          class="modal-container" 
+          :class="themeClass"
+          @click.stop 
+          ref="modalContainer"
+        >
           <div class="modal-content">
             <div class="modal-icon">
               <i class="fas fa-sign-out-alt"></i>
@@ -33,15 +38,52 @@
 </template>
 
 <script setup lang="ts">
-defineProps<{
+import { onMounted, watch, ref, computed } from 'vue'
+import { useAuthStore } from '@/store/auth'
+
+const props = defineProps<{
   show: boolean
   loading: boolean
 }>()
+
+const authStore = useAuthStore()
+const modalContainer = ref<HTMLElement | null>(null)
 
 defineEmits<{
   (e: 'confirm'): void
   (e: 'cancel'): void
 }>()
+
+// Computed property to get the current theme class
+const themeClass = computed(() => {
+  const schoolId = authStore.userRole?.school_id || authStore.getSelectedSchoolId
+  return schoolId ? `school-${schoolId}` : ''
+})
+
+// Function to apply theme classes to the modal
+const applyThemeClasses = () => {
+  if (props.show && modalContainer.value) {
+    const schoolId = authStore.userRole?.school_id || authStore.getSelectedSchoolId
+    if (schoolId) {
+      modalContainer.value.classList.add(`school-${schoolId}`)
+      console.log(`Applied school theme: school-${schoolId} to logout modal`)
+    }
+  }
+}
+
+// Watch for changes to the show property
+watch(() => props.show, (newVal) => {
+  if (newVal) {
+    // When modal is shown, apply theme
+    setTimeout(applyThemeClasses, 10)
+  }
+})
+
+onMounted(() => {
+  if (props.show) {
+    applyThemeClasses()
+  }
+})
 </script>
 
 <style scoped lang="scss">
@@ -70,6 +112,7 @@ defineEmits<{
   transition: transform 0.3s ease-out;
   max-height: 90vh;
   overflow-y: auto;
+  border: 1px solid rgba(var(--primary-rgb, 66, 184, 131), 0.1);
 }
 
 .modal-content {
@@ -85,6 +128,7 @@ defineEmits<{
   align-items: center;
   justify-content: center;
   margin: 0 auto 1.5rem;
+  box-shadow: 0 0 15px rgba(var(--primary-rgb, 66, 184, 131), 0.3);
   
   i {
     font-size: 28px;
@@ -115,6 +159,12 @@ defineEmits<{
     min-width: 120px;
     padding: 0.625rem 1.25rem;
     font-weight: 500;
+    transition: all 0.3s ease;
+    border-radius: 8px;
+    
+    &:hover:not(:disabled) {
+      transform: translateY(-2px);
+    }
     
     &.btn-outline-secondary {
       border: 1px solid var(--border, #e2e8f0);
@@ -124,6 +174,7 @@ defineEmits<{
       &:hover:not(:disabled) {
         background-color: rgba(var(--secondary-rgb, 53, 73, 94), 0.05);
         color: var(--text, #2c3e50);
+        border-color: var(--secondary, #35495e);
       }
     }
     
@@ -131,14 +182,22 @@ defineEmits<{
       background-color: var(--primary, #42b883);
       border-color: var(--primary, #42b883);
       color: white;
+      box-shadow: 0 4px 6px rgba(var(--primary-rgb, 66, 184, 131), 0.2);
       
       &:hover:not(:disabled) {
+        background-color: var(--primary, #42b883);
         filter: brightness(90%);
+        box-shadow: 0 6px 12px rgba(var(--primary-rgb, 66, 184, 131), 0.3);
       }
       
       &:disabled {
         opacity: 0.7;
         cursor: not-allowed;
+      }
+      
+      .spinner-border {
+        border-color: white;
+        border-right-color: transparent;
       }
     }
   }
